@@ -14,7 +14,7 @@ import {
 } from 'chart.js';
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { Line } from 'vue-chartjs';
+import { Bar, Line } from 'vue-chartjs';
 import { useI18n } from 'vue-i18n';
 
 ChartJS.register(
@@ -35,6 +35,9 @@ const props = defineProps({
 
 const { t } = useI18n();
 const summary = computed(() => props.statistics.summary);
+const byArea = computed(() => props.statistics.by_area ?? []);
+const areaLabels = computed(() => byArea.value.map((row) => row.area_name));
+const hasAreaData = computed(() => byArea.value.length > 0);
 
 const applicationChart = computed(() => ({
     labels: props.statistics.application_timeline.map((r) => r.date),
@@ -70,10 +73,132 @@ const interviewChart = computed(() => ({
     ],
 }));
 
-const chartOptions = {
+const statusByAreaChart = computed(() => ({
+    labels: areaLabels.value,
+    datasets: [
+        {
+            label: t('app.status.a_candidatar'),
+            data: byArea.value.map((row) => row.waiting_to_apply),
+            backgroundColor: '#0ea5e9',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.esperando'),
+            data: byArea.value.map((row) => row.waiting),
+            backgroundColor: '#f59e0b',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.rejeitado'),
+            data: byArea.value.map((row) => row.rejections),
+            backgroundColor: '#ef4444',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.oferta'),
+            data: byArea.value.map((row) => row.offers),
+            backgroundColor: '#10b981',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.recusado'),
+            data: byArea.value.map((row) => row.declined_by_me),
+            backgroundColor: '#a855f7',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.retirada'),
+            data: byArea.value.map((row) => row.withdrawn ?? 0),
+            backgroundColor: '#64748b',
+            stack: 'status',
+        },
+        {
+            label: t('app.status.cancelada'),
+            data: byArea.value.map((row) => row.cancelled ?? 0),
+            backgroundColor: '#71717a',
+            stack: 'status',
+        },
+    ],
+}));
+
+const offersByAreaChart = computed(() => ({
+    labels: areaLabels.value,
+    datasets: [
+        {
+            label: t('app.dashboard.offers_by_area'),
+            data: byArea.value.map((row) => row.offers),
+            backgroundColor: '#10b981',
+        },
+    ],
+}));
+
+const interviewsByAreaChart = computed(() => ({
+    labels: areaLabels.value,
+    datasets: [
+        {
+            label: t('app.dashboard.interviews_by_area'),
+            data: byArea.value.map((row) => row.interviews),
+            backgroundColor: '#10b981',
+        },
+    ],
+}));
+
+const interviewsByAreaRelativeChart = computed(() => ({
+    labels: areaLabels.value,
+    datasets: [
+        {
+            label: t('app.dashboard.interviews_by_area_relative'),
+            data: byArea.value.map((row) => Math.round(row.pct_interviews * 100)),
+            backgroundColor: '#3b82f6',
+        },
+    ],
+}));
+
+const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { position: 'bottom' } },
+};
+
+const stackedBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+        x: { stacked: true },
+        y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0 },
+        },
+    },
+};
+
+const countBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0 },
+        },
+    },
+};
+
+const percentBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+        y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+                callback: (value) => `${value}%`,
+            },
+        },
+    },
 };
 </script>
 
@@ -139,7 +264,7 @@ const chartOptions = {
                             <Line
                                 v-if="statistics.application_timeline.length"
                                 :data="applicationChart"
-                                :options="chartOptions"
+                                :options="lineChartOptions"
                             />
                             <p v-else class="text-sm text-gray-500">—</p>
                         </div>
@@ -154,9 +279,64 @@ const chartOptions = {
                             <Line
                                 v-if="statistics.interview_timeline.length"
                                 :data="interviewChart"
-                                :options="chartOptions"
+                                :options="lineChartOptions"
                             />
                             <p v-else class="text-sm text-gray-500">—</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="hasAreaData" class="grid gap-6 lg:grid-cols-2">
+                    <div
+                        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.dashboard.status_by_area') }}
+                        </h3>
+                        <div class="h-72">
+                            <Bar
+                                :data="statusByAreaChart"
+                                :options="stackedBarOptions"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.dashboard.interviews_by_area') }}
+                        </h3>
+                        <div class="h-72">
+                            <Bar
+                                :data="interviewsByAreaChart"
+                                :options="countBarOptions"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.dashboard.offers_by_area') }}
+                        </h3>
+                        <div class="h-72">
+                            <Bar
+                                :data="offersByAreaChart"
+                                :options="countBarOptions"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.dashboard.interviews_by_area_relative') }}
+                        </h3>
+                        <div class="h-72">
+                            <Bar
+                                :data="interviewsByAreaRelativeChart"
+                                :options="percentBarOptions"
+                            />
                         </div>
                     </div>
                 </div>
@@ -169,7 +349,7 @@ const chartOptions = {
                             {{ t('app.dashboard.by_area') }}
                         </h3>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div v-if="hasAreaData" class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900/50">
                                 <tr>
@@ -195,7 +375,7 @@ const chartOptions = {
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                 <tr
-                                    v-for="row in statistics.by_area"
+                                    v-for="row in byArea"
                                     :key="row.area_id"
                                     class="hover:bg-gray-50 dark:hover:bg-gray-900/30"
                                 >
@@ -221,6 +401,9 @@ const chartOptions = {
                             </tbody>
                         </table>
                     </div>
+                    <p v-else class="px-5 py-8 text-center text-sm text-gray-500">
+                        —
+                    </p>
                 </div>
             </div>
         </div>

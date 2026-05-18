@@ -75,6 +75,8 @@ class ApplicationStatisticsService
                 $waiting = $group->where('status', ApplicationStatus::Waiting)->count();
                 $waitingToApply = $group->where('status', ApplicationStatus::WaitingToApply)->count();
                 $declinedByMe = $group->where('status', ApplicationStatus::DeclinedByMe)->count();
+                $withdrawn = $group->where('status', ApplicationStatus::Withdrawn)->count();
+                $cancelled = $group->where('status', ApplicationStatus::Cancelled)->count();
                 $offers = $group->where('status', ApplicationStatus::Offer)->count();
 
                 $pct = fn (int $count) => $total > 0 ? round($count / $total, 4) : 0;
@@ -90,6 +92,8 @@ class ApplicationStatisticsService
                     'waiting' => $waiting,
                     'waiting_to_apply' => $waitingToApply,
                     'declined_by_me' => $declinedByMe,
+                    'withdrawn' => $withdrawn,
+                    'cancelled' => $cancelled,
                     'offers' => $offers,
                     'pct_rejections' => $pct($rejections),
                     'pct_interviews' => $pct($interviews),
