@@ -1,5 +1,17 @@
 # Apleqz — Job Application Tracker
 
+![PHP](https://img.shields.io/badge/PHP-8.3+-777BB4?style=flat&logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?style=flat&logo=laravel&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=flat&logo=postgresql&logoColor=white)
+![Vue.js](https://img.shields.io/badge/Vue.js-3-4FC08D?style=flat&logo=vuedotjs&logoColor=white)
+![Inertia.js](https://img.shields.io/badge/Inertia.js-2-9553E9?style=flat&logo=inertia&logoColor=white)
+![Filament](https://img.shields.io/badge/Filament-4-F59E0B?style=flat)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=flat&logo=tailwindcss&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat&logo=vite&logoColor=white)
+![Chart.js](https://img.shields.io/badge/Chart.js-4-FF6384?style=flat&logo=chartdotjs&logoColor=white)
+![vue-i18n](https://img.shields.io/badge/vue--i18n-11-42b883?style=flat&logo=vue.js&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+
 Multi-user Laravel application to track job applications, statistics, and interview timelines. Built with **Laravel 13**, **PostgreSQL**, **Inertia.js**, **Vue 3**, and **Filament** for administration.
 
 ## Requirements
