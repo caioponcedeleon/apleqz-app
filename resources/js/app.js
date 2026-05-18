@@ -5,7 +5,7 @@ import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
-import { setupI18n } from './i18n';
+import { setupI18n, syncI18nFromPage } from './i18n';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -25,10 +25,8 @@ createInertiaApp({
             .use(ZiggyVue)
             .use(i18n);
 
-        router.on('navigate', (event) => {
-            const { locale, translations } = event.detail.page.props;
-            i18n.global.locale.value = locale;
-            i18n.global.setLocaleMessage(locale, translations);
+        router.on('success', (event) => {
+            syncI18nFromPage(i18n, event.detail.page.props);
         });
 
         app.mount(el);

@@ -75,10 +75,40 @@ class TranslationService
         $translations = [];
 
         foreach ($lines as $line) {
-            $translations[$line->group][$line->key] = $line->value;
+            $group = $line->group;
+            $segments = explode('.', $line->key);
+
+            if (! isset($translations[$group])) {
+                $translations[$group] = [];
+            }
+
+            $this->setNestedValue($translations[$group], $segments, $line->value);
         }
 
         return $translations;
+    }
+
+    /**
+     * @param  array<string, mixed>  $array
+     * @param  list<string>  $segments
+     */
+    protected function setNestedValue(array &$array, array $segments, string $value): void
+    {
+        $current = &$array;
+
+        foreach ($segments as $index => $segment) {
+            if ($index === count($segments) - 1) {
+                $current[$segment] = $value;
+
+                return;
+            }
+
+            if (! isset($current[$segment]) || ! is_array($current[$segment])) {
+                $current[$segment] = [];
+            }
+
+            $current = &$current[$segment];
+        }
     }
 
     public function seedFromFiles(string $locale): int
