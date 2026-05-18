@@ -1,5 +1,4 @@
 <script setup>
-import AreaManager from '@/Components/AreaManager.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -32,6 +31,14 @@ const form = useForm({
     job_url: props.application?.job_url ?? '',
 });
 
+const requiresAppliedDate = computed(() => form.status !== 'a_candidatar');
+
+const appliedAtLabel = computed(() =>
+    requiresAppliedDate.value
+        ? t('app.applications.applied_at')
+        : t('app.applications.planned_apply_at'),
+);
+
 const submit = () => {
     if (isEdit.value) {
         form.put(route('applications.update', props.application.id));
@@ -52,9 +59,9 @@ const submit = () => {
         </template>
 
         <div class="py-8">
-            <div class="mx-auto grid max-w-7xl gap-6 sm:px-6 lg:grid-cols-3 lg:px-8">
+            <div class="mx-auto max-w-3xl sm:px-6 lg:px-8">
                 <form
-                    class="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+                    class="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     @submit.prevent="submit"
                 >
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -91,8 +98,13 @@ const submit = () => {
                         </div>
 
                         <div>
-                            <InputLabel :value="t('app.applications.applied_at')" />
-                            <TextInput v-model="form.applied_at" type="date" class="mt-1 block w-full" required />
+                            <InputLabel :value="appliedAtLabel" />
+                            <TextInput
+                                v-model="form.applied_at"
+                                type="date"
+                                class="mt-1 block w-full"
+                                :required="requiresAppliedDate"
+                            />
                             <InputError class="mt-1" :message="form.errors.applied_at" />
                         </div>
 
@@ -153,8 +165,6 @@ const submit = () => {
                         </Link>
                     </div>
                 </form>
-
-                <AreaManager :areas="areas" />
             </div>
         </div>
     </AuthenticatedLayout>

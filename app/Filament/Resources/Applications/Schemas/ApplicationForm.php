@@ -26,7 +26,8 @@ class ApplicationForm
                 TextInput::make('position')->required()->maxLength(255),
                 TextInput::make('company')->required()->maxLength(255),
                 TextInput::make('location')->maxLength(255),
-                DatePicker::make('applied_at')->required(),
+                DatePicker::make('applied_at')
+                    ->required(fn ($get) => ApplicationStatus::tryFrom($get('status') ?? '')?->requiresAppliedDate() ?? true),
                 Select::make('status')
                     ->options(collect(ApplicationStatus::cases())->mapWithKeys(
                         fn (ApplicationStatus $s) => [$s->value => $s->value]

@@ -27,7 +27,7 @@ class TranslationService
 
     public function translationsForLocale(string $locale): array
     {
-        return Cache::remember("translations.{$locale}", 3600, function () use ($locale) {
+        return Cache::remember($this->cacheKey($locale), 3600, function () use ($locale) {
             $fileTranslations = $this->loadFileTranslations($locale);
             $dbTranslations = $this->loadDatabaseTranslations($locale);
 
@@ -35,8 +35,20 @@ class TranslationService
         });
     }
 
+    public function syncAllFromFiles(): int
+    {
+        $count = 0;
+
+        foreach ($this->availableLocales() as $locale) {
+            $count += $this->seedFromFiles($locale);
+        }
+
+        return $count;
+    }
+
     public function flush(string $locale): void
     {
+        Cache::forget($this->cacheKey($locale));
         Cache::forget("translations.{$locale}");
     }
 
@@ -45,6 +57,30 @@ class TranslationService
         foreach ($this->availableLocales() as $locale) {
             $this->flush($locale);
         }
+    }
+
+    protected function cacheKey(string $locale): string
+    {
+        return 'translations.'.$locale.'.'.$this->fileRevisionHash($locale);
+    }
+
+    protected function fileRevisionHash(string $locale): string
+    {
+        $path = lang_path($locale);
+
+        if (! File::isDirectory($path)) {
+            return 'empty';
+        }
+
+        $parts = [];
+
+        foreach (File::files($path) as $file) {
+            $parts[] = $file->getFilename().':'.filemtime($file->getPathname());
+        }
+
+        sort($parts);
+
+        return md5(implode('|', $parts));
     }
 
     protected function loadFileTranslations(string $locale): array

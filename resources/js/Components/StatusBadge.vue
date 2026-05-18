@@ -17,6 +17,7 @@ const classes = computed(() => {
         orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
         slate: 'bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200',
         zinc: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200',
+        sky: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
     };
 
     return `inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${map[props.color] ?? map.slate}`;

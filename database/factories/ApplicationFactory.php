@@ -17,8 +17,10 @@ class ApplicationFactory extends Factory
 
     public function definition(): array
     {
-        $appliedAt = fake()->dateTimeBetween('-3 months', 'now');
         $status = fake()->randomElement(ApplicationStatus::cases());
+        $appliedAt = $status === ApplicationStatus::WaitingToApply
+            ? fake()->optional(0.4)->dateTimeBetween('now', '+2 months')
+            : fake()->dateTimeBetween('-3 months', 'now');
 
         return [
             'user_id' => User::factory(),

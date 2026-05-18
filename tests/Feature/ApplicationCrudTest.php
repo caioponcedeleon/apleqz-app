@@ -34,4 +34,30 @@ class ApplicationCrudTest extends TestCase
             'company' => 'Acme',
         ]);
     }
+
+    public function test_application_search_is_case_insensitive(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+
+        $user->applications()->create([
+            'area_id' => $area->id,
+            'position' => 'Senior Backend Engineer',
+            'company' => 'Globex Corporation',
+            'applied_at' => '2026-05-01',
+            'status' => ApplicationStatus::Waiting,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('applications.index', ['search' => 'backend']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('applications.data', 1)
+                ->where('applications.data.0.position', 'Senior Backend Engineer'));
+
+        $this->actingAs($user)
+            ->get(route('applications.index', ['search' => 'GLOBEX']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('applications.data', 1));
+    }
 }

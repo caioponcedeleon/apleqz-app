@@ -13,6 +13,13 @@ class ApplicationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('applied_at') === '') {
+            $this->merge(['applied_at' => null]);
+        }
+    }
+
     public function rules(): array
     {
         $statuses = ApplicationStatus::values();
@@ -22,9 +29,19 @@ class ApplicationRequest extends FormRequest
             'position' => ['required', 'string', 'max:255'],
             'company' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
-            'applied_at' => ['required', 'date'],
+            'applied_at' => [
+                Rule::requiredIf(
+                    fn () => ApplicationStatus::tryFrom($this->input('status', ''))?->requiresAppliedDate() ?? true
+                ),
+                'nullable',
+                'date',
+            ],
+            'rejected_at' => [
+                'nullable',
+                'date',
+                Rule::when($this->filled('applied_at'), 'after_or_equal:applied_at'),
+            ],
             'status' => ['required', Rule::in($statuses)],
-            'rejected_at' => ['nullable', 'date', 'after_or_equal:applied_at'],
             'interview_date' => ['nullable', 'date'],
             'channel' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],

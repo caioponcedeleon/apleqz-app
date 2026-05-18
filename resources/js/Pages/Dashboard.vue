@@ -111,6 +111,10 @@ const chartOptions = {
                         :value="summary.total_waiting"
                     />
                     <StatCard
+                        :label="t('app.dashboard.total_waiting_to_apply')"
+                        :value="summary.total_waiting_to_apply"
+                    />
+                    <StatCard
                         :label="t('app.dashboard.total_declined_by_me')"
                         :value="summary.total_declined_by_me"
                     />

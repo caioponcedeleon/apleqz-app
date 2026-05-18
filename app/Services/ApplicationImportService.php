@@ -15,6 +15,9 @@ class ApplicationImportService
 {
     /** @var array<string, ApplicationStatus> */
     protected array $statusMap = [
+        'a_candidatar' => ApplicationStatus::WaitingToApply,
+        'a candidatar' => ApplicationStatus::WaitingToApply,
+        'por candidatar' => ApplicationStatus::WaitingToApply,
         'esperando' => ApplicationStatus::Waiting,
         'rejeitado' => ApplicationStatus::Rejected,
         'oferta' => ApplicationStatus::Offer,
@@ -64,10 +67,17 @@ class ApplicationImportService
                     $areaName = trim((string) ($values[1] ?? ''));
                     $area = $this->resolveArea($user, $areaName);
 
-                    $appliedAt = $this->parseDate($values[4] ?? null);
                     $status = $this->parseStatus($values[5] ?? null);
 
-                    if (! $appliedAt || ! $status) {
+                    if (! $status) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    $appliedAt = $this->parseDate($values[4] ?? null);
+
+                    if ($status->requiresAppliedDate() && ! $appliedAt) {
                         $skipped++;
 
                         continue;

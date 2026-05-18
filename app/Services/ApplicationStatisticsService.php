@@ -31,6 +31,7 @@ class ApplicationStatisticsService
         $interviews = $applications->filter(fn (Application $a) => $a->hasInterview())->count();
         $offers = $applications->where('status', ApplicationStatus::Offer)->count();
         $waiting = $applications->where('status', ApplicationStatus::Waiting)->count();
+        $waitingToApply = $applications->where('status', ApplicationStatus::WaitingToApply)->count();
         $declinedByMe = $applications->where('status', ApplicationStatus::DeclinedByMe)->count();
 
         $rejectionDays = $applications
@@ -42,6 +43,7 @@ class ApplicationStatisticsService
             : null;
 
         $dailyCounts = $applications
+            ->filter(fn (Application $a) => $a->applied_at !== null)
             ->groupBy(fn (Application $a) => $a->applied_at->toDateString())
             ->map->count();
 
@@ -55,6 +57,7 @@ class ApplicationStatisticsService
             'total_interviews' => $interviews,
             'total_offers' => $offers,
             'total_waiting' => $waiting,
+            'total_waiting_to_apply' => $waitingToApply,
             'total_declined_by_me' => $declinedByMe,
             'avg_days_to_rejection' => $avgDaysToRejection,
             'avg_applications_per_day' => $avgApplicationsPerDay,
@@ -70,6 +73,7 @@ class ApplicationStatisticsService
                 $rejections = $group->where('status', ApplicationStatus::Rejected)->count();
                 $interviews = $group->filter(fn (Application $a) => $a->hasInterview())->count();
                 $waiting = $group->where('status', ApplicationStatus::Waiting)->count();
+                $waitingToApply = $group->where('status', ApplicationStatus::WaitingToApply)->count();
                 $declinedByMe = $group->where('status', ApplicationStatus::DeclinedByMe)->count();
                 $offers = $group->where('status', ApplicationStatus::Offer)->count();
 
@@ -84,6 +88,7 @@ class ApplicationStatisticsService
                     'rejections' => $rejections,
                     'interviews' => $interviews,
                     'waiting' => $waiting,
+                    'waiting_to_apply' => $waitingToApply,
                     'declined_by_me' => $declinedByMe,
                     'offers' => $offers,
                     'pct_rejections' => $pct($rejections),
@@ -103,6 +108,7 @@ class ApplicationStatisticsService
     protected function applicationTimeline(Collection $applications): array
     {
         $dates = $applications
+            ->filter(fn (Application $a) => $a->applied_at !== null)
             ->pluck('applied_at')
             ->map(fn ($d) => $d->toDateString())
             ->unique()
@@ -114,7 +120,7 @@ class ApplicationStatisticsService
 
         return $dates->map(function (string $date) use ($applications, &$cumulative, &$previousCumulative) {
             $cumulative = $applications->filter(
-                fn (Application $a) => $a->applied_at->toDateString() <= $date
+                fn (Application $a) => $a->applied_at !== null && $a->applied_at->toDateString() <= $date
             )->count();
 
             $daily = $cumulative - $previousCumulative;

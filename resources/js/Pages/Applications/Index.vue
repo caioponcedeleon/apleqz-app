@@ -1,11 +1,12 @@
 <script setup>
 import ApplicationImport from '@/Components/ApplicationImport.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -19,6 +20,7 @@ const { t } = useI18n();
 const page = usePage();
 
 const statusColors = {
+    a_candidatar: 'sky',
     esperando: 'amber',
     rejeitado: 'red',
     oferta: 'emerald',
@@ -30,6 +32,9 @@ const statusColors = {
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const areaId = ref(props.filters.area_id ?? '');
+
+let searchDebounce = null;
+let suppressFilterWatch = false;
 
 const applyFilters = () => {
     router.get(
@@ -43,7 +48,34 @@ const applyFilters = () => {
     );
 };
 
-watch([status, areaId], applyFilters);
+const hasActiveFilters = computed(
+    () => Boolean(search.value || status.value || areaId.value),
+);
+
+const clearFilters = () => {
+    clearTimeout(searchDebounce);
+    suppressFilterWatch = true;
+    search.value = '';
+    status.value = '';
+    areaId.value = '';
+    suppressFilterWatch = false;
+    applyFilters();
+};
+
+watch([status, areaId], () => {
+    if (!suppressFilterWatch) {
+        applyFilters();
+    }
+});
+
+watch(search, () => {
+    if (suppressFilterWatch) {
+        return;
+    }
+
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(applyFilters, 300);
+});
 
 const deleteApplication = (id) => {
     if (!confirm(t('app.applications.delete_confirm'))) return;
@@ -88,15 +120,11 @@ const formatDate = (value) => {
                 >
                     {{ page.props.flash.error }}
                 </p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t('app.applications.import_hint') }}
-                </p>
-                <div class="flex flex-wrap gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+                <div class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                     <TextInput
                         v-model="search"
                         class="min-w-[200px] flex-1"
                         :placeholder="t('app.applications.search')"
-                        @keyup.enter="applyFilters"
                     />
                     <select
                         v-model="status"
@@ -112,7 +140,13 @@ const formatDate = (value) => {
                         <option value="">{{ t('app.applications.filter_area') }}</option>
                         <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.name }}</option>
                     </select>
-                    <PrimaryButton @click="applyFilters">{{ t('app.applications.search') }}</PrimaryButton>
+                    <SecondaryButton
+                        v-if="hasActiveFilters"
+                        type="button"
+                        @click="clearFilters"
+                    >
+                        {{ t('app.applications.clear_filters') }}
+                    </SecondaryButton>
                 </div>
 
                 <div

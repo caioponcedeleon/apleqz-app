@@ -29,10 +29,10 @@ class ApplicationController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = $request->string('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('position', 'like', "%{$search}%")
-                    ->orWhere('company', 'like', "%{$search}%");
+            $term = '%'.mb_strtolower($request->string('search')).'%';
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(position) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(company) LIKE ?', [$term]);
             });
         }
 

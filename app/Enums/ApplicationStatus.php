@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum ApplicationStatus: string
 {
+    case WaitingToApply = 'a_candidatar';
     case Waiting = 'esperando';
     case Rejected = 'rejeitado';
     case Offer = 'oferta';
@@ -16,6 +17,11 @@ enum ApplicationStatus: string
         return array_column(self::cases(), 'value');
     }
 
+    public function requiresAppliedDate(): bool
+    {
+        return $this !== self::WaitingToApply;
+    }
+
     public function requiresRejectionDate(): bool
     {
         return in_array($this, [self::Rejected, self::Cancelled], true);
@@ -24,6 +30,7 @@ enum ApplicationStatus: string
     public function badgeColor(): string
     {
         return match ($this) {
+            self::WaitingToApply => 'sky',
             self::Waiting => 'amber',
             self::Rejected => 'red',
             self::Offer => 'emerald',
