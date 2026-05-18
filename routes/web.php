@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\ApplicationImportController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
@@ -23,6 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('applications', ApplicationController::class)->except(['show']);
+    Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
 
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
     Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');

@@ -1,9 +1,10 @@
 <script setup>
+import ApplicationImport from '@/Components/ApplicationImport.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const statusColors = {
     esperando: 'amber',
@@ -63,14 +65,32 @@ const formatDate = (value) => {
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
                     {{ t('app.applications.title') }}
                 </h2>
-                <Link :href="route('applications.create')">
-                    <PrimaryButton>{{ t('app.applications.new') }}</PrimaryButton>
-                </Link>
+                <div class="flex flex-wrap items-center gap-2">
+                    <ApplicationImport />
+                    <Link :href="route('applications.create')">
+                        <PrimaryButton>{{ t('app.applications.new') }}</PrimaryButton>
+                    </Link>
+                </div>
             </div>
         </template>
 
         <div class="py-8">
             <div class="mx-auto max-w-7xl space-y-4 sm:px-6 lg:px-8">
+                <p
+                    v-if="page.props.flash?.success"
+                    class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
+                >
+                    {{ page.props.flash.success }}
+                </p>
+                <p
+                    v-if="page.props.flash?.error"
+                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
+                >
+                    {{ page.props.flash.error }}
+                </p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('app.applications.import_hint') }}
+                </p>
                 <div class="flex flex-wrap gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                     <TextInput
                         v-model="search"
