@@ -220,30 +220,37 @@ const percentBarOptions = {
                         :value="summary.total_applications"
                     />
                     <StatCard
+                        tone="red"
                         :label="t('app.dashboard.total_rejections')"
                         :value="summary.total_rejections"
                     />
                     <StatCard
+                        tone="amber"
                         :label="t('app.dashboard.total_interviews')"
                         :value="summary.total_interviews"
                     />
                     <StatCard
+                        tone="emerald"
                         :label="t('app.dashboard.total_offers')"
                         :value="summary.total_offers"
                     />
                     <StatCard
+                        tone="amber"
                         :label="t('app.dashboard.total_waiting')"
                         :value="summary.total_waiting"
                     />
                     <StatCard
+                        tone="slate"
                         :label="t('app.dashboard.total_waiting_to_apply')"
                         :value="summary.total_waiting_to_apply"
                     />
                     <StatCard
+                        tone="red"
                         :label="t('app.dashboard.total_declined_by_me')"
                         :value="summary.total_declined_by_me"
                     />
                     <StatCard
+                        tone="red"
                         :label="t('app.dashboard.avg_days_to_rejection')"
                         :value="summary.avg_days_to_rejection ?? '—'"
                     />

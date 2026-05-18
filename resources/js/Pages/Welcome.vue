@@ -11,25 +11,6 @@ defineProps({
 });
 
 const { t } = useI18n();
-
-const features = [
-    {
-        key: 'track',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    },
-    {
-        key: 'stats',
-        icon: 'M3 3v18h18M7 16l4-4 4 4 5-6',
-    },
-    {
-        key: 'private',
-        icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-    },
-    {
-        key: 'lang',
-        icon: 'M3 5h12M9 3v2m-6 8h12M9 13v2m-6 4h12M9 17v2',
-    },
-];
 </script>
 
 <template>
@@ -121,45 +102,6 @@ const features = [
                             </Link>
                         </template>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Features -->
-        <section class="border-t border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900 sm:py-20">
-            <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                <h2 class="text-center text-2xl font-semibold text-slate-900 dark:text-white">
-                    {{ t('app.home.features_title') }}
-                </h2>
-
-                <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:gap-8">
-                    <article
-                        v-for="feature in features"
-                        :key="feature.key"
-                        class="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 transition hover:border-indigo-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-indigo-800"
-                    >
-                        <div
-                            class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-300"
-                        >
-                            <svg
-                                class="h-6 w-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <path :d="feature.icon" />
-                            </svg>
-                        </div>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
-                            {{ t(`app.home.feature_${feature.key}_title`) }}
-                        </h3>
-                        <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                            {{ t(`app.home.feature_${feature.key}_desc`) }}
-                        </p>
-                    </article>
                 </div>
             </div>
         </section>
