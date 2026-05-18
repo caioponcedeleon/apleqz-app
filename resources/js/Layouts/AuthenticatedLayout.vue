@@ -80,6 +80,7 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                                     <DropdownLink
                                         v-if="isAdmin"
                                         href="/admin"
+                                        external
                                     >
                                         {{ t('app.nav.admin') }}
                                     </DropdownLink>
