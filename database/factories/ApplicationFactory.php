@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\Area;
@@ -32,13 +33,34 @@ class ApplicationFactory extends Factory
             'location' => fake()->randomElement(['Remote', 'Hybrid', 'On-site']),
             'applied_at' => $appliedAt,
             'status' => $status,
-            'rejected_at' => in_array($status, [ApplicationStatus::Rejected, ApplicationStatus::Cancelled], true)
-                ? fake()->dateTimeBetween($appliedAt, 'now')
-                : null,
-            'interview_date' => fake()->optional(0.3)->dateTimeBetween($appliedAt, 'now'),
             'channel' => fake()->optional()->randomElement(['Email', 'LinkedIn', 'Company website']),
             'notes' => fake()->optional()->sentence(),
             'job_url' => fake()->optional()->url(),
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Application $application) {
+            if (! $application->applied_at) {
+                return;
+            }
+
+            if (fake()->boolean(30)) {
+                $application->moments()->create([
+                    'type' => ApplicationMomentType::Interview,
+                    'occurred_at' => fake()->dateTimeBetween($application->applied_at, 'now'),
+                    'sort_order' => 0,
+                ]);
+            }
+
+            if (in_array($application->status, [ApplicationStatus::Rejected, ApplicationStatus::Cancelled], true)) {
+                $application->moments()->create([
+                    'type' => ApplicationMomentType::Rejection,
+                    'occurred_at' => fake()->dateTimeBetween($application->applied_at, 'now'),
+                    'sort_order' => 1,
+                ]);
+            }
+        });
     }
 }

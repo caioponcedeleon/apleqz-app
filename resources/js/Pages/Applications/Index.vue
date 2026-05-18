@@ -32,6 +32,16 @@ const statusColors = {
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const areaId = ref(props.filters.area_id ?? '');
+const sort = ref(props.filters.sort ?? 'applied_at');
+const direction = ref(props.filters.direction ?? 'desc');
+
+const sortableColumns = [
+    { key: 'position', label: 'app.applications.position' },
+    { key: 'company', label: 'app.applications.company' },
+    { key: 'area', label: 'app.applications.area' },
+    { key: 'applied_at', label: 'app.applications.applied_at' },
+    { key: 'status', label: 'app.applications.status' },
+];
 
 let searchDebounce = null;
 let suppressFilterWatch = false;
@@ -43,6 +53,8 @@ const applyFilters = () => {
             search: search.value || undefined,
             status: status.value || undefined,
             area_id: areaId.value || undefined,
+            sort: sort.value,
+            direction: direction.value,
         },
         { preserveState: true, replace: true },
     );
@@ -58,8 +70,29 @@ const clearFilters = () => {
     search.value = '';
     status.value = '';
     areaId.value = '';
+    sort.value = 'applied_at';
+    direction.value = 'desc';
     suppressFilterWatch = false;
     applyFilters();
+};
+
+const toggleSort = (column) => {
+    if (sort.value === column) {
+        direction.value = direction.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sort.value = column;
+        direction.value = column === 'applied_at' ? 'desc' : 'asc';
+    }
+
+    applyFilters();
+};
+
+const sortIndicator = (column) => {
+    if (sort.value !== column) {
+        return '↕';
+    }
+
+    return direction.value === 'asc' ? '↑' : '↓';
 };
 
 watch([status, areaId], () => {
@@ -163,11 +196,27 @@ const formatDate = (value) => {
                     <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>
-                                <th class="px-4 py-3 text-left">{{ t('app.applications.position') }}</th>
-                                <th class="px-4 py-3 text-left">{{ t('app.applications.company') }}</th>
-                                <th class="px-4 py-3 text-left">{{ t('app.applications.area') }}</th>
-                                <th class="px-4 py-3 text-left">{{ t('app.applications.applied_at') }}</th>
-                                <th class="px-4 py-3 text-left">{{ t('app.applications.status') }}</th>
+                                <th
+                                    v-for="column in sortableColumns"
+                                    :key="column.key"
+                                    class="px-4 py-3 text-left"
+                                    :class="column.key === 'status' ? 'min-w-[11rem]' : ''"
+                                >
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1 font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                                        @click="toggleSort(column.key)"
+                                    >
+                                        <span>{{ t(column.label) }}</span>
+                                        <span
+                                            class="text-xs text-gray-400"
+                                            :class="sort === column.key ? 'text-indigo-600 dark:text-indigo-400' : ''"
+                                            aria-hidden="true"
+                                        >
+                                            {{ sortIndicator(column.key) }}
+                                        </span>
+                                    </button>
+                                </th>
                                 <th class="px-4 py-3 text-right">
                                     <span class="sr-only">{{ t('app.actions.edit') }}</span>
                                 </th>
@@ -181,7 +230,7 @@ const formatDate = (value) => {
                                 <td class="px-4 py-3">{{ app.company }}</td>
                                 <td class="px-4 py-3">{{ app.area?.name }}</td>
                                 <td class="px-4 py-3">{{ formatDate(app.applied_at) }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 min-w-[11rem]">
                                     <StatusBadge
                                         :status="app.status"
                                         :color="statusColors[app.status] ?? 'slate'"

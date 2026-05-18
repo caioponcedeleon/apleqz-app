@@ -21,7 +21,6 @@ class ApplicationsTable
                 TextColumn::make('area.name')->label('Area'),
                 TextColumn::make('applied_at')->date()->sortable(),
                 TextColumn::make('status')->badge(),
-                TextColumn::make('interview_date')->date()->toggleable(),
             ])
             ->defaultSort('applied_at', 'desc')
             ->filters([

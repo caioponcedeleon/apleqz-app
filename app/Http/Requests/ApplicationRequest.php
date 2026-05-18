@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -18,11 +19,30 @@ class ApplicationRequest extends FormRequest
         if ($this->input('applied_at') === '') {
             $this->merge(['applied_at' => null]);
         }
+
+        $moments = $this->input('moments', []);
+
+        if (is_array($moments)) {
+            $this->merge([
+                'moments' => array_values(array_map(function (array $moment) {
+                    if (($moment['occurred_at'] ?? '') === '') {
+                        $moment['occurred_at'] = null;
+                    }
+
+                    if (($moment['notes'] ?? '') === '') {
+                        $moment['notes'] = null;
+                    }
+
+                    return $moment;
+                }, $moments)),
+            ]);
+        }
     }
 
     public function rules(): array
     {
         $statuses = ApplicationStatus::values();
+        $momentTypes = ApplicationMomentType::values();
 
         return [
             'area_id' => ['required', 'uuid', Rule::exists('areas', 'id')->where('user_id', $this->user()->id)],
@@ -36,27 +56,25 @@ class ApplicationRequest extends FormRequest
                 'nullable',
                 'date',
             ],
-            'rejected_at' => [
-                'nullable',
-                'date',
-                Rule::when($this->filled('applied_at'), 'after_or_equal:applied_at'),
-            ],
             'status' => ['required', Rule::in($statuses)],
-            'interview_date' => ['nullable', 'date'],
             'channel' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'job_url' => ['nullable', 'url', 'max:2048'],
+            'moments' => ['nullable', 'array'],
+            'moments.*.id' => ['nullable', 'integer'],
+            'moments.*.type' => ['required_with:moments.*.occurred_at', Rule::in($momentTypes)],
+            'moments.*.occurred_at' => ['required_with:moments.*.type', 'nullable', 'date'],
+            'moments.*.notes' => ['nullable', 'string'],
         ];
     }
 
-    public function withValidator($validator): void
+    public function applicationAttributes(): array
     {
-        $validator->after(function ($validator) {
-            $status = ApplicationStatus::tryFrom($this->input('status', ''));
+        return $this->safe()->except('moments');
+    }
 
-            if ($status?->requiresRejectionDate() && ! $this->filled('rejected_at')) {
-                $validator->errors()->add('rejected_at', __('validation.required'));
-            }
-        });
+    public function momentsPayload(): array
+    {
+        return $this->validated('moments') ?? [];
     }
 }

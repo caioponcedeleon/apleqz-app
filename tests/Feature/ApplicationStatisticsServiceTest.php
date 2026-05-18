@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\Area;
@@ -19,29 +20,43 @@ class ApplicationStatisticsServiceTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $area = Area::factory()->create(['user_id' => $user->id, 'name' => 'Tech']);
 
-        Application::factory()->create([
+        $waiting = Application::factory()->create([
             'user_id' => $user->id,
             'area_id' => $area->id,
             'status' => ApplicationStatus::Waiting,
             'applied_at' => '2026-01-10',
-            'interview_date' => null,
         ]);
+        $waiting->moments()->delete();
 
-        Application::factory()->create([
+        $rejected = Application::factory()->create([
             'user_id' => $user->id,
             'area_id' => $area->id,
             'status' => ApplicationStatus::Rejected,
             'applied_at' => '2026-01-11',
-            'rejected_at' => '2026-01-20',
-            'interview_date' => '2026-01-15',
+        ]);
+        $rejected->moments()->delete();
+        $rejected->moments()->create([
+            'type' => ApplicationMomentType::Interview,
+            'occurred_at' => '2026-01-15',
+            'sort_order' => 0,
+        ]);
+        $rejected->moments()->create([
+            'type' => ApplicationMomentType::Rejection,
+            'occurred_at' => '2026-01-20',
+            'sort_order' => 1,
         ]);
 
-        Application::factory()->create([
+        $offer = Application::factory()->create([
             'user_id' => $user->id,
             'area_id' => $area->id,
             'status' => ApplicationStatus::Offer,
             'applied_at' => '2026-01-12',
-            'interview_date' => '2026-01-18',
+        ]);
+        $offer->moments()->delete();
+        $offer->moments()->create([
+            'type' => ApplicationMomentType::Interview,
+            'occurred_at' => '2026-01-18',
+            'sort_order' => 0,
         ]);
 
         $stats = app(ApplicationStatisticsService::class)->forUser($user);

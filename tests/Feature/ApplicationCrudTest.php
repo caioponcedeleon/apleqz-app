@@ -60,4 +60,42 @@ class ApplicationCrudTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('applications.data', 1));
     }
+
+    public function test_applications_default_sort_is_applied_at_newest_first(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+
+        $user->applications()->create([
+            'area_id' => $area->id,
+            'position' => 'Older',
+            'company' => 'Acme',
+            'applied_at' => '2026-01-01',
+            'status' => ApplicationStatus::Waiting,
+        ]);
+
+        $user->applications()->create([
+            'area_id' => $area->id,
+            'position' => 'Newer',
+            'company' => 'Acme',
+            'applied_at' => '2026-06-01',
+            'status' => ApplicationStatus::Offer,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('applications.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.sort', 'applied_at')
+                ->where('filters.direction', 'desc')
+                ->where('applications.data.0.position', 'Newer')
+                ->where('applications.data.1.position', 'Older'));
+
+        $this->actingAs($user)
+            ->get(route('applications.index', ['sort' => 'position', 'direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('applications.data.0.position', 'Newer')
+                ->where('applications.data.1.position', 'Older'));
+    }
 }

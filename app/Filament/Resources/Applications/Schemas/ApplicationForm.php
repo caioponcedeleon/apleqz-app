@@ -33,8 +33,6 @@ class ApplicationForm
                         fn (ApplicationStatus $s) => [$s->value => $s->value]
                     ))
                     ->required(),
-                DatePicker::make('rejected_at'),
-                DatePicker::make('interview_date'),
                 TextInput::make('channel')->maxLength(255),
                 TextInput::make('job_url')->url()->maxLength(2048),
                 Textarea::make('notes')->columnSpanFull(),

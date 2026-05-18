@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Http\Requests\ApplicationRequest;
 use App\Models\Application;
-use App\Models\Area;
+use App\Services\ApplicationMomentSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,12 +14,26 @@ use Inertia\Response;
 
 class ApplicationController extends Controller
 {
+    public function __construct(
+        protected ApplicationMomentSyncService $momentSync
+    ) {}
+
     public function index(Request $request): Response
     {
+        $sort = $request->string('sort')->toString();
+        $direction = $request->string('direction')->toString();
+
+        if (! in_array($sort, ['position', 'company', 'area', 'applied_at', 'status'], true)) {
+            $sort = 'applied_at';
+        }
+
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+
         $query = $request->user()
             ->applications()
-            ->with('area')
-            ->latest('applied_at');
+            ->with('area');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -36,26 +51,47 @@ class ApplicationController extends Controller
             });
         }
 
+        $this->applySorting($query, $sort, $direction);
+
         return Inertia::render('Applications/Index', [
             'applications' => $query->paginate(15)->withQueryString(),
-            'filters' => $request->only(['status', 'area_id', 'search']),
+            'filters' => [
+                'status' => $request->input('status'),
+                'area_id' => $request->input('area_id'),
+                'search' => $request->input('search'),
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
             'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
             'statuses' => ApplicationStatus::values(),
         ]);
+    }
+
+    protected function applySorting($query, string $sort, string $direction): void
+    {
+        match ($sort) {
+            'position' => $query->orderBy('position', $direction),
+            'company' => $query->orderBy('company', $direction),
+            'status' => $query->orderBy('status', $direction),
+            'area' => $query
+                ->leftJoin('areas', 'applications.area_id', '=', 'areas.id')
+                ->orderBy('areas.name', $direction)
+                ->select('applications.*'),
+            default => $query
+                ->orderByRaw('CASE WHEN applied_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('applied_at', $direction),
+        };
     }
 
     public function create(Request $request): Response
     {
-        return Inertia::render('Applications/Form', [
-            'application' => null,
-            'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
-            'statuses' => ApplicationStatus::values(),
-        ]);
+        return Inertia::render('Applications/Form', $this->formProps($request, null));
     }
 
     public function store(ApplicationRequest $request): RedirectResponse
     {
-        $request->user()->applications()->create($request->validated());
+        $application = $request->user()->applications()->create($request->applicationAttributes());
+        $this->momentSync->sync($application, $request->momentsPayload());
 
         return redirect()->route('applications.index')
             ->with('success', __('app.flash.application_created'));
@@ -65,20 +101,17 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
-        $application->load('area');
+        $application->load(['area', 'moments']);
 
-        return Inertia::render('Applications/Form', [
-            'application' => $application,
-            'areas' => auth()->user()->areas()->orderBy('name')->get(['id', 'name']),
-            'statuses' => ApplicationStatus::values(),
-        ]);
+        return Inertia::render('Applications/Form', $this->formProps(request(), $application));
     }
 
     public function update(ApplicationRequest $request, Application $application): RedirectResponse
     {
         $this->authorize('update', $application);
 
-        $application->update($request->validated());
+        $application->update($request->applicationAttributes());
+        $this->momentSync->sync($application, $request->momentsPayload());
 
         return redirect()->route('applications.index')
             ->with('success', __('app.flash.application_updated'));
@@ -92,5 +125,18 @@ class ApplicationController extends Controller
 
         return redirect()->route('applications.index')
             ->with('success', __('app.flash.application_deleted'));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function formProps(Request $request, ?Application $application): array
+    {
+        return [
+            'application' => $application,
+            'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
+            'statuses' => ApplicationStatus::values(),
+            'momentTypes' => ApplicationMomentType::values(),
+        ];
     }
 }

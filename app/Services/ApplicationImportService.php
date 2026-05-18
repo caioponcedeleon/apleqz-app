@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DataTransferObjects\ApplicationImportResult;
 use App\Enums\ApplicationStatus;
 use App\Exceptions\ApplicationImportException;
+use App\Enums\ApplicationMomentType;
 use App\Models\Application;
 use App\Models\Area;
 use App\Models\User;
@@ -88,11 +89,7 @@ class ApplicationImportService
                     $channel = $this->stringOrNull($values[9] ?? null);
                     $notes = $this->stringOrNull($values[10] ?? null);
 
-                    if (! $interviewDate && isset($values[8]) && is_string($values[8]) && $values[8] !== '') {
-                        $notes = trim(($notes ? $notes.' ' : '').'Interview note: '.$values[8]);
-                    }
-
-                    Application::query()->create([
+                    $application = Application::query()->create([
                         'user_id' => $user->id,
                         'area_id' => $area->id,
                         'position' => trim((string) $values[0]),
@@ -100,11 +97,34 @@ class ApplicationImportService
                         'location' => $this->stringOrNull($values[3] ?? null),
                         'applied_at' => $appliedAt,
                         'status' => $status,
-                        'rejected_at' => $rejectedAt,
-                        'interview_date' => $interviewDate,
                         'channel' => $channel,
                         'notes' => $notes,
                     ]);
+
+                    $sort = 0;
+
+                    if ($interviewDate) {
+                        $application->moments()->create([
+                            'type' => ApplicationMomentType::Interview,
+                            'occurred_at' => $interviewDate,
+                            'sort_order' => $sort++,
+                        ]);
+                    } elseif (isset($values[8]) && is_string($values[8]) && trim($values[8]) !== '') {
+                        $application->moments()->create([
+                            'type' => ApplicationMomentType::Other,
+                            'occurred_at' => $appliedAt ?? now()->toDateString(),
+                            'notes' => 'Interview note: '.trim($values[8]),
+                            'sort_order' => $sort++,
+                        ]);
+                    }
+
+                    if ($rejectedAt) {
+                        $application->moments()->create([
+                            'type' => ApplicationMomentType::Rejection,
+                            'occurred_at' => $rejectedAt,
+                            'sort_order' => $sort++,
+                        ]);
+                    }
 
                     $imported++;
                 }

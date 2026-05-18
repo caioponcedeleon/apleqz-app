@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Application extends Model
 {
@@ -20,8 +22,6 @@ class Application extends Model
         'location',
         'applied_at',
         'status',
-        'rejected_at',
-        'interview_date',
         'channel',
         'notes',
         'job_url',
@@ -31,8 +31,6 @@ class Application extends Model
     {
         return [
             'applied_at' => 'date',
-            'rejected_at' => 'date',
-            'interview_date' => 'date',
             'status' => ApplicationStatus::class,
         ];
     }
@@ -47,31 +45,44 @@ class Application extends Model
         return $this->belongsTo(Area::class);
     }
 
+    public function moments(): HasMany
+    {
+        return $this->hasMany(ApplicationMoment::class)->orderBy('occurred_at')->orderBy('sort_order');
+    }
+
     protected function daysAfterRejection(): Attribute
     {
         return Attribute::get(function (): ?int {
-            if (! $this->rejected_at || ! $this->applied_at) {
+            if (! $this->applied_at) {
                 return null;
             }
 
-            $status = $this->status instanceof ApplicationStatus
-                ? $this->status
-                : ApplicationStatus::tryFrom((string) $this->status);
+            $rejection = $this->moments
+                ->where('type', ApplicationMomentType::Rejection)
+                ->sortBy('occurred_at')
+                ->first();
 
-            $shouldShow = $status?->requiresRejectionDate()
-                || $status === ApplicationStatus::Rejected
-                || $status === ApplicationStatus::Cancelled;
-
-            if (! $shouldShow && $this->rejected_at === null) {
+            if (! $rejection) {
                 return null;
             }
 
-            return (int) $this->applied_at->diffInDays($this->rejected_at);
+            return (int) $this->applied_at->diffInDays($rejection->occurred_at);
         });
     }
 
     public function hasInterview(): bool
     {
-        return $this->interview_date !== null;
+        if ($this->relationLoaded('moments')) {
+            return $this->moments->contains(
+                fn (ApplicationMoment $moment) => $moment->type === ApplicationMomentType::Interview
+            );
+        }
+
+        return $this->moments()->where('type', ApplicationMomentType::Interview)->exists();
+    }
+
+    public function interviewMoments()
+    {
+        return $this->moments->where('type', ApplicationMomentType::Interview);
     }
 }

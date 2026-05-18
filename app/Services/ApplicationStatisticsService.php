@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\User;
@@ -13,7 +14,7 @@ class ApplicationStatisticsService
     {
         $applications = Application::query()
             ->where('user_id', $user->id)
-            ->with('area')
+            ->with(['area', 'moments'])
             ->get();
 
         return [
@@ -140,19 +141,26 @@ class ApplicationStatisticsService
 
     protected function interviewTimeline(Collection $applications): array
     {
-        $withInterviews = $applications->filter(fn (Application $a) => $a->hasInterview());
-
-        $dates = $withInterviews
-            ->pluck('interview_date')
-            ->map(fn ($d) => $d->toDateString())
+        $interviewDates = $applications
+            ->flatMap(function (Application $application) {
+                return $application->moments
+                    ->filter(fn ($moment) => $moment->type === ApplicationMomentType::Interview)
+                    ->pluck('occurred_at');
+            })
+            ->map(fn ($date) => $date->toDateString())
             ->unique()
             ->sort()
             ->values();
 
-        return $dates->map(function (string $date) use ($withInterviews) {
-            $cumulative = $withInterviews->filter(
-                fn (Application $a) => $a->interview_date->toDateString() <= $date
-            )->count();
+        return $interviewDates->map(function (string $date) use ($applications) {
+            $cumulative = $applications->sum(
+                fn (Application $application) => $application->moments
+                    ->filter(
+                        fn ($moment) => $moment->type === ApplicationMomentType::Interview
+                            && $moment->occurred_at->toDateString() <= $date
+                    )
+                    ->count()
+            );
 
             return [
                 'date' => $date,
