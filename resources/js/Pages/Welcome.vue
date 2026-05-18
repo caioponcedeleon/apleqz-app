@@ -1,5 +1,6 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import CookieSettingsLink from '@/Components/CookieSettingsLink.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -108,9 +109,20 @@ const { t } = useI18n();
 
         <!-- Footer -->
         <footer class="border-t border-slate-200 py-8 dark:border-slate-800">
-            <p class="text-center text-sm text-slate-500 dark:text-slate-400">
-                © {{ new Date().getFullYear() }} {{ t('app.name') }}
-            </p>
+            <div class="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    © {{ new Date().getFullYear() }} {{ t('app.name') }}
+                </p>
+                <span class="hidden text-slate-300 sm:inline dark:text-slate-600">·</span>
+                <Link
+                    :href="route('cookies')"
+                    class="text-sm text-slate-500 underline-offset-2 transition hover:text-indigo-600 hover:underline dark:text-slate-400 dark:hover:text-indigo-400"
+                >
+                    {{ t('app.cookies.policy_link') }}
+                </Link>
+                <span class="hidden text-slate-300 sm:inline dark:text-slate-600">·</span>
+                <CookieSettingsLink />
+            </div>
         </footer>
     </div>
 </template>

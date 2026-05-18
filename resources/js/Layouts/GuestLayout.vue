@@ -1,6 +1,10 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import CookieSettingsLink from '@/Components/CookieSettingsLink.vue';
 import { Link } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -17,6 +21,16 @@ import { Link } from '@inertiajs/vue3';
             class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
         >
             <slot />
+        </div>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center">
+            <Link
+                :href="route('cookies')"
+                class="text-xs text-gray-500 underline-offset-2 hover:text-indigo-600 hover:underline"
+            >
+                {{ t('app.cookies.policy_link') }}
+            </Link>
+            <CookieSettingsLink class="!text-xs" />
         </div>
     </div>
 </template>

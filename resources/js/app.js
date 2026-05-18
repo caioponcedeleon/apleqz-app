@@ -1,6 +1,7 @@
 import '../css/app.css';
 import './bootstrap';
 
+import CookieConsent from '@/Components/CookieConsent.vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
@@ -20,7 +21,13 @@ createInertiaApp({
         const initial = props.initialPage.props;
         const i18n = setupI18n(initial.locale, initial.translations);
 
-        const app = createApp({ render: () => h(App, props) })
+        const app = createApp({
+            render: () =>
+                h('div', { class: 'contents' }, [
+                    h(App, props),
+                    h(CookieConsent),
+                ]),
+        })
             .use(plugin)
             .use(ZiggyVue)
             .use(i18n);

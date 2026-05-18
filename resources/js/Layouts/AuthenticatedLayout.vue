@@ -3,6 +3,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
+import { openCookieSettings } from '@/composables/useCookieConsent';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
@@ -83,6 +84,19 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                                         external
                                     >
                                         {{ t('app.nav.admin') }}
+                                    </DropdownLink>
+                                    <button
+                                        type="button"
+                                        class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800"
+                                        @click="openCookieSettings"
+                                    >
+                                        {{ t('app.cookies.settings_link') }}
+                                    </button>
+                                    <DropdownLink
+                                        :href="route('cookies')"
+                                        external
+                                    >
+                                        {{ t('app.cookies.policy_link') }}
                                     </DropdownLink>
                                     <DropdownLink
                                         :href="route('logout')"
