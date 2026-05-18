@@ -1,4 +1,5 @@
 <script setup>
+import AppCredits from '@/Components/AppCredits.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import CookieSettingsLink from '@/Components/CookieSettingsLink.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
@@ -109,6 +110,7 @@ const { t } = useI18n();
 
         <!-- Footer -->
         <footer class="border-t border-slate-200 py-8 dark:border-slate-800">
+            <AppCredits class="mb-6" />
             <div class="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
                 <p class="text-sm text-slate-500 dark:text-slate-400">
                     © {{ new Date().getFullYear() }} {{ t('app.name') }}

@@ -175,4 +175,9 @@ return [
         'your_rights_text' => 'You can change or withdraw your consent at any time. Rejecting non-essential cookies will not affect your ability to use the service.',
         'back_home' => 'Back to home',
     ],
+    'footer' => [
+        'version' => 'Version 1.0',
+        'created_by' => 'Created by {author}',
+        'author_name' => 'Caio Ponce de Leon',
+    ],
 ];

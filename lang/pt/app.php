@@ -175,4 +175,9 @@ return [
         'your_rights_text' => 'Você pode alterar ou retirar seu consentimento a qualquer momento. Rejeitar cookies não essenciais não afeta o uso do serviço.',
         'back_home' => 'Voltar ao início',
     ],
+    'footer' => [
+        'version' => 'Versão 1.0',
+        'created_by' => 'Criado por {author}',
+        'author_name' => 'Caio Ponce de Leon',
+    ],
 ];
