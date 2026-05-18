@@ -15,6 +15,7 @@ const page = usePage();
 const { t } = useI18n();
 
 const isAdmin = computed(() => page.props.auth.user?.is_admin);
+const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_enabled);
 </script>
 
 <template>
@@ -42,6 +43,13 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                                     :active="route().current('applications.*')"
                                 >
                                     {{ t('app.nav.applications') }}
+                                </NavLink>
+                                <NavLink
+                                    v-if="canUsePersonalFiles"
+                                    :href="route('files.index')"
+                                    :active="route().current('files.*')"
+                                >
+                                    {{ t('app.nav.files') }}
                                 </NavLink>
                             </div>
                         </div>
@@ -166,6 +174,13 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                             :active="route().current('areas.*')"
                         >
                             {{ t('app.nav.areas') }}
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="canUsePersonalFiles"
+                            :href="route('files.index')"
+                            :active="route().current('files.*')"
+                        >
+                            {{ t('app.nav.files') }}
                         </ResponsiveNavLink>
                     </div>
                     <div class="border-t border-gray-200 px-4 py-3 dark:border-gray-700">

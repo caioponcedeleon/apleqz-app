@@ -27,6 +27,12 @@ class UserForm
                     ->default('en')
                     ->required(),
                 Toggle::make('is_admin')->label('Administrator'),
+                Toggle::make('application_files_enabled')
+                    ->label('Application file uploads')
+                    ->helperText('Allow PDF/DOCX attachments on job applications.'),
+                Toggle::make('personal_files_enabled')
+                    ->label('Personal file storage')
+                    ->helperText('Allow a private file library (PDF/DOCX) in the user menu.'),
                 TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn (?string $state) => filled($state) ? Hash::make($state) : null)

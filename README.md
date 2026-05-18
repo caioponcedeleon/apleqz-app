@@ -75,6 +75,22 @@ Default strings live in `lang/en/app.php` and `lang/pt/app.php`, seeded into the
 
 Users switch language with the EN / PT toggle in the navigation bar.
 
+## File attachments & preview
+
+Per-user file uploads are **disabled by default**. An admin can enable them under **Admin → Users** for each account:
+
+- **Application files** — attach PDF or DOCX files (up to 10 MB each) when editing an application.
+- **Personal files** — a private library at `/files` for the same file types.
+
+Supported uploads: **PDF** and **DOCX** only (validated on upload).
+
+Users can **view** attachments in the browser without downloading:
+
+- **PDF** — inline preview in a modal.
+- **DOCX** — rendered in the modal via [docx-preview](https://www.npmjs.com/package/docx-preview) (layout may differ slightly from Word).
+
+Download remains available when a local copy is needed.
+
 ## VPS deployment (no Docker)
 
 1. Install PHP 8.2+, extensions (`pgsql`, `mbstring`, `xml`, `curl`, `zip`), Composer, PostgreSQL, Nginx, Git.

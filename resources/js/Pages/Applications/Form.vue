@@ -1,4 +1,5 @@
 <script setup>
+import FileManager from '@/Components/FileManager.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -14,6 +15,7 @@ const props = defineProps({
     areas: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     momentTypes: { type: Array, default: () => [] },
+    canUploadApplicationFiles: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -60,6 +62,17 @@ const addMoment = () => {
 const removeMoment = (index) => {
     form.moments.splice(index, 1);
 };
+
+const applicationFiles = computed(() => props.application?.files ?? []);
+
+const downloadApplicationFileUrl = (file) =>
+    route('applications.files.download', [props.application.id, file.id]);
+
+const previewApplicationFileUrl = (file) =>
+    route('applications.files.preview', [props.application.id, file.id]);
+
+const deleteApplicationFileUrl = (file) =>
+    route('applications.files.destroy', [props.application.id, file.id]);
 
 const submit = () => {
     form
@@ -262,6 +275,35 @@ const submit = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="canUploadApplicationFiles"
+                        class="border-t border-gray-200 pt-6 dark:border-gray-700"
+                    >
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.applications.files_title') }}
+                        </h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {{ t('app.applications.files_hint') }}
+                        </p>
+
+                        <div class="mt-4">
+                            <FileManager
+                                v-if="isEdit"
+                                :files="applicationFiles"
+                                :upload-url="route('applications.files.store', application.id)"
+                                :download-url="downloadApplicationFileUrl"
+                                :preview-url="previewApplicationFileUrl"
+                                :delete-url="deleteApplicationFileUrl"
+                            />
+                            <p
+                                v-else
+                                class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-600"
+                            >
+                                {{ t('app.applications.files_save_first') }}
+                            </p>
                         </div>
                     </div>
 

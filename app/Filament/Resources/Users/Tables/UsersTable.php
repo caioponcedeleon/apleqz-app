@@ -19,6 +19,8 @@ class UsersTable
                 TextColumn::make('email')->label('Email')->searchable(),
                 TextColumn::make('locale')->badge(),
                 IconColumn::make('is_admin')->boolean()->label('Admin'),
+                IconColumn::make('application_files_enabled')->boolean()->label('App files'),
+                IconColumn::make('personal_files_enabled')->boolean()->label('Storage'),
                 TextColumn::make('applications_count')->counts('applications')->label('Applications'),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])

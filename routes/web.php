@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\ApplicationFileController;
 use App\Http\Controllers\ApplicationImportController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserFileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -27,6 +29,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('applications', ApplicationController::class)->except(['show']);
     Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
+    Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
+        ->name('applications.files.store');
+    Route::delete('/applications/{application}/files/{file}', [ApplicationFileController::class, 'destroy'])
+        ->name('applications.files.destroy')
+        ->scopeBindings();
+    Route::get('/applications/{application}/files/{file}/download', [ApplicationFileController::class, 'download'])
+        ->name('applications.files.download')
+        ->scopeBindings();
+    Route::get('/applications/{application}/files/{file}/preview', [ApplicationFileController::class, 'preview'])
+        ->name('applications.files.preview')
+        ->scopeBindings();
+
+    Route::get('/files', [UserFileController::class, 'index'])->name('files.index');
+    Route::post('/files', [UserFileController::class, 'store'])->name('files.store');
+    Route::delete('/files/{file}', [UserFileController::class, 'destroy'])->name('files.destroy');
+    Route::get('/files/{file}/download', [UserFileController::class, 'download'])->name('files.download');
+    Route::get('/files/{file}/preview', [UserFileController::class, 'preview'])->name('files.preview');
 
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
     Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');

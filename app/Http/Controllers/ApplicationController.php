@@ -101,7 +101,7 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
-        $application->load(['area', 'moments']);
+        $application->load(['area', 'moments', 'files']);
 
         return Inertia::render('Applications/Form', $this->formProps(request(), $application));
     }
@@ -132,11 +132,14 @@ class ApplicationController extends Controller
      */
     protected function formProps(Request $request, ?Application $application): array
     {
+        $user = $request->user();
+
         return [
             'application' => $application,
-            'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
+            'areas' => $user->areas()->orderBy('name')->get(['id', 'name']),
             'statuses' => ApplicationStatus::values(),
             'momentTypes' => ApplicationMomentType::values(),
+            'canUploadApplicationFiles' => $user->application_files_enabled,
         ];
     }
 }

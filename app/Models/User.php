@@ -20,6 +20,8 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'is_admin',
+        'application_files_enabled',
+        'personal_files_enabled',
         'locale',
     ];
 
@@ -34,6 +36,8 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'application_files_enabled' => 'boolean',
+            'personal_files_enabled' => 'boolean',
         ];
     }
 
@@ -50,5 +54,10 @@ class User extends Authenticatable implements FilamentUser
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(UserFile::class);
     }
 }

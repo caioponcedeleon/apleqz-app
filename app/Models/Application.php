@@ -50,6 +50,18 @@ class Application extends Model
         return $this->hasMany(ApplicationMoment::class)->orderBy('occurred_at')->orderBy('sort_order');
     }
 
+    public function files(): HasMany
+    {
+        return $this->hasMany(ApplicationFile::class)->orderBy('created_at');
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Application $application): void {
+            $application->files()->each(fn (ApplicationFile $file) => $file->delete());
+        });
+    }
+
     protected function daysAfterRejection(): Attribute
     {
         return Attribute::get(function (): ?int {
