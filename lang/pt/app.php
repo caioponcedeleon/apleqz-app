@@ -21,6 +21,7 @@ return [
     'nav' => [
         'dashboard' => 'Painel',
         'applications' => 'Candidaturas',
+        'areas' => 'Áreas',
         'profile' => 'Perfil',
         'admin' => 'Admin',
     ],
@@ -68,6 +69,7 @@ return [
         'add' => 'Adicionar área',
         'save' => 'Salvar',
         'delete' => 'Excluir',
+        'empty' => 'Nenhuma área ainda. Adicione uma acima para organizar suas candidaturas.',
     ],
     'status' => [
         'esperando' => 'Aguardando resposta',

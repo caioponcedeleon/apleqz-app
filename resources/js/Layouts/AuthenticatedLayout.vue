@@ -71,6 +71,9 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                                     </span>
                                 </template>
                                 <template #content>
+                                    <DropdownLink :href="route('areas.index')">
+                                        {{ t('app.nav.areas') }}
+                                    </DropdownLink>
                                     <DropdownLink :href="route('profile.edit')">
                                         {{ t('app.nav.profile') }}
                                     </DropdownLink>
@@ -142,6 +145,12 @@ const isAdmin = computed(() => page.props.auth.user?.is_admin);
                             :active="route().current('applications.*')"
                         >
                             {{ t('app.nav.applications') }}
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('areas.index')"
+                            :active="route().current('areas.*')"
+                        >
+                            {{ t('app.nav.areas') }}
                         </ResponsiveNavLink>
                     </div>
                     <div class="border-t border-gray-200 px-4 py-3 dark:border-gray-700">

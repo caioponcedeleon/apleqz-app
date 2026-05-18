@@ -21,6 +21,7 @@ return [
     'nav' => [
         'dashboard' => 'Dashboard',
         'applications' => 'Applications',
+        'areas' => 'Areas',
         'profile' => 'Profile',
         'admin' => 'Admin',
     ],
@@ -68,6 +69,7 @@ return [
         'add' => 'Add area',
         'save' => 'Save',
         'delete' => 'Delete',
+        'empty' => 'No areas yet. Add one above to organize your applications.',
     ],
     'status' => [
         'esperando' => 'Waiting for response',

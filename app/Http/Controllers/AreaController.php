@@ -5,9 +5,24 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AreaRequest;
 use App\Models\Area;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AreaController extends Controller
 {
+    public function index(Request $request): Response
+    {
+        $this->authorize('viewAny', Area::class);
+
+        return Inertia::render('Areas/Index', [
+            'areas' => $request->user()
+                ->areas()
+                ->orderBy('name')
+                ->get(['id', 'name']),
+        ]);
+    }
+
     public function store(AreaRequest $request): RedirectResponse
     {
         $this->authorize('create', Area::class);

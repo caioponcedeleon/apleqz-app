@@ -47,6 +47,13 @@ const deleteArea = (area) => {
         </form>
         <InputError class="mt-2" :message="createForm.errors.name" />
 
+        <p
+            v-if="!areas.length"
+            class="mt-4 text-sm text-gray-500 dark:text-gray-400"
+        >
+            {{ t('app.areas.empty') }}
+        </p>
+
         <ul v-if="areas.length" class="mt-4 space-y-2">
             <li
                 v-for="area in areas"
