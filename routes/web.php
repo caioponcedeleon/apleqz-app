@@ -28,7 +28,10 @@ Route::get('/cookies', fn () => Inertia::render('Legal/Cookies'))->name('cookies
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    Route::resource('applications', ApplicationController::class)->except(['show']);
+    Route::resource('applications', ApplicationController::class)->except(['show', 'store']);
+    Route::post('applications', [ApplicationController::class, 'store'])
+        ->middleware('user.has.areas')
+        ->name('applications.store');
     Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
     Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
     Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])

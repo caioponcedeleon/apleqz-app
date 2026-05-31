@@ -12,6 +12,37 @@ class ApplicationCrudTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_user_cannot_create_application_without_areas(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->post(route('applications.store'), [
+                'area_id' => '00000000-0000-4000-8000-000000000001',
+                'position' => 'Developer',
+                'company' => 'Acme',
+                'applied_at' => '2026-05-01',
+                'status' => ApplicationStatus::Waiting->value,
+            ])
+            ->assertRedirect(route('areas.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount('applications', 0);
+    }
+
+    public function test_create_application_page_blocked_when_user_has_no_areas(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->get(route('applications.create'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Applications/Form')
+                ->where('canCreateApplication', false)
+                ->has('areas', 0));
+    }
+
     public function test_user_can_create_application(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);

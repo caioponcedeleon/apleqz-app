@@ -76,6 +76,10 @@ return [
         'files_hint' => 'Upload the CV or cover letter you used for this application (PDF or DOCX, max 10 MB).',
         'files_empty' => 'No files attached yet.',
         'files_save_first' => 'Save the application first, then you can attach files.',
+        'area_explanation' => 'An area is a category for your job search, such as a field, role type, or target market (e.g. "Software engineering", "Product management"). Every application belongs to one area so you can filter your list and see statistics per focus.',
+        'no_areas_title' => 'Create an area first',
+        'no_areas_body' => 'You need at least one area before you can add an application. Go to the Areas page to create one, then come back here.',
+        'no_areas_go_to_areas' => 'Go to Areas',
     ],
     'files' => [
         'title' => 'My files',
@@ -125,6 +129,7 @@ return [
         'application_created' => 'Application created.',
         'application_updated' => 'Application updated.',
         'application_deleted' => 'Application deleted.',
+        'application_requires_area' => 'Create at least one area before adding an application.',
         'import_complete' => ':imported applications imported. :skipped rows skipped.',
         'import_failed' => 'Could not import file. Make sure it is a valid .xlsx file.',
         'import_no_sheet' => 'No "Vagas" sheet found in the spreadsheet.',

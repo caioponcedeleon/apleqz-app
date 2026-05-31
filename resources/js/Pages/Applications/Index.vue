@@ -15,6 +15,7 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     areas: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
+    canCreateApplication: { type: Boolean, default: true },
 });
 
 const { t } = useI18n();
@@ -136,8 +137,14 @@ const formatDate = (value) => {
                 <div class="flex flex-wrap items-center gap-2">
                     <ApplicationExport :filters="filters" />
                     <ApplicationImport v-if="canImportExcel" />
-                    <Link :href="route('applications.create')">
+                    <Link
+                        v-if="canCreateApplication"
+                        :href="route('applications.create')"
+                    >
                         <PrimaryButton>{{ t('app.applications.new') }}</PrimaryButton>
+                    </Link>
+                    <Link v-else :href="route('areas.index')">
+                        <PrimaryButton>{{ t('app.applications.no_areas_go_to_areas') }}</PrimaryButton>
                     </Link>
                 </div>
             </div>

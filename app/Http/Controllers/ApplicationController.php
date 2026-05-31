@@ -38,6 +38,7 @@ class ApplicationController extends Controller
             'filters' => $filters,
             'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
             'statuses' => ApplicationStatus::values(),
+            'canCreateApplication' => $request->user()->areas()->exists(),
         ]);
     }
 
@@ -98,6 +99,7 @@ class ApplicationController extends Controller
             'statuses' => ApplicationStatus::values(),
             'momentTypes' => ApplicationMomentType::values(),
             'canUploadApplicationFiles' => $user->application_files_enabled,
+            'canCreateApplication' => $user->areas()->exists(),
         ];
     }
 }

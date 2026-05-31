@@ -76,6 +76,10 @@ return [
         'files_hint' => 'Envie o currículo ou a carta de apresentação que você usou nesta candidatura (PDF ou DOCX, máx. 10 MB).',
         'files_empty' => 'Nenhum arquivo anexado.',
         'files_save_first' => 'Salve a candidatura primeiro para poder anexar arquivos.',
+        'area_explanation' => 'Uma área é uma categoria da sua busca de emprego, como um campo, tipo de vaga ou mercado alvo (ex.: "Desenvolvimento de software", "Gestão de produto"). Cada candidatura pertence a uma área para você filtrar a lista e ver estatísticas por foco.',
+        'no_areas_title' => 'Crie uma área primeiro',
+        'no_areas_body' => 'Você precisa de pelo menos uma área antes de adicionar uma candidatura. Acesse a página de Áreas para criar uma e depois volte aqui.',
+        'no_areas_go_to_areas' => 'Ir para Áreas',
     ],
     'files' => [
         'title' => 'Meus arquivos',
@@ -125,6 +129,7 @@ return [
         'application_created' => 'Candidatura criada.',
         'application_updated' => 'Candidatura atualizada.',
         'application_deleted' => 'Candidatura excluída.',
+        'application_requires_area' => 'Crie pelo menos uma área antes de adicionar uma candidatura.',
         'import_complete' => ':imported candidaturas importadas. :skipped linhas ignoradas.',
         'import_failed' => 'Não foi possível importar o arquivo. Verifique se é um .xlsx válido.',
         'import_no_sheet' => 'Planilha "Vagas" não encontrada no arquivo.',
