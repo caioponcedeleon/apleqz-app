@@ -6,6 +6,7 @@ use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Http\Requests\ApplicationRequest;
 use App\Models\Application;
+use App\Queries\FilteredApplicationsQuery;
 use App\Services\ApplicationMomentSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,67 +21,24 @@ class ApplicationController extends Controller
 
     public function index(Request $request): Response
     {
-        $sort = $request->string('sort')->toString();
-        $direction = $request->string('direction')->toString();
+        $filters = [
+            'status' => $request->input('status'),
+            'area_id' => $request->input('area_id'),
+            'search' => $request->input('search'),
+            'sort' => $request->input('sort', 'applied_at'),
+            'direction' => $request->input('direction', 'desc'),
+        ];
 
-        if (! in_array($sort, ['position', 'company', 'area', 'applied_at', 'status'], true)) {
-            $sort = 'applied_at';
-        }
-
-        if (! in_array($direction, ['asc', 'desc'], true)) {
-            $direction = 'desc';
-        }
-
-        $query = $request->user()
-            ->applications()
+        $query = (new FilteredApplicationsQuery($request->user()))
+            ->build($filters)
             ->with('area');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
-        }
-
-        if ($request->filled('area_id')) {
-            $query->where('area_id', $request->string('area_id'));
-        }
-
-        if ($request->filled('search')) {
-            $term = '%'.mb_strtolower($request->string('search')).'%';
-            $query->where(function ($q) use ($term) {
-                $q->whereRaw('LOWER(position) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(company) LIKE ?', [$term]);
-            });
-        }
-
-        $this->applySorting($query, $sort, $direction);
 
         return Inertia::render('Applications/Index', [
             'applications' => $query->paginate(15)->withQueryString(),
-            'filters' => [
-                'status' => $request->input('status'),
-                'area_id' => $request->input('area_id'),
-                'search' => $request->input('search'),
-                'sort' => $sort,
-                'direction' => $direction,
-            ],
+            'filters' => $filters,
             'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
             'statuses' => ApplicationStatus::values(),
         ]);
-    }
-
-    protected function applySorting($query, string $sort, string $direction): void
-    {
-        match ($sort) {
-            'position' => $query->orderBy('position', $direction),
-            'company' => $query->orderBy('company', $direction),
-            'status' => $query->orderBy('status', $direction),
-            'area' => $query
-                ->leftJoin('areas', 'applications.area_id', '=', 'areas.id')
-                ->orderBy('areas.name', $direction)
-                ->select('applications.*'),
-            default => $query
-                ->orderByRaw('CASE WHEN applied_at IS NULL THEN 1 ELSE 0 END')
-                ->orderBy('applied_at', $direction),
-        };
     }
 
     public function create(Request $request): Response

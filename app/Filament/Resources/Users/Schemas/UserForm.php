@@ -33,6 +33,9 @@ class UserForm
                 Toggle::make('personal_files_enabled')
                     ->label('Personal file storage')
                     ->helperText('Allow a private file library (PDF/DOCX) in the user menu.'),
+                Toggle::make('excel_import_enabled')
+                    ->label('Excel import')
+                    ->helperText('Show the Import Excel button on the applications list.'),
                 TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn (?string $state) => filled($state) ? Hash::make($state) : null)

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\ApplicationExportController;
 use App\Http\Controllers\ApplicationFileController;
 use App\Http\Controllers\ApplicationImportController;
 use App\Http\Controllers\AreaController;
@@ -29,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('applications', ApplicationController::class)->except(['show']);
     Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
+    Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
     Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
         ->name('applications.files.store');
     Route::delete('/applications/{application}/files/{file}', [ApplicationFileController::class, 'destroy'])

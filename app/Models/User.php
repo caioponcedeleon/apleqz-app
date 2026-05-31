@@ -22,6 +22,7 @@ class User extends Authenticatable implements FilamentUser
         'is_admin',
         'application_files_enabled',
         'personal_files_enabled',
+        'excel_import_enabled',
         'locale',
     ];
 
@@ -38,6 +39,7 @@ class User extends Authenticatable implements FilamentUser
             'is_admin' => 'boolean',
             'application_files_enabled' => 'boolean',
             'personal_files_enabled' => 'boolean',
+            'excel_import_enabled' => 'boolean',
         ];
     }
 

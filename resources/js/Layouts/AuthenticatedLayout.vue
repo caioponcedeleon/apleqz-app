@@ -20,7 +20,7 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
 
 <template>
     <div>
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-950">
+        <div class="min-h-screen overflow-x-hidden bg-gray-100 dark:bg-gray-950">
             <nav class="border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div class="flex h-16 justify-between">

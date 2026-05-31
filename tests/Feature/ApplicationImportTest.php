@@ -14,9 +14,25 @@ class ApplicationImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_user_without_flag_cannot_import_applications(): void
+    {
+        $user = User::factory()->create(['excel_import_enabled' => false]);
+        $path = $this->createSampleSpreadsheet();
+        $file = new UploadedFile($path, 'vagas.xlsx', null, null, true);
+
+        $response = $this->actingAs($user)->post(route('applications.import'), [
+            'file' => $file,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertSame(0, Application::query()->count());
+
+        @unlink($path);
+    }
+
     public function test_user_can_import_applications_from_excel(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['excel_import_enabled' => true]);
         $path = $this->createSampleSpreadsheet();
         $file = new UploadedFile($path, 'vagas.xlsx', null, null, true);
 
@@ -44,7 +60,7 @@ class ApplicationImportTest extends TestCase
 
     public function test_import_rejects_file_without_vagas_sheet(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['excel_import_enabled' => true]);
         $path = $this->createSpreadsheetWithoutVagasSheet();
         $file = new UploadedFile($path, 'other.xlsx', null, null, true);
 

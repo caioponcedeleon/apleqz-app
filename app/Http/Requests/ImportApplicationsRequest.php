@@ -8,7 +8,7 @@ class ImportApplicationsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return (bool) $this->user()?->excel_import_enabled;
     }
 
     public function rules(): array

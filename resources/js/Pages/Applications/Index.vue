@@ -1,4 +1,5 @@
 <script setup>
+import ApplicationExport from '@/Components/ApplicationExport.vue';
 import ApplicationImport from '@/Components/ApplicationImport.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -63,6 +64,8 @@ const applyFilters = () => {
 const hasActiveFilters = computed(
     () => Boolean(search.value || status.value || areaId.value),
 );
+
+const canImportExcel = computed(() => Boolean(page.props.auth.user?.excel_import_enabled));
 
 const clearFilters = () => {
     clearTimeout(searchDebounce);
@@ -131,7 +134,8 @@ const formatDate = (value) => {
                     {{ t('app.applications.title') }}
                 </h2>
                 <div class="flex flex-wrap items-center gap-2">
-                    <ApplicationImport />
+                    <ApplicationExport :filters="filters" />
+                    <ApplicationImport v-if="canImportExcel" />
                     <Link :href="route('applications.create')">
                         <PrimaryButton>{{ t('app.applications.new') }}</PrimaryButton>
                     </Link>
@@ -140,7 +144,7 @@ const formatDate = (value) => {
         </template>
 
         <div class="py-8">
-            <div class="mx-auto max-w-7xl space-y-4 sm:px-6 lg:px-8">
+            <div class="mx-auto min-w-0 max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
                 <p
                     v-if="page.props.flash?.success"
                     class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
@@ -193,6 +197,7 @@ const formatDate = (value) => {
                     v-else
                     class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 >
+                    <div class="overflow-x-auto overscroll-x-contain">
                     <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>
@@ -217,7 +222,7 @@ const formatDate = (value) => {
                                         </span>
                                     </button>
                                 </th>
-                                <th class="px-4 py-3 text-right">
+                                <th class="whitespace-nowrap px-4 py-3 text-right">
                                     <span class="sr-only">{{ t('app.actions.edit') }}</span>
                                 </th>
                             </tr>
@@ -236,7 +241,7 @@ const formatDate = (value) => {
                                         :color="statusColors[app.status] ?? 'slate'"
                                     />
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="whitespace-nowrap px-4 py-3">
                                     <div class="flex items-center justify-end gap-1">
                                         <Link
                                             :href="route('applications.edit', app.id)"
@@ -288,6 +293,7 @@ const formatDate = (value) => {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div
