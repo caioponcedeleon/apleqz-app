@@ -92,41 +92,59 @@ class ApplicationCrudTest extends TestCase
             ->assertInertia(fn ($page) => $page->has('applications.data', 1));
     }
 
-    public function test_applications_default_sort_is_applied_at_newest_first(): void
+    public function test_applications_default_sort_is_by_status_priority(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $area = Area::factory()->create(['user_id' => $user->id]);
 
         $user->applications()->create([
             'area_id' => $area->id,
-            'position' => 'Older',
+            'position' => 'Rejected role',
+            'company' => 'Acme',
+            'applied_at' => '2026-06-01',
+            'status' => ApplicationStatus::Rejected,
+        ]);
+
+        $user->applications()->create([
+            'area_id' => $area->id,
+            'position' => 'Offer role',
             'company' => 'Acme',
             'applied_at' => '2026-01-01',
+            'status' => ApplicationStatus::Offer,
+        ]);
+
+        $user->applications()->create([
+            'area_id' => $area->id,
+            'position' => 'Waiting role',
+            'company' => 'Acme',
+            'applied_at' => '2026-03-01',
             'status' => ApplicationStatus::Waiting,
         ]);
 
         $user->applications()->create([
             'area_id' => $area->id,
-            'position' => 'Newer',
+            'position' => 'To apply role',
             'company' => 'Acme',
-            'applied_at' => '2026-06-01',
-            'status' => ApplicationStatus::Offer,
+            'applied_at' => null,
+            'status' => ApplicationStatus::WaitingToApply,
         ]);
 
         $this->actingAs($user)
             ->get(route('applications.index'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('filters.sort', 'applied_at')
-                ->where('filters.direction', 'desc')
-                ->where('applications.data.0.position', 'Newer')
-                ->where('applications.data.1.position', 'Older'));
+                ->where('filters.sort', 'status')
+                ->where('filters.direction', 'asc')
+                ->where('applications.data.0.position', 'To apply role')
+                ->where('applications.data.1.position', 'Offer role')
+                ->where('applications.data.2.position', 'Waiting role')
+                ->where('applications.data.3.position', 'Rejected role'));
 
         $this->actingAs($user)
-            ->get(route('applications.index', ['sort' => 'position', 'direction' => 'asc']))
+            ->get(route('applications.index', ['sort' => 'applied_at', 'direction' => 'desc']))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('applications.data.0.position', 'Newer')
-                ->where('applications.data.1.position', 'Older'));
+                ->where('applications.data.0.position', 'Rejected role')
+                ->where('applications.data.1.position', 'Waiting role'));
     }
 }

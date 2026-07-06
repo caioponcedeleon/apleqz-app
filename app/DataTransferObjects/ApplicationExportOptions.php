@@ -42,8 +42,8 @@ readonly class ApplicationExportOptions
                 'search' => $validated['search'] ?? null,
                 'status' => $validated['status'] ?? null,
                 'area_id' => $validated['area_id'] ?? null,
-                'sort' => $agentur ? 'applied_at' : ($validated['sort'] ?? 'applied_at'),
-                'direction' => $agentur ? 'asc' : ($validated['direction'] ?? 'desc'),
+                'sort' => $agentur ? 'applied_at' : ($validated['sort'] ?? 'status'),
+                'direction' => $agentur ? 'asc' : ($validated['direction'] ?? 'asc'),
             ],
         );
     }

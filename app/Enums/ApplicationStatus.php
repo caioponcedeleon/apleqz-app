@@ -39,4 +39,33 @@ enum ApplicationStatus: string
             self::Cancelled => 'zinc',
         };
     }
+
+    /**
+     * Default list ordering: waiting to apply first, offers next, rejections last.
+     */
+    public function listSortPriority(): int
+    {
+        return match ($this) {
+            self::WaitingToApply => 1,
+            self::Offer => 2,
+            self::Waiting => 3,
+            self::Withdrawn => 4,
+            self::Cancelled => 5,
+            self::Rejected => 6,
+            self::DeclinedByMe => 7,
+        };
+    }
+
+    public static function listSortOrderSql(string $direction = 'asc'): string
+    {
+        $cases = collect(self::cases())
+            ->map(fn (self $status) => "WHEN '{$status->value}' THEN {$status->listSortPriority()}")
+            ->implode(' ');
+
+        $caseExpression = "CASE status {$cases} ELSE 99 END";
+
+        return $direction === 'desc'
+            ? "{$caseExpression} DESC"
+            : "{$caseExpression} ASC";
+    }
 }

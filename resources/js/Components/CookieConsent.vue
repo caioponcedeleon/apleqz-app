@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     acceptAllCookies,
@@ -9,12 +9,13 @@ import {
     saveCookiePreferences,
 } from '@/composables/useCookieConsent';
 
-const { t } = useI18n();
+const { t, te } = useI18n({ useScope: 'global' });
 
 const showModal = ref(false);
 const settingsMode = ref(false);
 const showPreferences = ref(false);
 const analyticsEnabled = ref(false);
+const contentReady = ref(false);
 
 const isMandatory = computed(() => showModal.value && !settingsMode.value);
 
@@ -23,8 +24,12 @@ const syncFromStorage = () => {
 
     if (consent === null) {
         settingsMode.value = false;
-        showModal.value = true;
         analyticsEnabled.value = false;
+
+        if (contentReady.value && te('app.cookies.banner_title')) {
+            showModal.value = true;
+        }
+
         return;
     }
 
@@ -55,7 +60,9 @@ const setPageLocked = (locked) => {
 
 watch(isMandatory, (locked) => setPageLocked(locked), { immediate: true });
 
-onMounted(() => {
+onMounted(async () => {
+    await nextTick();
+    contentReady.value = te('app.cookies.banner_title');
     syncFromStorage();
     window.addEventListener('cookie-consent-open', openSettings);
     window.addEventListener('cookie-consent-updated', onConsentUpdated);
@@ -125,7 +132,7 @@ const panelTitle = computed(() =>
         <div
             v-if="showModal"
             class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-            :class="isMandatory ? 'bg-slate-900/75 backdrop-blur-sm' : 'bg-slate-900/50'"
+            :class="isMandatory ? 'bg-slate-900/75' : 'bg-slate-900/50'"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cookie-consent-title"
@@ -138,7 +145,7 @@ const panelTitle = computed(() =>
             />
 
             <div
-                class="relative z-10 w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6"
+                class="relative isolate z-10 w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6"
             >
                 <h2
                     id="cookie-consent-title"

@@ -2,6 +2,7 @@
 
 namespace App\Queries;
 
+use App\Enums\ApplicationStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -17,15 +18,15 @@ class FilteredApplicationsQuery
      */
     public function build(array $filters): Builder|Relation
     {
-        $sort = $filters['sort'] ?? 'applied_at';
-        $direction = $filters['direction'] ?? 'desc';
+        $sort = $filters['sort'] ?? 'status';
+        $direction = $filters['direction'] ?? 'asc';
 
         if (! in_array($sort, ['position', 'company', 'area', 'applied_at', 'status'], true)) {
-            $sort = 'applied_at';
+            $sort = 'status';
         }
 
         if (! in_array($direction, ['asc', 'desc'], true)) {
-            $direction = 'desc';
+            $direction = 'asc';
         }
 
         $query = $this->user
@@ -58,7 +59,7 @@ class FilteredApplicationsQuery
         match ($sort) {
             'position' => $query->orderBy('position', $direction),
             'company' => $query->orderBy('company', $direction),
-            'status' => $query->orderBy('status', $direction),
+            'status' => $this->applyStatusSorting($query, $direction),
             'area' => $query
                 ->leftJoin('areas', 'applications.area_id', '=', 'areas.id')
                 ->orderBy('areas.name', $direction)
@@ -67,5 +68,14 @@ class FilteredApplicationsQuery
                 ->orderByRaw('CASE WHEN applied_at IS NULL THEN 1 ELSE 0 END')
                 ->orderBy('applied_at', $direction),
         };
+    }
+
+    protected function applyStatusSorting(Builder|Relation $query, string $direction): void
+    {
+        $query
+            ->orderByRaw(ApplicationStatus::listSortOrderSql($direction))
+            ->orderByRaw('CASE WHEN applied_at IS NULL THEN 0 ELSE 1 END')
+            ->orderByDesc('applied_at')
+            ->orderBy('position');
     }
 }

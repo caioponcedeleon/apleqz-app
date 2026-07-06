@@ -34,8 +34,8 @@ const statusColors = {
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const areaId = ref(props.filters.area_id ?? '');
-const sort = ref(props.filters.sort ?? 'applied_at');
-const direction = ref(props.filters.direction ?? 'desc');
+const sort = ref(props.filters.sort ?? 'status');
+const direction = ref(props.filters.direction ?? 'asc');
 
 const sortableColumns = [
     { key: 'position', label: 'app.applications.position' },
@@ -74,8 +74,8 @@ const clearFilters = () => {
     search.value = '';
     status.value = '';
     areaId.value = '';
-    sort.value = 'applied_at';
-    direction.value = 'desc';
+    sort.value = 'status';
+    direction.value = 'asc';
     suppressFilterWatch = false;
     applyFilters();
 };

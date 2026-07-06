@@ -25,8 +25,8 @@ class ApplicationController extends Controller
             'status' => $request->input('status'),
             'area_id' => $request->input('area_id'),
             'search' => $request->input('search'),
-            'sort' => $request->input('sort', 'applied_at'),
-            'direction' => $request->input('direction', 'desc'),
+            'sort' => $request->input('sort', 'status'),
+            'direction' => $request->input('direction', 'asc'),
         ];
 
         $query = (new FilteredApplicationsQuery($request->user()))
