@@ -426,17 +426,20 @@ const renameApplicationFileUrl = (file) =>
                             {{ t('app.applications.moments_empty') }}
                         </p>
 
-                        <ol
-                            v-else
-                            class="relative space-y-4 border-s border-gray-200 ps-6 dark:border-gray-600"
-                        >
+                        <div v-else class="relative">
+                            <div
+                                aria-hidden="true"
+                                class="pointer-events-none absolute bottom-2 left-3 top-2 w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-600"
+                            />
+
+                            <ol class="relative space-y-4">
                             <li
                                 v-for="item in timelineItems"
                                 :key="item.key"
-                                class="relative"
+                                class="relative ps-8"
                             >
                                 <span
-                                    class="absolute -start-[1.6rem] top-2 size-2.5 rounded-full"
+                                    class="absolute left-3 top-4 z-10 size-2.5 -translate-x-1/2 rounded-full ring-4 ring-white dark:ring-gray-800"
                                     :class="item.kind === 'status'
                                         ? 'bg-gray-300 dark:bg-gray-500'
                                         : 'bg-indigo-400 dark:bg-indigo-500'"
@@ -477,7 +480,8 @@ const renameApplicationFileUrl = (file) =>
                                     </p>
                                 </button>
                             </li>
-                        </ol>
+                            </ol>
+                        </div>
 
                         <ApplicationMomentModal
                             :show="momentModalOpen"
