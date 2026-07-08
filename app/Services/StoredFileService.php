@@ -64,4 +64,16 @@ class StoredFileService
             throw new InvalidArgumentException(__('app.files.invalid_type'));
         }
     }
+
+    public function downloadFilename(string $label, string $storedPath): string
+    {
+        $extension = strtolower(pathinfo($storedPath, PATHINFO_EXTENSION));
+        $labelExtension = strtolower(pathinfo($label, PATHINFO_EXTENSION));
+
+        if ($labelExtension === '' || ! in_array($labelExtension, self::ALLOWED_EXTENSIONS, true)) {
+            return rtrim($label, '.').'.'.$extension;
+        }
+
+        return $label;
+    }
 }

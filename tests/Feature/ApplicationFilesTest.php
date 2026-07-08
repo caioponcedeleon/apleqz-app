@@ -138,4 +138,59 @@ class ApplicationFilesTest extends TestCase
             )
             ->assertSessionHasErrors('file');
     }
+
+    public function test_user_can_set_application_file_display_label(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['application_files_enabled' => true]);
+        $application = Application::factory()->for($user)->create();
+
+        $this->actingAs($user)->post(
+            route('applications.files.store', $application),
+            ['file' => UploadedFile::fake()->create('resume.pdf', 100, 'application/pdf')],
+        );
+
+        $file = ApplicationFile::query()->first();
+
+        $this->actingAs($user)
+            ->patch(route('applications.files.update', [$application, $file]), [
+                'display_name' => 'CV - Backend role',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $file->refresh();
+
+        $this->assertSame('resume.pdf', $file->original_name);
+        $this->assertSame('CV - Backend role', $file->display_name);
+        $this->assertSame('CV - Backend role.pdf', $file->downloadFilename());
+    }
+
+    public function test_clearing_application_file_label_restores_uploaded_name(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['application_files_enabled' => true]);
+        $application = Application::factory()->for($user)->create();
+
+        $this->actingAs($user)->post(
+            route('applications.files.store', $application),
+            ['file' => UploadedFile::fake()->create('resume.pdf', 100, 'application/pdf')],
+        );
+
+        $file = ApplicationFile::query()->first();
+        $file->update(['display_name' => 'Custom label']);
+
+        $this->actingAs($user)
+            ->patch(route('applications.files.update', [$application, $file]), [
+                'display_name' => null,
+            ])
+            ->assertRedirect();
+
+        $file->refresh();
+
+        $this->assertNull($file->display_name);
+        $this->assertSame('resume.pdf', $file->downloadFilename());
+    }
 }

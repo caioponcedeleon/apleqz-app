@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ServesStoredFileInline;
+use App\Http\Requests\RenameStoredFileRequest;
 use App\Http\Requests\StoreApplicationFileRequest;
 use App\Models\Application;
 use App\Models\ApplicationFile;
@@ -63,6 +64,17 @@ class ApplicationFileController extends Controller
         return back()->with('success', $message);
     }
 
+    public function update(RenameStoredFileRequest $request, Application $application, ApplicationFile $file): RedirectResponse
+    {
+        $this->authorize('update', $file);
+
+        abort_unless($file->application_id === $application->id, 404);
+
+        $file->update($request->validated());
+
+        return back()->with('success', __('app.flash.file_label_updated'));
+    }
+
     public function destroy(Application $application, ApplicationFile $file): RedirectResponse
     {
         $this->authorize('delete', $file);
@@ -82,7 +94,7 @@ class ApplicationFileController extends Controller
 
         return Storage::disk('local')->download(
             $file->path,
-            $file->original_name,
+            $file->downloadFilename(),
             ['Content-Type' => $file->mime_type],
         );
     }
@@ -93,6 +105,6 @@ class ApplicationFileController extends Controller
 
         abort_unless($file->application_id === $application->id, 404);
 
-        return $this->inlineFileResponse($file->path, $file->original_name, $file->mime_type);
+        return $this->inlineFileResponse($file->path, $file->downloadFilename(), $file->mime_type);
     }
 }

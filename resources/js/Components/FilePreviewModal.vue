@@ -17,7 +17,7 @@ const loading = ref(false);
 const error = ref(false);
 
 const extension = computed(() => {
-    const name = props.file?.original_name ?? '';
+    const name = props.file?.original_name ?? props.file?.display_name ?? '';
 
     return name.includes('.') ? name.split('.').pop().toLowerCase() : '';
 });
@@ -99,7 +99,7 @@ const onBackdropClick = (event) => {
             class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
-            :aria-label="file.original_name"
+            :aria-label="file.display_name || file.original_name"
             @click="onBackdropClick"
             @keydown.escape="close"
         >
@@ -109,7 +109,7 @@ const onBackdropClick = (event) => {
             >
                 <div class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
                     <p class="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-white">
-                        {{ file.original_name }}
+                        {{ file.display_name || file.original_name }}
                     </p>
                     <button
                         type="button"
@@ -131,7 +131,7 @@ const onBackdropClick = (event) => {
                     <iframe
                         v-else-if="isPdf"
                         :src="previewUrl"
-                        :title="file.original_name"
+                        :title="file.display_name || file.original_name"
                         class="h-[min(75vh,800px)] w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700"
                     />
 

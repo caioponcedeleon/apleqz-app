@@ -17,4 +17,10 @@ class ApplicationFilePolicy
     {
         return $file->user_id === $user->id;
     }
+
+    public function update(User $user, ApplicationFile $file): bool
+    {
+        return $user->application_files_enabled
+            && $file->user_id === $user->id;
+    }
 }

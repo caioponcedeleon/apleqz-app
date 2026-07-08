@@ -23,4 +23,10 @@ class UserFilePolicy
         return $user->personal_files_enabled
             && $file->user_id === $user->id;
     }
+
+    public function update(User $user, UserFile $file): bool
+    {
+        return $user->personal_files_enabled
+            && $file->user_id === $user->id;
+    }
 }

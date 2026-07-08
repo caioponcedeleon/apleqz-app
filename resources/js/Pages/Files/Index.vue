@@ -13,6 +13,7 @@ const { t } = useI18n();
 const downloadUrl = (file) => route('files.download', file.id);
 const previewUrl = (file) => route('files.preview', file.id);
 const deleteUrl = (file) => route('files.destroy', file.id);
+const renameUrl = (file) => route('files.update', file.id);
 </script>
 
 <template>
@@ -38,6 +39,7 @@ const deleteUrl = (file) => route('files.destroy', file.id);
                         :download-url="downloadUrl"
                         :preview-url="previewUrl"
                         :delete-url="deleteUrl"
+                        :rename-url="renameUrl"
                     />
                 </div>
             </div>

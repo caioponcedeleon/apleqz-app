@@ -66,4 +66,30 @@ class UserFilesTest extends TestCase
         $this->assertDatabaseCount('user_files', 0);
         Storage::disk('local')->assertMissing($file->path);
     }
+
+    public function test_user_with_flag_can_set_personal_file_display_label(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['personal_files_enabled' => true]);
+
+        $this->actingAs($user)->post(
+            route('files.store'),
+            ['file' => UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf')],
+        );
+
+        $file = UserFile::query()->first();
+
+        $this->actingAs($user)
+            ->patch(route('files.update', $file), [
+                'display_name' => 'Interview prep',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $file->refresh();
+
+        $this->assertSame('notes.pdf', $file->original_name);
+        $this->assertSame('Interview prep', $file->display_name);
+    }
 }

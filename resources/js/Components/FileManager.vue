@@ -1,5 +1,6 @@
 <script setup>
 import FilePreviewModal from '@/Components/FilePreviewModal.vue';
+import TextInput from '@/Components/TextInput.vue';
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -10,6 +11,7 @@ const props = defineProps({
     downloadUrl: { type: Function, required: true },
     previewUrl: { type: Function, required: true },
     deleteUrl: { type: Function, required: true },
+    renameUrl: { type: Function, default: null },
     disabled: { type: Boolean, default: false },
     multiple: { type: Boolean, default: false },
 });
@@ -19,6 +21,8 @@ const uploading = ref(false);
 const fileInput = ref(null);
 const previewFile = ref(null);
 const showPreview = ref(false);
+const editingId = ref(null);
+const editingName = ref('');
 
 const formatSize = (bytes) => {
     if (bytes < 1024) {
@@ -41,10 +45,14 @@ const formatDate = (value) => {
 };
 
 const canPreview = (file) => {
-    const name = file.original_name?.toLowerCase() ?? '';
+    const name = (file.original_name ?? file.display_name ?? '').toLowerCase();
 
     return name.endsWith('.pdf') || name.endsWith('.docx');
 };
+
+const fileLabel = (file) => file.display_name || file.original_name;
+
+const canRename = (file) => !props.disabled && typeof props.renameUrl === 'function';
 
 const openPreview = (file) => {
     previewFile.value = file;
@@ -88,6 +96,35 @@ const onFileSelected = (event) => {
                     fileInput.value.value = '';
                 }
             },
+        },
+    );
+};
+
+const startRename = (file) => {
+    editingId.value = file.id;
+    editingName.value = file.display_name || file.original_name;
+};
+
+const cancelRename = () => {
+    editingId.value = null;
+    editingName.value = '';
+};
+
+const saveRename = (file) => {
+    if (!canRename(file)) {
+        return;
+    }
+
+    router.patch(
+        props.renameUrl(file),
+        {
+            display_name: editingName.value.trim() === '' || editingName.value.trim() === file.original_name
+                ? null
+                : editingName.value.trim(),
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => cancelRename(),
         },
     );
 };
@@ -144,17 +181,56 @@ const deleteFile = (file) => {
                 :key="file.id"
                 class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
-                <div class="min-w-0">
-                    <p class="truncate font-medium text-gray-900 dark:text-white">
-                        {{ file.original_name }}
-                    </p>
-                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        {{ formatSize(file.size) }}
-                        ·
-                        {{ formatDate(file.created_at) }}
-                    </p>
+                <div class="min-w-0 flex-1">
+                    <div v-if="editingId === file.id" class="flex flex-col gap-2">
+                        <TextInput
+                            v-model="editingName"
+                            class="block w-full"
+                            :placeholder="file.original_name"
+                            @keyup.enter="saveRename(file)"
+                            @keyup.escape="cancelRename"
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ t('app.files.rename_hint') }}
+                        </p>
+                        <div class="flex shrink-0 gap-2">
+                            <button
+                                type="button"
+                                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+                                @click="saveRename(file)"
+                            >
+                                {{ t('app.files.rename_save') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                @click="cancelRename"
+                            >
+                                {{ t('app.files.rename_cancel') }}
+                            </button>
+                        </div>
+                    </div>
+                    <template v-else>
+                        <p class="truncate font-medium text-gray-900 dark:text-white">
+                            {{ fileLabel(file) }}
+                        </p>
+                        <p
+                            v-if="file.display_name"
+                            class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400"
+                        >
+                            {{ t('app.files.uploaded_as', { name: file.original_name }) }}
+                        </p>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ formatSize(file.size) }}
+                            ·
+                            {{ formatDate(file.created_at) }}
+                        </p>
+                    </template>
                 </div>
-                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                <div
+                    v-if="editingId !== file.id"
+                    class="flex shrink-0 flex-wrap items-center gap-2"
+                >
                     <button
                         v-if="canPreview(file)"
                         type="button"
@@ -169,6 +245,14 @@ const deleteFile = (file) => {
                     >
                         {{ t('app.files.download') }}
                     </a>
+                    <button
+                        v-if="canRename(file)"
+                        type="button"
+                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                        @click="startRename(file)"
+                    >
+                        {{ t('app.files.rename') }}
+                    </button>
                     <button
                         v-if="!disabled"
                         type="button"

@@ -82,6 +82,9 @@ const previewApplicationFileUrl = (file) =>
 const deleteApplicationFileUrl = (file) =>
     route('applications.files.destroy', [props.application.id, file.id]);
 
+const renameApplicationFileUrl = (file) =>
+    route('applications.files.update', [props.application.id, file.id]);
+
 const submit = () => {
     if (!canUseForm.value) {
         return;
@@ -379,6 +382,7 @@ const submit = () => {
                                 :download-url="downloadApplicationFileUrl"
                                 :preview-url="previewApplicationFileUrl"
                                 :delete-url="deleteApplicationFileUrl"
+                                :rename-url="renameApplicationFileUrl"
                                 multiple
                             />
                             <p

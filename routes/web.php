@@ -39,6 +39,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
     Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
         ->name('applications.files.store');
+    Route::patch('/applications/{application}/files/{file}', [ApplicationFileController::class, 'update'])
+        ->name('applications.files.update')
+        ->scopeBindings();
     Route::delete('/applications/{application}/files/{file}', [ApplicationFileController::class, 'destroy'])
         ->name('applications.files.destroy')
         ->scopeBindings();
@@ -51,6 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/files', [UserFileController::class, 'index'])->name('files.index');
     Route::post('/files', [UserFileController::class, 'store'])->name('files.store');
+    Route::patch('/files/{file}', [UserFileController::class, 'update'])->name('files.update');
     Route::delete('/files/{file}', [UserFileController::class, 'destroy'])->name('files.destroy');
     Route::get('/files/{file}/download', [UserFileController::class, 'download'])->name('files.download');
     Route::get('/files/{file}/preview', [UserFileController::class, 'preview'])->name('files.preview');
