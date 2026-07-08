@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserFileController;
+use App\Http\Controllers\WaveSelectionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -23,6 +24,7 @@ Route::get('/', function () {
 });
 
 Route::post('/locale', LocaleController::class)->name('locale.update');
+Route::post('/wave', WaveSelectionController::class)->middleware(['auth', 'verified'])->name('wave.select');
 
 Route::get('/cookies', fn () => Inertia::render('Legal/Cookies'))->name('cookies');
 

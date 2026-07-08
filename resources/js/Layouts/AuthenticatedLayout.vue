@@ -3,6 +3,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
+import WaveSwitcher from '@/Components/WaveSwitcher.vue';
 import { openCookieSettings } from '@/composables/useCookieConsent';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
@@ -55,6 +56,7 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                         </div>
 
                         <div class="hidden items-center gap-4 sm:flex">
+                            <WaveSwitcher />
                             <LocaleSwitcher />
                             <Dropdown align="right" width="48">
                                 <template #trigger>
@@ -192,7 +194,8 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                             {{ t('app.nav.files') }}
                         </ResponsiveNavLink>
                     </div>
-                    <div class="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+                    <div class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+                        <WaveSwitcher />
                         <LocaleSwitcher />
                     </div>
                 </div>

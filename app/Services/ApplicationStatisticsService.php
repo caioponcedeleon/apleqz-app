@@ -10,12 +10,17 @@ use Illuminate\Support\Collection;
 
 class ApplicationStatisticsService
 {
-    public function forUser(User $user): array
+    public function forUser(User $user, ?string $waveId = null): array
     {
-        $applications = Application::query()
+        $query = Application::query()
             ->where('user_id', $user->id)
-            ->with(['area', 'moments'])
-            ->get();
+            ->with(['area', 'moments']);
+
+        if ($waveId) {
+            $query->where('application_wave_id', $waveId);
+        }
+
+        $applications = $query->get();
 
         return [
             'summary' => $this->summary($applications),

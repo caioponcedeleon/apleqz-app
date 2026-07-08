@@ -87,6 +87,7 @@ const submitExport = () => {
     appendField(form, 'search', props.filters.search);
     appendField(form, 'status', props.filters.status);
     appendField(form, 'area_id', props.filters.area_id);
+    appendField(form, 'wave_id', props.filters.wave_id);
     appendField(form, 'sort', props.filters.sort);
     appendField(form, 'direction', props.filters.direction);
 

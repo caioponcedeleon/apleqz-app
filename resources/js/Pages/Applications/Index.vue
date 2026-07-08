@@ -14,7 +14,6 @@ const props = defineProps({
     applications: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
     areas: { type: Array, default: () => [] },
-    waves: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     canCreateApplication: { type: Boolean, default: true },
 });
@@ -35,7 +34,6 @@ const statusColors = {
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const areaId = ref(props.filters.area_id ?? '');
-const waveId = ref(props.filters.wave_id ?? '');
 const favouritesOnly = ref(Boolean(props.filters.favourites));
 const sort = ref(props.filters.sort ?? 'status');
 const direction = ref(props.filters.direction ?? 'asc');
@@ -59,7 +57,6 @@ const applyFilters = () => {
             search: search.value || undefined,
             status: status.value || undefined,
             area_id: areaId.value || undefined,
-            wave_id: waveId.value || undefined,
             favourites: favouritesOnly.value || undefined,
             sort: sort.value,
             direction: direction.value,
@@ -69,7 +66,7 @@ const applyFilters = () => {
 };
 
 const hasActiveFilters = computed(
-    () => Boolean(search.value || status.value || areaId.value || waveId.value || favouritesOnly.value),
+    () => Boolean(search.value || status.value || areaId.value || favouritesOnly.value),
 );
 
 const setupBlockedRoute = computed(() => {
@@ -77,7 +74,7 @@ const setupBlockedRoute = computed(() => {
         return { href: route('areas.index'), label: 'app.applications.no_areas_go_to_areas' };
     }
 
-    if (!props.waves.length) {
+    if (!page.props.waves?.length) {
         return { href: route('waves.index'), label: 'app.applications.no_waves_go_to_waves' };
     }
 
@@ -92,7 +89,6 @@ const clearFilters = () => {
     search.value = '';
     status.value = '';
     areaId.value = '';
-    waveId.value = '';
     favouritesOnly.value = false;
     sort.value = 'status';
     direction.value = 'asc';
@@ -119,7 +115,7 @@ const sortIndicator = (column) => {
     return direction.value === 'asc' ? '↑' : '↓';
 };
 
-watch([status, areaId, waveId, favouritesOnly], () => {
+watch([status, areaId, favouritesOnly], () => {
     if (!suppressFilterWatch) {
         applyFilters();
     }
@@ -157,6 +153,12 @@ const formatDate = (value) => {
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
                     {{ t('app.applications.title') }}
+                    <span
+                        v-if="page.props.selectedWave"
+                        class="mt-1 block text-sm font-normal text-gray-500 dark:text-gray-400"
+                    >
+                        {{ page.props.selectedWave.name }}
+                    </span>
                 </h2>
                 <div class="flex flex-wrap items-center gap-2">
                     <ApplicationExport :filters="filters" />
@@ -210,13 +212,6 @@ const formatDate = (value) => {
                     >
                         <option value="">{{ t('app.applications.filter_area') }}</option>
                         <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-                    </select>
-                    <select
-                        v-model="waveId"
-                        class="rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                    >
-                        <option value="">{{ t('app.applications.filter_wave') }}</option>
-                        <option v-for="w in waves" :key="w.id" :value="w.id">{{ w.name }}</option>
                     </select>
                     <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                         <input

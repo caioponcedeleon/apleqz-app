@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -24,6 +25,7 @@ class User extends Authenticatable implements FilamentUser
         'personal_files_enabled',
         'excel_import_enabled',
         'locale',
+        'current_wave_id',
     ];
 
     protected $hidden = [
@@ -56,6 +58,11 @@ class User extends Authenticatable implements FilamentUser
     public function applicationWaves(): HasMany
     {
         return $this->hasMany(ApplicationWave::class);
+    }
+
+    public function currentWave(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationWave::class, 'current_wave_id');
     }
 
     public function applications(): HasMany

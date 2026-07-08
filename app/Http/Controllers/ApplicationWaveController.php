@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ApplicationWaveRequest;
 use App\Models\ApplicationWave;
+use App\Services\SelectedWaveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,11 +25,12 @@ class ApplicationWaveController extends Controller
         ]);
     }
 
-    public function store(ApplicationWaveRequest $request): RedirectResponse
+    public function store(ApplicationWaveRequest $request, SelectedWaveService $selectedWave): RedirectResponse
     {
         $this->authorize('create', ApplicationWave::class);
 
-        $request->user()->applicationWaves()->create($request->validated());
+        $wave = $request->user()->applicationWaves()->create($request->validated());
+        $selectedWave->select($request, $request->user(), $wave);
 
         return back()->with('success', __('app.flash.wave_created'));
     }

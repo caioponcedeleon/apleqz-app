@@ -135,6 +135,8 @@ return [
         'title' => 'Suas ondas',
         'name' => 'Nome da onda',
         'add' => 'Adicionar onda',
+        'select' => 'Onda ativa',
+        'modal_hint' => 'Agrupe candidaturas do mesmo período de busca.',
         'save' => 'Salvar',
         'delete' => 'Excluir',
         'empty' => 'Nenhuma onda ainda. Adicione uma acima para agrupar suas candidaturas.',

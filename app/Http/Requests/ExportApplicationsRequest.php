@@ -23,7 +23,8 @@ class ExportApplicationsRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string'],
             'area_id' => ['nullable', 'integer'],
-            'sort' => ['nullable', 'string', 'in:position,company,area,applied_at,status'],
+            'wave_id' => ['nullable', 'uuid'],
+            'sort' => ['nullable', 'string', 'in:position,company,area,wave,applied_at,status'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],
         ];
     }

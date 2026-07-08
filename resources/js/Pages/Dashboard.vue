@@ -12,7 +12,7 @@ import {
     Title,
     Tooltip,
 } from 'chart.js';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { Bar, Line } from 'vue-chartjs';
 import { useI18n } from 'vue-i18n';
@@ -28,12 +28,13 @@ ChartJS.register(
     Legend,
 );
 
+const { t } = useI18n();
+const page = usePage();
 const props = defineProps({
     statistics: { type: Object, required: true },
     statuses: { type: Array, default: () => [] },
 });
 
-const { t } = useI18n();
 const summary = computed(() => props.statistics.summary);
 const byArea = computed(() => props.statistics.by_area ?? []);
 const areaLabels = computed(() => byArea.value.map((row) => row.area_name));
@@ -209,6 +210,12 @@ const percentBarOptions = {
         <template #header>
             <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
                 {{ t('app.dashboard.title') }}
+                <span
+                    v-if="page.props.selectedWave"
+                    class="mt-1 block text-sm font-normal text-gray-500 dark:text-gray-400"
+                >
+                    {{ page.props.selectedWave.name }}
+                </span>
             </h2>
         </template>
 

@@ -135,6 +135,8 @@ return [
         'title' => 'Your waves',
         'name' => 'Wave name',
         'add' => 'Add wave',
+        'select' => 'Active wave',
+        'modal_hint' => 'Group applications from the same job-search period.',
         'save' => 'Save',
         'delete' => 'Delete',
         'empty' => 'No waves yet. Add one above to group your applications.',

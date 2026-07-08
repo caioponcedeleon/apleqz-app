@@ -10,7 +10,7 @@ import StatusBadge from '@/Components/StatusBadge.vue';
 import StatusSelector from '@/Components/StatusSelector.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -25,6 +25,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 const isEdit = computed(() => props.application !== null);
 const hasAreas = computed(() => props.areas.length > 0);
 const hasWaves = computed(() => props.waves.length > 0);
@@ -188,7 +189,10 @@ const deleteMomentDraft = () => {
 
 const form = useForm({
     area_id: props.application?.area_id ?? props.areas[0]?.id ?? '',
-    application_wave_id: props.application?.application_wave_id ?? props.waves[0]?.id ?? '',
+    application_wave_id: props.application?.application_wave_id
+        ?? page.props.selectedWave?.id
+        ?? props.waves[0]?.id
+        ?? '',
     position: props.application?.position ?? '',
     company: props.application?.company ?? '',
     location: props.application?.location ?? '',

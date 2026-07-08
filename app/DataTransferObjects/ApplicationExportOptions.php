@@ -42,6 +42,7 @@ readonly class ApplicationExportOptions
                 'search' => $validated['search'] ?? null,
                 'status' => $validated['status'] ?? null,
                 'area_id' => $validated['area_id'] ?? null,
+                'wave_id' => $validated['wave_id'] ?? null,
                 'sort' => $agentur ? 'applied_at' : ($validated['sort'] ?? 'status'),
                 'direction' => $agentur ? 'asc' : ($validated['direction'] ?? 'asc'),
             ],

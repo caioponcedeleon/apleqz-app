@@ -9,6 +9,7 @@ use App\Models\Application;
 use App\Queries\FilteredApplicationsQuery;
 use App\Services\ApplicationMomentSyncService;
 use App\Services\ApplicationStatusHistoryService;
+use App\Services\SelectedWaveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,12 +22,14 @@ class ApplicationController extends Controller
         protected ApplicationStatusHistoryService $statusHistory,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, SelectedWaveService $selectedWave): Response
     {
+        $wave = $selectedWave->forRequest($request, $request->user());
+
         $filters = [
             'status' => $request->input('status'),
             'area_id' => $request->input('area_id'),
-            'wave_id' => $request->input('wave_id'),
+            'wave_id' => $wave?->id,
             'favourites' => $request->boolean('favourites'),
             'search' => $request->input('search'),
             'sort' => $request->input('sort', 'status'),
@@ -41,7 +44,6 @@ class ApplicationController extends Controller
             'applications' => $query->paginate(15)->withQueryString(),
             'filters' => $filters,
             'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
-            'waves' => $request->user()->applicationWaves()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'is_default']),
             'statuses' => ApplicationStatus::values(),
             'canCreateApplication' => $request->user()->areas()->exists()
                 && $request->user()->applicationWaves()->exists(),
