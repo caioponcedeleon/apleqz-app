@@ -108,6 +108,9 @@ const timelineItems = computed(() => {
     });
 });
 
+const timelineCardClass =
+    'w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-left dark:border-gray-600 dark:bg-gray-900/40';
+
 const formatDate = (value) => {
     if (!value) {
         return '—';
@@ -439,15 +442,16 @@ const renameApplicationFileUrl = (file) =>
                                 class="relative ps-8"
                             >
                                 <span
-                                    class="absolute left-3 top-4 z-10 size-2.5 -translate-x-1/2 rounded-full ring-4 ring-white dark:ring-gray-800"
-                                    :class="item.kind === 'status'
-                                        ? 'bg-gray-300 dark:bg-gray-500'
-                                        : 'bg-indigo-400 dark:bg-indigo-500'"
+                                    class="absolute left-3 top-4 z-10 size-2.5 -translate-x-1/2 rounded-full bg-indigo-400 ring-4 ring-white dark:bg-indigo-500 dark:ring-gray-800"
                                 />
 
-                                <div v-if="item.kind === 'status'" class="space-y-1">
+                                <div
+                                    v-if="item.kind === 'status'"
+                                    :class="timelineCardClass"
+                                >
                                     <div class="flex flex-wrap items-center gap-3">
                                         <StatusBadge
+                                            inline
                                             :status="item.status"
                                             :color="statusColors[item.status] ?? 'slate'"
                                         />
@@ -460,7 +464,10 @@ const renameApplicationFileUrl = (file) =>
                                 <button
                                     v-else
                                     type="button"
-                                    class="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-gray-600 dark:bg-gray-900/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+                                    :class="[
+                                        timelineCardClass,
+                                        'transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20',
+                                    ]"
                                     @click="openMomentModal(item.index)"
                                 >
                                     <div class="flex flex-wrap items-center gap-3">

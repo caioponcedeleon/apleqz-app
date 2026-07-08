@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 const props = defineProps({
     status: { type: String, required: true },
     color: { type: String, default: 'slate' },
+    inline: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -20,7 +21,11 @@ const classes = computed(() => {
         sky: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
     };
 
-    return `flex w-full items-center justify-center rounded-full px-2.5 py-1 text-center text-xs font-medium leading-tight ${map[props.color] ?? map.slate}`;
+    const layout = props.inline
+        ? 'inline-flex'
+        : 'flex w-full items-center justify-center';
+
+    return `${layout} rounded-full px-2.5 py-1 text-xs font-medium leading-tight ${map[props.color] ?? map.slate}`;
 });
 
 const label = computed(() => t(`app.status.${props.status}`));
