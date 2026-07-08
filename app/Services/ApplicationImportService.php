@@ -7,6 +7,7 @@ use App\Enums\ApplicationStatus;
 use App\Exceptions\ApplicationImportException;
 use App\Enums\ApplicationMomentType;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Carbon\Carbon;
@@ -67,6 +68,7 @@ class ApplicationImportService
 
                     $areaName = trim((string) ($values[1] ?? ''));
                     $area = $this->resolveArea($user, $areaName);
+                    $wave = $this->resolveWave($user);
 
                     $status = $this->parseStatus($values[5] ?? null);
 
@@ -92,6 +94,7 @@ class ApplicationImportService
                     $application = Application::query()->create([
                         'user_id' => $user->id,
                         'area_id' => $area->id,
+                        'application_wave_id' => $wave->id,
                         'position' => trim((string) $values[0]),
                         'company' => trim((string) ($values[2] ?? '')),
                         'location' => $this->stringOrNull($values[3] ?? null),
@@ -147,6 +150,20 @@ class ApplicationImportService
         $name = $name !== '' ? $name : 'General';
 
         return $user->areas()->firstOrCreate(['name' => $name]);
+    }
+
+    protected function resolveWave(User $user): ApplicationWave
+    {
+        $default = $user->applicationWaves()->where('is_default', true)->first();
+
+        if ($default) {
+            return $default;
+        }
+
+        return $user->applicationWaves()->firstOrCreate(
+            ['name' => 'Imported applications'],
+            ['is_default' => true],
+        );
     }
 
     protected function parseStatus(mixed $value): ?ApplicationStatus

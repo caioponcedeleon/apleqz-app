@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,9 +19,11 @@ class ApplicationMomentsTest extends TestCase
     {
         $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
+        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
 
         $response = $this->actingAs($user)->post(route('applications.store'), [
             'area_id' => $area->id,
+            'application_wave_id' => $wave->id,
             'position' => 'Engineer',
             'company' => 'Acme',
             'applied_at' => '2026-05-01',
@@ -39,7 +42,7 @@ class ApplicationMomentsTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('applications.index'));
+        $response->assertRedirect(route('applications.edit', Application::query()->first()));
 
         $application = Application::query()->first();
         $this->assertCount(2, $application->moments);
@@ -54,9 +57,11 @@ class ApplicationMomentsTest extends TestCase
     {
         $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
+        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
         $application = Application::factory()->create([
             'user_id' => $user->id,
             'area_id' => $area->id,
+            'application_wave_id' => $wave->id,
             'status' => ApplicationStatus::Waiting,
             'applied_at' => '2026-05-01',
         ]);
@@ -69,6 +74,7 @@ class ApplicationMomentsTest extends TestCase
 
         $this->actingAs($user)->put(route('applications.update', $application), [
             'area_id' => $area->id,
+            'application_wave_id' => $wave->id,
             'position' => $application->position,
             'company' => $application->company,
             'applied_at' => '2026-05-01',

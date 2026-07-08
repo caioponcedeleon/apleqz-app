@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -27,6 +28,9 @@ class ApplicationFactory extends Factory
             'user_id' => User::factory(),
             'area_id' => function (array $attributes) {
                 return Area::factory()->create(['user_id' => $attributes['user_id']])->id;
+            },
+            'application_wave_id' => function (array $attributes) {
+                return ApplicationWave::factory()->create(['user_id' => $attributes['user_id']])->id;
             },
             'position' => fake()->jobTitle(),
             'company' => fake()->company(),

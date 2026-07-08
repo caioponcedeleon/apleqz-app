@@ -83,6 +83,9 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                     <DropdownLink :href="route('areas.index')">
                                         {{ t('app.nav.areas') }}
                                     </DropdownLink>
+                                    <DropdownLink :href="route('waves.index')">
+                                        {{ t('app.nav.waves') }}
+                                    </DropdownLink>
                                     <DropdownLink :href="route('profile.edit')">
                                         {{ t('app.nav.profile') }}
                                     </DropdownLink>
@@ -174,6 +177,12 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                             :active="route().current('areas.*')"
                         >
                             {{ t('app.nav.areas') }}
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('waves.index')"
+                            :active="route().current('waves.*')"
+                        >
+                            {{ t('app.nav.waves') }}
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
                             v-if="canUsePersonalFiles"

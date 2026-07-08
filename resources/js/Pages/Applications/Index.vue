@@ -14,6 +14,7 @@ const props = defineProps({
     applications: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
     areas: { type: Array, default: () => [] },
+    waves: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     canCreateApplication: { type: Boolean, default: true },
 });
@@ -34,12 +35,15 @@ const statusColors = {
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const areaId = ref(props.filters.area_id ?? '');
+const waveId = ref(props.filters.wave_id ?? '');
+const favouritesOnly = ref(Boolean(props.filters.favourites));
 const sort = ref(props.filters.sort ?? 'status');
 const direction = ref(props.filters.direction ?? 'asc');
 
 const sortableColumns = [
     { key: 'position', label: 'app.applications.position' },
     { key: 'company', label: 'app.applications.company' },
+    { key: 'wave', label: 'app.applications.wave' },
     { key: 'area', label: 'app.applications.area' },
     { key: 'applied_at', label: 'app.applications.applied_at' },
     { key: 'status', label: 'app.applications.status' },
@@ -55,6 +59,8 @@ const applyFilters = () => {
             search: search.value || undefined,
             status: status.value || undefined,
             area_id: areaId.value || undefined,
+            wave_id: waveId.value || undefined,
+            favourites: favouritesOnly.value || undefined,
             sort: sort.value,
             direction: direction.value,
         },
@@ -63,8 +69,20 @@ const applyFilters = () => {
 };
 
 const hasActiveFilters = computed(
-    () => Boolean(search.value || status.value || areaId.value),
+    () => Boolean(search.value || status.value || areaId.value || waveId.value || favouritesOnly.value),
 );
+
+const setupBlockedRoute = computed(() => {
+    if (!props.areas.length) {
+        return { href: route('areas.index'), label: 'app.applications.no_areas_go_to_areas' };
+    }
+
+    if (!props.waves.length) {
+        return { href: route('waves.index'), label: 'app.applications.no_waves_go_to_waves' };
+    }
+
+    return null;
+});
 
 const canImportExcel = computed(() => Boolean(page.props.auth.user?.excel_import_enabled));
 
@@ -74,6 +92,8 @@ const clearFilters = () => {
     search.value = '';
     status.value = '';
     areaId.value = '';
+    waveId.value = '';
+    favouritesOnly.value = false;
     sort.value = 'status';
     direction.value = 'asc';
     suppressFilterWatch = false;
@@ -99,7 +119,7 @@ const sortIndicator = (column) => {
     return direction.value === 'asc' ? '↑' : '↓';
 };
 
-watch([status, areaId], () => {
+watch([status, areaId, waveId, favouritesOnly], () => {
     if (!suppressFilterWatch) {
         applyFilters();
     }
@@ -117,6 +137,10 @@ watch(search, () => {
 const deleteApplication = (id) => {
     if (!confirm(t('app.applications.delete_confirm'))) return;
     router.delete(route('applications.destroy', id));
+};
+
+const toggleFavourite = (application) => {
+    router.patch(route('applications.favourite', application.id), {}, { preserveScroll: true });
 };
 
 const formatDate = (value) => {
@@ -143,8 +167,11 @@ const formatDate = (value) => {
                     >
                         <PrimaryButton>{{ t('app.applications.new') }}</PrimaryButton>
                     </Link>
-                    <Link v-else :href="route('areas.index')">
-                        <PrimaryButton>{{ t('app.applications.no_areas_go_to_areas') }}</PrimaryButton>
+                    <Link
+                        v-else-if="setupBlockedRoute"
+                        :href="setupBlockedRoute.href"
+                    >
+                        <PrimaryButton>{{ t(setupBlockedRoute.label) }}</PrimaryButton>
                     </Link>
                 </div>
             </div>
@@ -184,6 +211,21 @@ const formatDate = (value) => {
                         <option value="">{{ t('app.applications.filter_area') }}</option>
                         <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.name }}</option>
                     </select>
+                    <select
+                        v-model="waveId"
+                        class="rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                    >
+                        <option value="">{{ t('app.applications.filter_wave') }}</option>
+                        <option v-for="w in waves" :key="w.id" :value="w.id">{{ w.name }}</option>
+                    </select>
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input
+                            v-model="favouritesOnly"
+                            type="checkbox"
+                            class="rounded border-gray-300 text-indigo-600 shadow-sm dark:border-gray-600 dark:bg-gray-900"
+                        />
+                        {{ t('app.applications.favourites_only') }}
+                    </label>
                     <SecondaryButton
                         v-if="hasActiveFilters"
                         type="button"
@@ -208,6 +250,9 @@ const formatDate = (value) => {
                     <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>
+                                <th class="w-10 px-2 py-3 text-left">
+                                    <span class="sr-only">{{ t('app.applications.favourite') }}</span>
+                                </th>
                                 <th
                                     v-for="column in sortableColumns"
                                     :key="column.key"
@@ -236,10 +281,37 @@ const formatDate = (value) => {
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             <tr v-for="app in applications.data" :key="app.id">
+                                <td class="px-2 py-3">
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-md p-1.5 transition hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                        :class="app.is_favourite ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600'"
+                                        :title="t('app.applications.favourite_toggle')"
+                                        :aria-label="t('app.applications.favourite_toggle')"
+                                        @click="toggleFavourite(app)"
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            :fill="app.is_favourite ? 'currentColor' : 'none'"
+                                            viewBox="0 0 24 24"
+                                            stroke-width="1.5"
+                                            stroke="currentColor"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.563.563 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"
+                                            />
+                                        </svg>
+                                    </button>
+                                </td>
                                 <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                     {{ app.position }}
                                 </td>
                                 <td class="px-4 py-3">{{ app.company }}</td>
+                                <td class="px-4 py-3">{{ app.wave?.name ?? '—' }}</td>
                                 <td class="px-4 py-3">{{ app.area?.name }}</td>
                                 <td class="px-4 py-3">{{ formatDate(app.applied_at) }}</td>
                                 <td class="px-4 py-3 min-w-[11rem]">

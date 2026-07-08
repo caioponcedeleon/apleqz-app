@@ -21,7 +21,7 @@ class FilteredApplicationsQuery
         $sort = $filters['sort'] ?? 'status';
         $direction = $filters['direction'] ?? 'asc';
 
-        if (! in_array($sort, ['position', 'company', 'area', 'applied_at', 'status'], true)) {
+        if (! in_array($sort, ['position', 'company', 'area', 'wave', 'applied_at', 'status'], true)) {
             $sort = 'status';
         }
 
@@ -31,7 +31,7 @@ class FilteredApplicationsQuery
 
         $query = $this->user
             ->applications()
-            ->with(['area', 'moments']);
+            ->with(['area', 'wave', 'moments']);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -39,6 +39,14 @@ class FilteredApplicationsQuery
 
         if (! empty($filters['area_id'])) {
             $query->where('area_id', $filters['area_id']);
+        }
+
+        if (! empty($filters['wave_id'])) {
+            $query->where('application_wave_id', $filters['wave_id']);
+        }
+
+        if (! empty($filters['favourites'])) {
+            $query->where('is_favourite', true);
         }
 
         if (! empty($filters['search'])) {
@@ -64,6 +72,10 @@ class FilteredApplicationsQuery
                 ->leftJoin('areas', 'applications.area_id', '=', 'areas.id')
                 ->orderBy('areas.name', $direction)
                 ->select('applications.*'),
+            'wave' => $query
+                ->leftJoin('application_waves', 'applications.application_wave_id', '=', 'application_waves.id')
+                ->orderBy('application_waves.name', $direction)
+                ->select('applications.*'),
             default => $query
                 ->orderByRaw('CASE WHEN applied_at IS NULL THEN 1 ELSE 0 END')
                 ->orderBy('applied_at', $direction),
@@ -73,6 +85,7 @@ class FilteredApplicationsQuery
     protected function applyStatusSorting(Builder|Relation $query, string $direction): void
     {
         $query
+            ->orderByDesc('is_favourite')
             ->orderByRaw(ApplicationStatus::listSortOrderSql($direction))
             ->orderByRaw('CASE WHEN applied_at IS NULL THEN 0 ELSE 1 END')
             ->orderByDesc('applied_at')

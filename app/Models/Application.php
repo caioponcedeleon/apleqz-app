@@ -17,11 +17,13 @@ class Application extends Model
     protected $fillable = [
         'user_id',
         'area_id',
+        'application_wave_id',
         'position',
         'company',
         'location',
         'applied_at',
         'status',
+        'is_favourite',
         'channel',
         'notes',
         'job_url',
@@ -32,6 +34,7 @@ class Application extends Model
         return [
             'applied_at' => 'date',
             'status' => ApplicationStatus::class,
+            'is_favourite' => 'boolean',
         ];
     }
 
@@ -43,6 +46,11 @@ class Application extends Model
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    public function wave(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationWave::class, 'application_wave_id');
     }
 
     public function moments(): HasMany

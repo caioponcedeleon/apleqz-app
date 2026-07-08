@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'user.has.areas' => \App\Http\Middleware\EnsureUserHasAreas::class,
+            'user.has.waves' => \App\Http\Middleware\EnsureUserHasWaves::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

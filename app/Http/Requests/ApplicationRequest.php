@@ -46,6 +46,7 @@ class ApplicationRequest extends FormRequest
 
         return [
             'area_id' => ['required', 'uuid', Rule::exists('areas', 'id')->where('user_id', $this->user()->id)],
+            'application_wave_id' => ['required', 'uuid', Rule::exists('application_waves', 'id')->where('user_id', $this->user()->id)],
             'position' => ['required', 'string', 'max:255'],
             'company' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],

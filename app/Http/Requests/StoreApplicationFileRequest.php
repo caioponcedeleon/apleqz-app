@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\StoredFileService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rules\File;
 
 class StoreApplicationFileRequest extends FormRequest
@@ -19,12 +20,27 @@ class StoreApplicationFileRequest extends FormRequest
 
     public function rules(): array
     {
+        $fileRule = File::types(StoredFileService::ALLOWED_EXTENSIONS)
+            ->max(StoredFileService::MAX_BYTES);
+
         return [
-            'file' => [
-                'required',
-                File::types(StoredFileService::ALLOWED_EXTENSIONS)
-                    ->max(StoredFileService::MAX_BYTES),
-            ],
+            'files' => ['sometimes', 'array', 'max:10'],
+            'files.*' => ['required', $fileRule],
+            'file' => ['required_without:files', $fileRule],
         ];
+    }
+
+    /**
+     * @return list<UploadedFile>
+     */
+    public function uploadedFiles(): array
+    {
+        if ($this->hasFile('files')) {
+            return array_values($this->file('files'));
+        }
+
+        $file = $this->file('file');
+
+        return $file ? [$file] : [];
     }
 }

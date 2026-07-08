@@ -11,6 +11,7 @@ const props = defineProps({
     previewUrl: { type: Function, required: true },
     deleteUrl: { type: Function, required: true },
     disabled: { type: Boolean, default: false },
+    multiple: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -62,17 +63,21 @@ const pickFile = () => {
 };
 
 const onFileSelected = (event) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
 
-    if (!file || props.disabled) {
+    if (!files.length || props.disabled) {
         return;
     }
 
     uploading.value = true;
 
+    const payload = props.multiple
+        ? { files }
+        : { file: files[0] };
+
     router.post(
         props.uploadUrl,
-        { file },
+        payload,
         {
             forceFormData: true,
             preserveScroll: true,
@@ -106,6 +111,7 @@ const deleteFile = (file) => {
                 ref="fileInput"
                 type="file"
                 class="hidden"
+                :multiple="multiple"
                 accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 @change="onFileSelected"
             />

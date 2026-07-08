@@ -16,6 +16,8 @@ class ApplicationFileController extends Controller
 {
     use ServesStoredFileInline;
 
+    public const MAX_FILES_PER_APPLICATION = 10;
+
     public function __construct(
         protected StoredFileService $storedFiles
     ) {}
@@ -24,17 +26,34 @@ class ApplicationFileController extends Controller
     {
         $this->authorize('update', $application);
 
-        $meta = $this->storedFiles->store(
-            $request->file('file'),
-            "application-files/{$request->user()->id}/{$application->id}",
-        );
+        $uploadedFiles = $request->uploadedFiles();
+        $remainingSlots = self::MAX_FILES_PER_APPLICATION - $application->files()->count();
 
-        $application->files()->create([
-            ...$meta,
-            'user_id' => $request->user()->id,
-        ]);
+        if ($remainingSlots <= 0) {
+            return back()->with('error', __('app.flash.files_limit_reached'));
+        }
 
-        return back()->with('success', __('app.flash.file_uploaded'));
+        $uploadedCount = 0;
+
+        foreach (array_slice($uploadedFiles, 0, $remainingSlots) as $file) {
+            $meta = $this->storedFiles->store(
+                $file,
+                "application-files/{$request->user()->id}/{$application->id}",
+            );
+
+            $application->files()->create([
+                ...$meta,
+                'user_id' => $request->user()->id,
+            ]);
+
+            $uploadedCount++;
+        }
+
+        $message = $uploadedCount === 1
+            ? __('app.flash.file_uploaded')
+            : __('app.flash.files_uploaded', ['count' => $uploadedCount]);
+
+        return back()->with('success', $message);
     }
 
     public function destroy(Application $application, ApplicationFile $file): RedirectResponse

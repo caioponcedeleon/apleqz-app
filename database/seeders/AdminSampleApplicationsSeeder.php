@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -30,6 +31,7 @@ class AdminSampleApplicationsSeeder extends Seeder
         }
 
         $areas = $this->ensureAreas($admin);
+        $wave = $this->ensureDefaultWave($admin);
 
         $samples = [
             [
@@ -147,6 +149,7 @@ class AdminSampleApplicationsSeeder extends Seeder
                 ...$sample,
                 'user_id' => $admin->id,
                 'area_id' => $area->id,
+                'application_wave_id' => $wave->id,
                 'notes' => self::SAMPLE_NOTE,
             ]);
 
@@ -179,5 +182,13 @@ class AdminSampleApplicationsSeeder extends Seeder
         }
 
         return $areas;
+    }
+
+    private function ensureDefaultWave(User $admin): ApplicationWave
+    {
+        return ApplicationWave::query()->firstOrCreate(
+            ['user_id' => $admin->id, 'name' => 'Imported applications'],
+            ['is_default' => true],
+        );
     }
 }

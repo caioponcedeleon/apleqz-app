@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\ApplicationStatus;
+use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,9 +18,11 @@ class WaitingToApplyStatusTest extends TestCase
     {
         $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
+        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
 
         $response = $this->actingAs($user)->post(route('applications.store'), [
             'area_id' => $area->id,
+            'application_wave_id' => $wave->id,
             'position' => 'Product Designer',
             'company' => 'Startup Co',
             'location' => 'Remote',
@@ -26,7 +30,7 @@ class WaitingToApplyStatusTest extends TestCase
             'status' => ApplicationStatus::WaitingToApply->value,
         ]);
 
-        $response->assertRedirect(route('applications.index'));
+        $response->assertRedirect(route('applications.edit', Application::query()->first()));
 
         $this->assertDatabaseHas('applications', [
             'user_id' => $user->id,
@@ -40,9 +44,11 @@ class WaitingToApplyStatusTest extends TestCase
     {
         $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
+        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
 
         $response = $this->actingAs($user)->post(route('applications.store'), [
             'area_id' => $area->id,
+            'application_wave_id' => $wave->id,
             'position' => 'Engineer',
             'company' => 'Corp',
             'applied_at' => '',

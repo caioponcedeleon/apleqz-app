@@ -4,6 +4,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ApplicationExportController;
 use App\Http\Controllers\ApplicationFileController;
 use App\Http\Controllers\ApplicationImportController;
+use App\Http\Controllers\ApplicationWaveController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
@@ -30,8 +31,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('applications', ApplicationController::class)->except(['show', 'store']);
     Route::post('applications', [ApplicationController::class, 'store'])
-        ->middleware('user.has.areas')
+        ->middleware(['user.has.areas', 'user.has.waves'])
         ->name('applications.store');
+    Route::patch('/applications/{application}/favourite', [ApplicationController::class, 'toggleFavourite'])
+        ->name('applications.favourite');
     Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
     Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
     Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
@@ -56,6 +59,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
     Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
     Route::delete('/areas/{area}', [AreaController::class, 'destroy'])->name('areas.destroy');
+
+    Route::get('/waves', [ApplicationWaveController::class, 'index'])->name('waves.index');
+    Route::post('/waves', [ApplicationWaveController::class, 'store'])->name('waves.store');
+    Route::put('/waves/{application_wave}', [ApplicationWaveController::class, 'update'])->name('waves.update');
+    Route::delete('/waves/{application_wave}', [ApplicationWaveController::class, 'destroy'])->name('waves.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

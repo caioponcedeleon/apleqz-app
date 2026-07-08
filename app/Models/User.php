@@ -53,6 +53,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Area::class);
     }
 
+    public function applicationWaves(): HasMany
+    {
+        return $this->hasMany(ApplicationWave::class);
+    }
+
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);

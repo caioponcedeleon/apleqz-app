@@ -24,6 +24,8 @@ class ApplicationController extends Controller
         $filters = [
             'status' => $request->input('status'),
             'area_id' => $request->input('area_id'),
+            'wave_id' => $request->input('wave_id'),
+            'favourites' => $request->boolean('favourites'),
             'search' => $request->input('search'),
             'sort' => $request->input('sort', 'status'),
             'direction' => $request->input('direction', 'asc'),
@@ -31,14 +33,16 @@ class ApplicationController extends Controller
 
         $query = (new FilteredApplicationsQuery($request->user()))
             ->build($filters)
-            ->with('area');
+            ->with(['area', 'wave']);
 
         return Inertia::render('Applications/Index', [
             'applications' => $query->paginate(15)->withQueryString(),
             'filters' => $filters,
             'areas' => $request->user()->areas()->orderBy('name')->get(['id', 'name']),
+            'waves' => $request->user()->applicationWaves()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'is_default']),
             'statuses' => ApplicationStatus::values(),
-            'canCreateApplication' => $request->user()->areas()->exists(),
+            'canCreateApplication' => $request->user()->areas()->exists()
+                && $request->user()->applicationWaves()->exists(),
         ]);
     }
 
@@ -52,7 +56,7 @@ class ApplicationController extends Controller
         $application = $request->user()->applications()->create($request->applicationAttributes());
         $this->momentSync->sync($application, $request->momentsPayload());
 
-        return redirect()->route('applications.index')
+        return redirect()->route('applications.edit', $application)
             ->with('success', __('app.flash.application_created'));
     }
 
@@ -60,7 +64,7 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
-        $application->load(['area', 'moments', 'files']);
+        $application->load(['area', 'wave', 'moments', 'files']);
 
         return Inertia::render('Applications/Form', $this->formProps(request(), $application));
     }
@@ -86,6 +90,15 @@ class ApplicationController extends Controller
             ->with('success', __('app.flash.application_deleted'));
     }
 
+    public function toggleFavourite(Application $application): RedirectResponse
+    {
+        $this->authorize('update', $application);
+
+        $application->update(['is_favourite' => ! $application->is_favourite]);
+
+        return back();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -96,10 +109,12 @@ class ApplicationController extends Controller
         return [
             'application' => $application,
             'areas' => $user->areas()->orderBy('name')->get(['id', 'name']),
+            'waves' => $user->applicationWaves()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'is_default']),
             'statuses' => ApplicationStatus::values(),
             'momentTypes' => ApplicationMomentType::values(),
             'canUploadApplicationFiles' => $user->application_files_enabled,
-            'canCreateApplication' => $user->areas()->exists(),
+            'canCreateApplication' => $user->areas()->exists()
+                && $user->applicationWaves()->exists(),
         ];
     }
 }

@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n';
 const props = defineProps({
     application: { type: Object, default: null },
     areas: { type: Array, default: () => [] },
+    waves: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     momentTypes: { type: Array, default: () => [] },
     canUploadApplicationFiles: { type: Boolean, default: false },
@@ -22,8 +23,10 @@ const props = defineProps({
 const { t } = useI18n();
 const isEdit = computed(() => props.application !== null);
 const hasAreas = computed(() => props.areas.length > 0);
-const showBlockedState = computed(() => !isEdit.value && !hasAreas.value);
-const canUseForm = computed(() => isEdit.value || hasAreas.value);
+const hasWaves = computed(() => props.waves.length > 0);
+const showNoAreasState = computed(() => !isEdit.value && !hasAreas.value);
+const showNoWavesState = computed(() => !isEdit.value && hasAreas.value && !hasWaves.value);
+const canUseForm = computed(() => isEdit.value || (hasAreas.value && hasWaves.value));
 
 const mapMoments = (moments) =>
     (moments ?? []).map((moment) => ({
@@ -35,6 +38,7 @@ const mapMoments = (moments) =>
 
 const form = useForm({
     area_id: props.application?.area_id ?? props.areas[0]?.id ?? '',
+    application_wave_id: props.application?.application_wave_id ?? props.waves[0]?.id ?? '',
     position: props.application?.position ?? '',
     company: props.application?.company ?? '',
     location: props.application?.location ?? '',
@@ -110,7 +114,7 @@ const submit = () => {
         <div class="py-8">
             <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
                 <div
-                    v-if="showBlockedState"
+                    v-if="showNoAreasState"
                     class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"
                 >
                     <h3 class="text-lg font-semibold text-amber-950 dark:text-amber-100">
@@ -137,13 +141,55 @@ const submit = () => {
                     </div>
                 </div>
 
+                <div
+                    v-else-if="showNoWavesState"
+                    class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"
+                >
+                    <h3 class="text-lg font-semibold text-amber-950 dark:text-amber-100">
+                        {{ t('app.applications.no_waves_title') }}
+                    </h3>
+                    <p class="mt-3 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
+                        {{ t('app.applications.wave_explanation') }}
+                    </p>
+                    <p class="mt-3 text-sm text-amber-900/80 dark:text-amber-200/80">
+                        {{ t('app.applications.no_waves_body') }}
+                    </p>
+                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        <Link :href="route('waves.index')">
+                            <PrimaryButton type="button">
+                                {{ t('app.applications.no_waves_go_to_waves') }}
+                            </PrimaryButton>
+                        </Link>
+                        <Link
+                            :href="route('applications.index')"
+                            class="text-sm text-amber-900/80 hover:underline dark:text-amber-200/80"
+                        >
+                            {{ t('app.actions.cancel') }}
+                        </Link>
+                    </div>
+                </div>
+
                 <form
                     v-else
                     class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     @submit.prevent="submit"
                 >
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="sm:col-span-2">
+                        <div>
+                            <InputLabel :value="t('app.applications.wave')" />
+                            <select
+                                v-model="form.application_wave_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                                required
+                            >
+                                <option v-for="w in waves" :key="w.id" :value="w.id">
+                                    {{ w.name }}
+                                </option>
+                            </select>
+                            <InputError class="mt-1" :message="form.errors.application_wave_id" />
+                        </div>
+
+                        <div>
                             <InputLabel :value="t('app.applications.area')" />
                             <select
                                 v-model="form.area_id"
@@ -333,6 +379,7 @@ const submit = () => {
                                 :download-url="downloadApplicationFileUrl"
                                 :preview-url="previewApplicationFileUrl"
                                 :delete-url="deleteApplicationFileUrl"
+                                multiple
                             />
                             <p
                                 v-else
