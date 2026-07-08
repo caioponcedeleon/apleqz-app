@@ -96,6 +96,34 @@ class ApplicationFilesTest extends TestCase
             ->assertHeader('content-disposition');
     }
 
+    public function test_empty_files_array_is_rejected(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['application_files_enabled' => true]);
+        $application = Application::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->post(route('applications.files.store', $application), ['files' => []])
+            ->assertSessionHasErrors('files');
+
+        $this->assertDatabaseCount('application_files', 0);
+    }
+
+    public function test_request_without_files_is_rejected(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['application_files_enabled' => true]);
+        $application = Application::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->post(route('applications.files.store', $application), [])
+            ->assertSessionHasErrors(['file', 'files']);
+
+        $this->assertDatabaseCount('application_files', 0);
+    }
+
     public function test_invalid_file_type_is_rejected(): void
     {
         Storage::fake('local');

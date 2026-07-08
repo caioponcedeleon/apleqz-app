@@ -27,6 +27,13 @@ class ApplicationFileController extends Controller
         $this->authorize('update', $application);
 
         $uploadedFiles = $request->uploadedFiles();
+
+        if ($uploadedFiles === []) {
+            return back()->withErrors([
+                'file' => __('validation.required', ['attribute' => 'file']),
+            ]);
+        }
+
         $remainingSlots = self::MAX_FILES_PER_APPLICATION - $application->files()->count();
 
         if ($remainingSlots <= 0) {

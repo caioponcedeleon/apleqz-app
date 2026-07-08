@@ -24,7 +24,7 @@ class StoreApplicationFileRequest extends FormRequest
             ->max(StoredFileService::MAX_BYTES);
 
         return [
-            'files' => ['sometimes', 'array', 'max:10'],
+            'files' => ['required_without:file', 'array', 'min:1', 'max:10'],
             'files.*' => ['required', $fileRule],
             'file' => ['required_without:files', $fileRule],
         ];
