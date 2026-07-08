@@ -8,6 +8,7 @@ use App\Http\Requests\ApplicationRequest;
 use App\Models\Application;
 use App\Queries\FilteredApplicationsQuery;
 use App\Services\ApplicationMomentSyncService;
+use App\Services\ApplicationStatusHistoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,7 +17,8 @@ use Inertia\Response;
 class ApplicationController extends Controller
 {
     public function __construct(
-        protected ApplicationMomentSyncService $momentSync
+        protected ApplicationMomentSyncService $momentSync,
+        protected ApplicationStatusHistoryService $statusHistory,
     ) {}
 
     public function index(Request $request): Response
@@ -54,7 +56,13 @@ class ApplicationController extends Controller
     public function store(ApplicationRequest $request): RedirectResponse
     {
         $application = $request->user()->applications()->create($request->applicationAttributes());
+        $this->statusHistory->recordInitial($application);
         $this->momentSync->sync($application, $request->momentsPayload());
+
+        if ($request->boolean('create_another')) {
+            return redirect()->route('applications.create')
+                ->with('success', __('app.flash.application_created'));
+        }
 
         return redirect()->route('applications.edit', $application)
             ->with('success', __('app.flash.application_created'));
@@ -73,10 +81,13 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
+        $previousStatus = $application->status;
+
         $application->update($request->applicationAttributes());
+        $this->statusHistory->recordIfChanged($application, $previousStatus);
         $this->momentSync->sync($application, $request->momentsPayload());
 
-        return redirect()->route('applications.index')
+        return redirect()->route('applications.edit', $application)
             ->with('success', __('app.flash.application_updated'));
     }
 
@@ -111,7 +122,7 @@ class ApplicationController extends Controller
             'areas' => $user->areas()->orderBy('name')->get(['id', 'name']),
             'waves' => $user->applicationWaves()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'is_default']),
             'statuses' => ApplicationStatus::values(),
-            'momentTypes' => ApplicationMomentType::values(),
+            'momentTypes' => ApplicationMomentType::userEditableValues(),
             'canUploadApplicationFiles' => $user->application_files_enabled,
             'canCreateApplication' => $user->areas()->exists()
                 && $user->applicationWaves()->exists(),

@@ -1,4 +1,5 @@
 <script setup>
+import ConfirmDeleteModal from '@/Components/ConfirmDeleteModal.vue';
 import FilePreviewModal from '@/Components/FilePreviewModal.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { router } from '@inertiajs/vue3';
@@ -23,6 +24,7 @@ const previewFile = ref(null);
 const showPreview = ref(false);
 const editingId = ref(null);
 const editingName = ref('');
+const pendingDeleteFile = ref(null);
 
 const formatSize = (bytes) => {
     if (bytes < 1024) {
@@ -129,12 +131,29 @@ const saveRename = (file) => {
     );
 };
 
-const deleteFile = (file) => {
-    if (props.disabled || !confirm(t('app.files.delete_confirm'))) {
+const requestDeleteFile = (file) => {
+    if (props.disabled) {
         return;
     }
 
-    router.delete(props.deleteUrl(file), { preserveScroll: true });
+    pendingDeleteFile.value = file;
+};
+
+const cancelDeleteFile = () => {
+    pendingDeleteFile.value = null;
+};
+
+const confirmDeleteFile = () => {
+    if (!pendingDeleteFile.value) {
+        return;
+    }
+
+    router.delete(props.deleteUrl(pendingDeleteFile.value), {
+        preserveScroll: true,
+        onFinish: () => {
+            pendingDeleteFile.value = null;
+        },
+    });
 };
 </script>
 
@@ -257,7 +276,7 @@ const deleteFile = (file) => {
                         v-if="!disabled"
                         type="button"
                         class="rounded-md px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                        @click="deleteFile(file)"
+                        @click="requestDeleteFile(file)"
                     >
                         {{ t('app.files.delete') }}
                     </button>
@@ -270,6 +289,15 @@ const deleteFile = (file) => {
             :file="previewFile"
             :preview-url="previewFile ? previewUrl(previewFile) : ''"
             @close="closePreview"
+        />
+
+        <ConfirmDeleteModal
+            :show="pendingDeleteFile !== null"
+            :title="t('app.files.delete_title')"
+            :message="t('app.files.delete_confirm')"
+            :item-name="pendingDeleteFile ? fileLabel(pendingDeleteFile) : ''"
+            @close="cancelDeleteFile"
+            @confirm="confirmDeleteFile"
         />
     </div>
 </template>

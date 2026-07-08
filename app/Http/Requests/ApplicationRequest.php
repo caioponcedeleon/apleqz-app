@@ -42,7 +42,7 @@ class ApplicationRequest extends FormRequest
     public function rules(): array
     {
         $statuses = ApplicationStatus::values();
-        $momentTypes = ApplicationMomentType::values();
+        $momentTypes = ApplicationMomentType::userEditableValues();
 
         return [
             'area_id' => ['required', 'uuid', Rule::exists('areas', 'id')->where('user_id', $this->user()->id)],
@@ -61,6 +61,7 @@ class ApplicationRequest extends FormRequest
             'channel' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'job_url' => ['nullable', 'url', 'max:2048'],
+            'create_another' => ['sometimes', 'boolean'],
             'moments' => ['nullable', 'array'],
             'moments.*.id' => ['nullable', 'integer'],
             'moments.*.type' => ['required_with:moments.*.occurred_at', Rule::in($momentTypes)],
@@ -71,7 +72,7 @@ class ApplicationRequest extends FormRequest
 
     public function applicationAttributes(): array
     {
-        return $this->safe()->except('moments');
+        return $this->safe()->except(['moments', 'create_another']);
     }
 
     public function momentsPayload(): array

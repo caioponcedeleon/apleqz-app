@@ -182,6 +182,27 @@ class ApplicationCrudTest extends TestCase
                 ->where('applications.data.1.position', 'Waiting role'));
     }
 
+    public function test_user_can_create_application_and_start_another(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->post(route('applications.store'), [
+                'area_id' => $area->id,
+                'application_wave_id' => $wave->id,
+                'position' => 'Developer',
+                'company' => 'Acme',
+                'applied_at' => '2026-05-01',
+                'status' => ApplicationStatus::Waiting->value,
+                'create_another' => true,
+            ])
+            ->assertRedirect(route('applications.create'));
+
+        $this->assertDatabaseCount('applications', 1);
+    }
+
     public function test_user_can_toggle_application_favourite(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);

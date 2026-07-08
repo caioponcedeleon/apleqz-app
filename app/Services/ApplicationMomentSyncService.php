@@ -23,7 +23,7 @@ class ApplicationMomentSyncService
 
             $type = ApplicationMomentType::tryFrom((string) ($moment['type'] ?? ''));
 
-            if (! $type || empty($moment['occurred_at'])) {
+            if (! $type || $type === ApplicationMomentType::StatusChange || empty($moment['occurred_at'])) {
                 continue;
             }
 
@@ -37,7 +37,11 @@ class ApplicationMomentSyncService
             if (! empty($moment['id'])) {
                 $record = $application->moments()->whereKey($moment['id'])->first();
 
-                if (! $record) {
+                if (! $record || $record->is_system) {
+                    if ($record?->is_system) {
+                        continue;
+                    }
+
                     throw ValidationException::withMessages([
                         "moments.{$index}.id" => __('validation.exists', ['attribute' => 'moment']),
                     ]);
@@ -49,10 +53,16 @@ class ApplicationMomentSyncService
                 continue;
             }
 
-            $record = $application->moments()->create($payload);
+            $record = $application->moments()->create([
+                ...$payload,
+                'is_system' => false,
+            ]);
             $keptIds[] = $record->id;
         }
 
-        $application->moments()->whereNotIn('id', $keptIds)->delete();
+        $application->moments()
+            ->where('is_system', false)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
     }
 }

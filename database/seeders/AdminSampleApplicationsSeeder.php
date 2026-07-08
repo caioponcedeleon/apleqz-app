@@ -8,6 +8,7 @@ use App\Models\Application;
 use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
+use App\Services\ApplicationStatusHistoryService;
 use Illuminate\Database\Seeder;
 
 class AdminSampleApplicationsSeeder extends Seeder
@@ -152,6 +153,8 @@ class AdminSampleApplicationsSeeder extends Seeder
                 'application_wave_id' => $wave->id,
                 'notes' => self::SAMPLE_NOTE,
             ]);
+
+            app(ApplicationStatusHistoryService::class)->recordInitial($application);
 
             foreach ($moments as $index => $moment) {
                 $application->moments()->create([

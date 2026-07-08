@@ -24,6 +24,7 @@ return [
         'interview' => 'Vorstellungsgespräch',
         'offer' => 'Angebot',
         'rejection' => 'Absage',
+        'status_change' => 'Statusänderung',
         'other' => 'Sonstiges',
     ],
 ];

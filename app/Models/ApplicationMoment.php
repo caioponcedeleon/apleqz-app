@@ -14,6 +14,7 @@ class ApplicationMoment extends Model
         'occurred_at',
         'notes',
         'sort_order',
+        'is_system',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class ApplicationMoment extends Model
         return [
             'type' => ApplicationMomentType::class,
             'occurred_at' => 'date',
+            'is_system' => 'boolean',
         ];
     }
 

@@ -45,10 +45,16 @@ class ApplicationMomentsTest extends TestCase
         $response->assertRedirect(route('applications.edit', Application::query()->first()));
 
         $application = Application::query()->first();
-        $this->assertCount(2, $application->moments);
+        $this->assertCount(3, $application->moments);
         $this->assertTrue(
             $application->moments->contains(
                 fn ($moment) => $moment->type === ApplicationMomentType::Rejection
+            )
+        );
+        $this->assertTrue(
+            $application->moments->contains(
+                fn ($moment) => $moment->type === ApplicationMomentType::StatusChange
+                    && $moment->is_system
             )
         );
     }
@@ -87,7 +93,7 @@ class ApplicationMomentsTest extends TestCase
                     'notes' => 'Signed',
                 ],
             ],
-        ])->assertRedirect(route('applications.index'));
+        ])->assertRedirect(route('applications.edit', $application));
 
         $application->refresh();
         $this->assertCount(1, $application->moments);

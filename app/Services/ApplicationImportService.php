@@ -15,6 +15,10 @@ use OpenSpout\Reader\XLSX\Reader;
 
 class ApplicationImportService
 {
+    public function __construct(
+        protected ApplicationStatusHistoryService $statusHistory,
+    ) {}
+
     /** @var array<string, ApplicationStatus> */
     protected array $statusMap = [
         'a_candidatar' => ApplicationStatus::WaitingToApply,
@@ -103,6 +107,8 @@ class ApplicationImportService
                         'channel' => $channel,
                         'notes' => $notes,
                     ]);
+
+                    $this->statusHistory->recordInitial($application);
 
                     $sort = 0;
 
