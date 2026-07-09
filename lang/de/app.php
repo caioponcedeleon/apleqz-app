@@ -528,7 +528,6 @@ return [
             'show_interactions' => 'Erweitert: Interaktionsschritte (JSON)',
             'hide_interactions' => 'Interaktionsschritte ausblenden',
             'interactions_json' => 'Browser-Interaktionsschritte',
-            'interactions_placeholder' => '[{"type":"wait_for","selector":".jobboard-datatable table tbody tr","timeout_ms":20000}]',
             'interactions_help' => 'Optionale Schritte nach dem Öffnen der Seite: wait_for, click, scroll, sleep. Leer lassen für sinnvolle Standardwerte gängiger Jobbörsen.',
             'interactions_invalid' => 'Interaktionsschritte müssen ein gültiges JSON-Array sein.',
         ],

@@ -528,7 +528,6 @@ return [
             'show_interactions' => 'Advanced: interaction steps (JSON)',
             'hide_interactions' => 'Hide interaction steps',
             'interactions_json' => 'Browser interaction steps',
-            'interactions_placeholder' => '[{"type":"wait_for","selector":".jobboard-datatable table tbody tr","timeout_ms":20000}]',
             'interactions_help' => 'Optional steps run after the page opens: wait_for, click, scroll, sleep. Leave empty to use sensible defaults for common job boards.',
             'interactions_invalid' => 'Interaction steps must be valid JSON array.',
         ],

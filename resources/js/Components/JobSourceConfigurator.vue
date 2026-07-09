@@ -48,9 +48,7 @@ const interactionsJson = ref(
         ? JSON.stringify(props.interactions, null, 2)
         : '',
 );
-const showInteractionsEditor = ref(
-    Array.isArray(props.interactions) && props.interactions.length > 0,
-);
+const interactionsDetails = ref(null);
 const suggestPlaywright = ref(false);
 const cachedHtml = ref(null);
 const testResults = ref([]);
@@ -131,6 +129,8 @@ const selectedField = ref('');
 const customFieldLabel = ref('');
 
 const CUSTOM_FIELD = '__custom__';
+
+const INTERACTIONS_JSON_PLACEHOLDER = '[{"type":"wait_for","selector":".jobboard-datatable table tbody tr","timeout_ms":20000}]';
 
 const isCustomFieldSelected = computed(() => selectedField.value === CUSTOM_FIELD);
 
@@ -713,6 +713,10 @@ watch(itemGroupBuilding, sendPickerConfig);
 
 onMounted(() => {
     window.addEventListener('message', handlePickerMessage);
+
+    if (interactionsDetails.value && interactionsJson.value.trim() !== '') {
+        interactionsDetails.value.open = true;
+    }
 });
 
 onUnmounted(() => {
@@ -809,30 +813,37 @@ onUnmounted(() => {
                     </span>
                 </label>
 
-                <button
-                    type="button"
-                    class="text-sm font-medium text-primary-600 underline dark:text-primary-400"
-                    @click="showInteractionsEditor = !showInteractionsEditor"
+                <details
+                    ref="interactionsDetails"
+                    class="group rounded-lg border border-gray-100 dark:border-gray-700"
                 >
-                    {{ showInteractionsEditor
-                        ? t('app.job_sources.configurator.hide_interactions')
-                        : t('app.job_sources.configurator.show_interactions') }}
-                </button>
+                    <summary
+                        class="cursor-pointer select-none px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 [&::-webkit-details-marker]:hidden"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <span
+                                aria-hidden="true"
+                                class="inline-block text-xs transition-transform group-open:rotate-90"
+                            >▸</span>
+                            {{ t('app.job_sources.configurator.show_interactions') }}
+                        </span>
+                    </summary>
 
-                <div v-if="showInteractionsEditor">
-                    <label class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        {{ t('app.job_sources.configurator.interactions_json') }}
-                    </label>
-                    <textarea
-                        v-model="interactionsJson"
-                        rows="6"
-                        class="mt-2 block w-full rounded-lg border-gray-300 font-mono text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                        :placeholder="t('app.job_sources.configurator.interactions_placeholder')"
-                    />
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {{ t('app.job_sources.configurator.interactions_help') }}
-                    </p>
-                </div>
+                    <div class="space-y-2 border-t border-gray-100 px-3 py-3 dark:border-gray-700">
+                        <label class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_sources.configurator.interactions_json') }}
+                        </label>
+                        <textarea
+                            v-model="interactionsJson"
+                            rows="6"
+                            class="mt-2 block w-full rounded-lg border border-gray-300 font-mono text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                            :placeholder="INTERACTIONS_JSON_PLACEHOLDER"
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_sources.configurator.interactions_help') }}
+                        </p>
+                    </div>
+                </details>
             </div>
 
             <div
