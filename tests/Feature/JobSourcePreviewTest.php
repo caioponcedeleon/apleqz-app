@@ -182,4 +182,32 @@ class JobSourcePreviewTest extends TestCase
                 ->whereType('cached_html', 'string')
                 ->etc());
     }
+
+    public function test_test_extraction_endpoint_runs_playwright_full_flow(): void
+    {
+        config([
+            'job_scraping.playwright.script_path' => base_path('tests/fixtures/scripts/mock-scrape-page.mjs'),
+            'job_scraping.playwright.node_binary' => 'node',
+        ]);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)
+            ->postJson(route('job-sources.test-extraction'), [
+                'url' => 'https://example.com/jobs',
+                'base_url' => 'https://example.com/jobs',
+                'engine' => 'playwright',
+                'interactions' => [
+                    ['type' => 'click', 'selector' => '#accept', 'optional' => true],
+                ],
+                'item_selector' => 'article.job-card',
+                'fields' => [
+                    'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                    'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('count', 2)
+            ->assertJsonPath('item_match_count', 2);
+    }
 }

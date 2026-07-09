@@ -43,12 +43,14 @@ const paginationType = ref(props.pagination?.type === 'query_param' ? 'query_par
 const paginationParam = ref(props.pagination?.param || 'page');
 const paginationMaxPages = ref(props.pagination?.max_pages || 10);
 const previewEngine = ref(props.engine === 'playwright' ? 'playwright' : 'http');
-const interactionsJson = ref(
-    Array.isArray(props.interactions) && props.interactions.length > 0
-        ? JSON.stringify(props.interactions, null, 2)
-        : '',
+const interactionSteps = ref(
+    Array.isArray(props.interactions)
+        ? props.interactions.map((step) => normalizeInteractionStep(step))
+        : [],
 );
-const interactionsDetails = ref(null);
+const interactionRecordingType = ref(null);
+const pendingInteraction = ref(null);
+const testingFullFlow = ref(false);
 const suggestPlaywright = ref(false);
 const cachedHtml = ref(null);
 const testResults = ref([]);
@@ -130,7 +132,82 @@ const customFieldLabel = ref('');
 
 const CUSTOM_FIELD = '__custom__';
 
-const INTERACTIONS_JSON_PLACEHOLDER = '[{"type":"wait_for","selector":".jobboard-datatable table tbody tr","timeout_ms":20000}]';
+const INTERACTION_PRESETS = [
+    {
+        key: 'onetrust',
+        selector: '#onetrust-accept-btn-handler',
+        type: 'click',
+        optional: true,
+        wait_after_ms: 500,
+    },
+    {
+        key: 'cookiebot',
+        selector: '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+        type: 'click',
+        optional: true,
+        wait_after_ms: 500,
+    },
+];
+
+function normalizeInteractionStep(step) {
+    if (!step || typeof step !== 'object') {
+        return { type: 'click', selector: '', optional: false };
+    }
+
+    return {
+        type: step.type || 'click',
+        selector: typeof step.selector === 'string' ? step.selector : '',
+        optional: step.optional === true,
+        timeout_ms: typeof step.timeout_ms === 'number' ? step.timeout_ms : 10_000,
+        wait_after_ms: typeof step.wait_after_ms === 'number' ? step.wait_after_ms : 500,
+        ms: typeof step.ms === 'number' ? step.ms : 1_000,
+        repeat_until_gone: step.repeat_until_gone === true,
+        max_clicks: typeof step.max_clicks === 'number' ? step.max_clicks : 5,
+    };
+}
+
+function serializeInteractionSteps(steps) {
+    return steps.map((step) => {
+        const serialized = { type: step.type };
+
+        if (step.type === 'sleep') {
+            serialized.ms = step.ms ?? 1_000;
+
+            return serialized;
+        }
+
+        if (step.selector?.trim()) {
+            serialized.selector = step.selector.trim();
+        }
+
+        if (step.optional) {
+            serialized.optional = true;
+        }
+
+        if (step.type === 'wait_for') {
+            serialized.timeout_ms = step.timeout_ms ?? 10_000;
+        }
+
+        if (step.type === 'click') {
+            if (step.wait_after_ms) {
+                serialized.wait_after_ms = step.wait_after_ms;
+            }
+
+            if (step.repeat_until_gone) {
+                serialized.repeat_until_gone = true;
+                serialized.max_clicks = step.max_clicks ?? 5;
+            }
+        }
+
+        return serialized;
+    });
+}
+
+function interactionStepLabel(step) {
+    const typeKey = `app.job_sources.configurator.interaction_type_${step.type}`;
+
+    return t(typeKey);
+}
 
 const isCustomFieldSelected = computed(() => selectedField.value === CUSTOM_FIELD);
 
@@ -251,6 +328,10 @@ const configurationWarning = computed(() => {
 });
 
 const pickerMode = computed(() => {
+    if (interactionRecordingType.value) {
+        return 'interaction';
+    }
+
     if (itemGroupBuilding.value) {
         return 'item_group_part';
     }
@@ -267,11 +348,15 @@ const pickerInteractive = computed(() => {
         return false;
     }
 
+    if (interactionRecordingType.value) {
+        return true;
+    }
+
     if (itemGroupBuilding.value) {
         return true;
     }
 
-    return !pendingSelection.value;
+    return !pendingSelection.value && !pendingInteraction.value;
 });
 
 const stepPrompt = computed(() => {
@@ -305,11 +390,22 @@ const sendPickerConfig = () => {
     }, '*');
 };
 
+const clearPendingInteraction = () => {
+    pendingInteraction.value = null;
+    interactionRecordingType.value = null;
+    sendPickerConfig();
+};
+
 const clearPendingSelection = () => {
     pendingSelection.value = null;
     selectedField.value = '';
     customFieldLabel.value = '';
     sendPickerConfig();
+};
+
+const clearAllPending = () => {
+    clearPendingSelection();
+    clearPendingInteraction();
 };
 
 const cancelGroupBuilding = () => {
@@ -342,6 +438,27 @@ const handlePickerMessage = (event) => {
 
     const selector = (event.data.selector || '').trim();
     if (!selector || !previewLoaded.value) {
+        return;
+    }
+
+    if (event.data.mode === 'interaction' && interactionRecordingType.value) {
+        const type = interactionRecordingType.value;
+
+        pendingInteraction.value = {
+            type,
+            selector,
+            optional: type === 'click',
+            timeout_ms: 10_000,
+            wait_after_ms: 500,
+            ms: 1_000,
+            repeat_until_gone: false,
+            max_clicks: 5,
+            matchCount: event.data.matchCount || 0,
+        };
+        interactionRecordingType.value = null;
+        errorMessage.value = '';
+        sendPickerConfig();
+
         return;
     }
 
@@ -524,35 +641,111 @@ const assignFieldSelection = () => {
     clearPendingSelection();
 };
 
+const startInteractionRecording = (type) => {
+    if (!previewLoaded.value) {
+        errorMessage.value = t('app.job_sources.configurator.preview_required');
+        return;
+    }
+
+    clearAllPending();
+    interactionRecordingType.value = type;
+    previewEngine.value = 'playwright';
+    successMessage.value = t(`app.job_sources.configurator.interaction_record_${type}`);
+    errorMessage.value = '';
+    sendPickerConfig();
+};
+
+const addInteractionPreset = (presetKey) => {
+    const preset = INTERACTION_PRESETS.find((entry) => entry.key === presetKey);
+
+    if (!preset) {
+        return;
+    }
+
+    interactionSteps.value = [
+        ...interactionSteps.value,
+        normalizeInteractionStep(preset),
+    ];
+    previewEngine.value = 'playwright';
+    successMessage.value = t('app.job_sources.configurator.interaction_added');
+    errorMessage.value = '';
+};
+
+const addSleepStep = () => {
+    interactionSteps.value = [
+        ...interactionSteps.value,
+        normalizeInteractionStep({ type: 'sleep', ms: 1_000 }),
+    ];
+    previewEngine.value = 'playwright';
+    successMessage.value = t('app.job_sources.configurator.interaction_added');
+};
+
+const addWaitForListStep = () => {
+    const selector = itemMode.value === 'single'
+        ? itemSelector.value.trim()
+        : (itemGroupParts.value[0]?.selector || '').trim();
+
+    if (!selector) {
+        errorMessage.value = t('app.job_sources.configurator.interaction_wait_list_needs_selector');
+        return;
+    }
+
+    interactionSteps.value = [
+        ...interactionSteps.value,
+        normalizeInteractionStep({
+            type: 'wait_for',
+            selector,
+            timeout_ms: 20_000,
+        }),
+    ];
+    previewEngine.value = 'playwright';
+    successMessage.value = t('app.job_sources.configurator.interaction_added');
+    errorMessage.value = '';
+};
+
+const confirmInteractionStep = () => {
+    if (!pendingInteraction.value) {
+        return;
+    }
+
+    interactionSteps.value = [
+        ...interactionSteps.value,
+        normalizeInteractionStep(pendingInteraction.value),
+    ];
+    previewEngine.value = 'playwright';
+    successMessage.value = t('app.job_sources.configurator.interaction_added');
+    errorMessage.value = '';
+    clearPendingInteraction();
+};
+
+const removeInteractionStep = (index) => {
+    interactionSteps.value = interactionSteps.value.filter((_, stepIndex) => stepIndex !== index);
+};
+
+const moveInteractionStep = (index, direction) => {
+    const nextIndex = index + direction;
+
+    if (nextIndex < 0 || nextIndex >= interactionSteps.value.length) {
+        return;
+    }
+
+    const steps = [...interactionSteps.value];
+    const [step] = steps.splice(index, 1);
+    steps.splice(nextIndex, 0, step);
+    interactionSteps.value = steps;
+};
+
 const loadPreview = async () => {
     loadingPreview.value = true;
     errorMessage.value = '';
     successMessage.value = '';
     suggestPlaywright.value = false;
-    clearPendingSelection();
+    clearAllPending();
     itemGroupBuilding.value = false;
     testResults.value = [];
     itemMatchCount.value = null;
 
-    let interactions = [];
-
-    if (interactionsJson.value.trim() !== '') {
-        try {
-            const parsed = JSON.parse(interactionsJson.value);
-
-            if (!Array.isArray(parsed)) {
-                throw new Error('Interactions must be a JSON array.');
-            }
-
-            interactions = parsed;
-        } catch {
-            previewLoaded.value = false;
-            errorMessage.value = t('app.job_sources.configurator.interactions_invalid');
-            loadingPreview.value = false;
-
-            return;
-        }
-    }
+    const interactions = serializeInteractionSteps(interactionSteps.value);
 
     try {
         const { data } = await window.axios.post(route('job-sources.preview'), {
@@ -634,6 +827,54 @@ const testExtraction = async () => {
     }
 };
 
+const testFullFlow = async () => {
+    if (!itemSelector.value.trim() && itemMode.value === 'single') {
+        errorMessage.value = t('app.job_sources.configurator.item_selector_required');
+        return;
+    }
+
+    if (itemMode.value === 'group' && itemGroupParts.value.length < 2) {
+        errorMessage.value = t('app.job_sources.configurator.item_group_min_parts');
+        return;
+    }
+
+    if (missingRequiredFields.value.length > 0) {
+        errorMessage.value = t('app.job_sources.configurator.required_fields_missing');
+        return;
+    }
+
+    testingFullFlow.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+
+    try {
+        const { data } = await window.axios.post(route('job-sources.test-extraction'), {
+            url: previewUrl.value,
+            base_url: previewUrl.value,
+            company_name: props.jobSource.company_name,
+            engine: 'playwright',
+            interactions: serializeInteractionSteps(interactionSteps.value),
+            item_mode: itemMode.value,
+            item_selector: itemMode.value === 'single' ? itemSelector.value : '',
+            item_group: itemMode.value === 'group' ? { parts: itemGroupParts.value } : null,
+            fields: fieldMappings.value,
+        });
+
+        cachedHtml.value = data.html ?? cachedHtml.value;
+        testResults.value = data.listings || [];
+        itemMatchCount.value = data.item_match_count ?? null;
+        successMessage.value = t('app.job_sources.configurator.full_flow_extracted', { count: data.count || 0 });
+    } catch (error) {
+        testResults.value = [];
+        itemMatchCount.value = null;
+        errorMessage.value = error.response?.data?.errors?.extraction?.[0]
+            || error.response?.data?.message
+            || t('app.job_sources.configurator.full_flow_failed');
+    } finally {
+        testingFullFlow.value = false;
+    }
+};
+
 const removeFieldMapping = (field) => {
     const next = { ...fieldMappings.value };
     delete next[field];
@@ -658,24 +899,7 @@ const saveConfiguration = () => {
     errorMessage.value = '';
     successMessage.value = '';
 
-    let interactions = [];
-
-    if (interactionsJson.value.trim() !== '') {
-        try {
-            const parsed = JSON.parse(interactionsJson.value);
-
-            if (!Array.isArray(parsed)) {
-                throw new Error('Interactions must be a JSON array.');
-            }
-
-            interactions = parsed;
-        } catch {
-            errorMessage.value = t('app.job_sources.configurator.interactions_invalid');
-            saving.value = false;
-
-            return;
-        }
-    }
+    const interactions = serializeInteractionSteps(interactionSteps.value);
 
     router.patch(route('job-sources.extraction-config.update', props.jobSource.id), {
         preview_url: previewUrl.value,
@@ -710,13 +934,11 @@ watch(itemGroupParts, sendPickerConfig, { deep: true });
 watch(currentStep, sendPickerConfig);
 watch(previewLoaded, sendPickerConfig);
 watch(itemGroupBuilding, sendPickerConfig);
+watch(interactionRecordingType, sendPickerConfig);
+watch(pendingInteraction, sendPickerConfig);
 
 onMounted(() => {
     window.addEventListener('message', handlePickerMessage);
-
-    if (interactionsDetails.value && interactionsJson.value.trim() !== '') {
-        interactionsDetails.value.open = true;
-    }
 });
 
 onUnmounted(() => {
@@ -813,37 +1035,152 @@ onUnmounted(() => {
                     </span>
                 </label>
 
-                <details
-                    ref="interactionsDetails"
-                    class="group rounded-lg border border-gray-100 dark:border-gray-700"
-                >
-                    <summary
-                        class="cursor-pointer select-none px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 [&::-webkit-details-marker]:hidden"
-                    >
-                        <span class="inline-flex items-center gap-2">
-                            <span
-                                aria-hidden="true"
-                                class="inline-block text-xs transition-transform group-open:rotate-90"
-                            >▸</span>
-                            {{ t('app.job_sources.configurator.show_interactions') }}
-                        </span>
-                    </summary>
+                <div class="rounded-lg border border-gray-100 p-4 dark:border-gray-700">
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.interactions_heading') }}
+                    </h4>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.interactions_recorder_help') }}
+                    </p>
 
-                    <div class="space-y-2 border-t border-gray-100 px-3 py-3 dark:border-gray-700">
-                        <label class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            {{ t('app.job_sources.configurator.interactions_json') }}
-                        </label>
-                        <textarea
-                            v-model="interactionsJson"
-                            rows="6"
-                            class="mt-2 block w-full rounded-lg border border-gray-300 font-mono text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                            :placeholder="INTERACTIONS_JSON_PLACEHOLDER"
-                        />
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ t('app.job_sources.configurator.interactions_help') }}
-                        </p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!previewLoaded || Boolean(interactionRecordingType)"
+                            @click="startInteractionRecording('click')"
+                        >
+                            {{ t('app.job_sources.configurator.interaction_add_click') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!previewLoaded || Boolean(interactionRecordingType)"
+                            @click="startInteractionRecording('wait_for')"
+                        >
+                            {{ t('app.job_sources.configurator.interaction_add_wait') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!previewLoaded || Boolean(interactionRecordingType)"
+                            @click="startInteractionRecording('scroll')"
+                        >
+                            {{ t('app.job_sources.configurator.interaction_add_scroll') }}
+                        </SecondaryButton>
+                        <SecondaryButton type="button" @click="addSleepStep">
+                            {{ t('app.job_sources.configurator.interaction_add_sleep') }}
+                        </SecondaryButton>
+                        <SecondaryButton type="button" @click="addWaitForListStep">
+                            {{ t('app.job_sources.configurator.interaction_wait_for_list') }}
+                        </SecondaryButton>
                     </div>
-                </details>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <SecondaryButton type="button" @click="addInteractionPreset('onetrust')">
+                            {{ t('app.job_sources.configurator.interaction_preset_onetrust') }}
+                        </SecondaryButton>
+                        <SecondaryButton type="button" @click="addInteractionPreset('cookiebot')">
+                            {{ t('app.job_sources.configurator.interaction_preset_cookiebot') }}
+                        </SecondaryButton>
+                    </div>
+
+                    <p
+                        v-if="interactionRecordingType"
+                        class="mt-3 text-sm font-medium text-indigo-700 dark:text-indigo-300"
+                    >
+                        {{ t(`app.job_sources.configurator.interaction_record_${interactionRecordingType}`) }}
+                    </p>
+
+                    <p v-if="!interactionSteps.length" class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.interactions_empty') }}
+                    </p>
+
+                    <ol v-else class="mt-3 space-y-2">
+                        <li
+                            v-for="(step, index) in interactionSteps"
+                            :key="`interaction-${index}-${step.type}-${step.selector || step.ms}`"
+                            class="rounded-lg border border-gray-100 p-3 dark:border-gray-700"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ index + 1 }}. {{ interactionStepLabel(step) }}
+                                    </p>
+                                    <p
+                                        v-if="step.selector"
+                                        class="mt-1 break-all font-mono text-xs text-gray-600 dark:text-gray-300"
+                                    >
+                                        {{ step.selector }}
+                                    </p>
+                                    <p v-if="step.type === 'sleep'" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ step.ms }} ms
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                                        <label
+                                            v-if="step.type === 'click'"
+                                            class="inline-flex items-center gap-2"
+                                        >
+                                            <input v-model="step.optional" type="checkbox" class="rounded border-gray-300">
+                                            {{ t('app.job_sources.configurator.interaction_optional') }}
+                                        </label>
+                                        <label
+                                            v-if="step.type === 'click'"
+                                            class="inline-flex items-center gap-2"
+                                        >
+                                            <input v-model="step.repeat_until_gone" type="checkbox" class="rounded border-gray-300">
+                                            {{ t('app.job_sources.configurator.interaction_repeat') }}
+                                        </label>
+                                        <label v-if="step.type === 'wait_for'" class="inline-flex items-center gap-2">
+                                            <span>{{ t('app.job_sources.configurator.interaction_timeout') }}</span>
+                                            <input
+                                                v-model.number="step.timeout_ms"
+                                                type="number"
+                                                min="1000"
+                                                max="120000"
+                                                step="1000"
+                                                class="w-20 rounded border-gray-300 text-xs dark:border-gray-600 dark:bg-gray-900"
+                                            >
+                                        </label>
+                                        <label v-if="step.type === 'sleep'" class="inline-flex items-center gap-2">
+                                            <span>{{ t('app.job_sources.configurator.interaction_sleep_ms') }}</span>
+                                            <input
+                                                v-model.number="step.ms"
+                                                type="number"
+                                                min="100"
+                                                max="60000"
+                                                step="100"
+                                                class="w-20 rounded border-gray-300 text-xs dark:border-gray-600 dark:bg-gray-900"
+                                            >
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="flex shrink-0 flex-col gap-1">
+                                    <button
+                                        type="button"
+                                        class="text-xs text-gray-500 hover:underline disabled:opacity-40"
+                                        :disabled="index === 0"
+                                        @click="moveInteractionStep(index, -1)"
+                                    >
+                                        ↑
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-xs text-gray-500 hover:underline disabled:opacity-40"
+                                        :disabled="index === interactionSteps.length - 1"
+                                        @click="moveInteractionStep(index, 1)"
+                                    >
+                                        ↓
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-xs text-red-600 hover:underline"
+                                        @click="removeInteractionStep(index)"
+                                    >
+                                        {{ t('app.job_sources.configurator.remove') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
             </div>
 
             <div
@@ -859,6 +1196,52 @@ onUnmounted(() => {
 
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div class="space-y-6">
+                <div
+                    v-if="pendingInteraction"
+                    class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/20"
+                >
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.interaction_confirm_title') }}
+                    </h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {{ t('app.job_sources.configurator.interaction_confirm_help', {
+                            type: interactionStepLabel(pendingInteraction),
+                        }) }}
+                    </p>
+                    <p class="mt-3 break-all rounded-lg bg-white/80 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+                        {{ pendingInteraction.selector || '—' }}
+                    </p>
+                    <div class="mt-4 space-y-3 text-sm text-gray-700 dark:text-gray-200">
+                        <label v-if="pendingInteraction.type === 'click'" class="flex items-center gap-2">
+                            <input v-model="pendingInteraction.optional" type="checkbox" class="rounded border-gray-300">
+                            {{ t('app.job_sources.configurator.interaction_optional') }}
+                        </label>
+                        <label v-if="pendingInteraction.type === 'click'" class="flex items-center gap-2">
+                            <input v-model="pendingInteraction.repeat_until_gone" type="checkbox" class="rounded border-gray-300">
+                            {{ t('app.job_sources.configurator.interaction_repeat') }}
+                        </label>
+                        <label v-if="pendingInteraction.type === 'wait_for'" class="flex items-center gap-2">
+                            <span>{{ t('app.job_sources.configurator.interaction_timeout') }}</span>
+                            <input
+                                v-model.number="pendingInteraction.timeout_ms"
+                                type="number"
+                                min="1000"
+                                max="120000"
+                                step="1000"
+                                class="w-24 rounded border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900"
+                            >
+                        </label>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <PrimaryButton type="button" @click="confirmInteractionStep">
+                            {{ t('app.job_sources.configurator.interaction_add_step') }}
+                        </PrimaryButton>
+                        <SecondaryButton type="button" @click="clearPendingInteraction">
+                            {{ t('app.job_sources.configurator.pick_again') }}
+                        </SecondaryButton>
+                    </div>
+                </div>
+
                 <div
                     v-if="pendingSelection?.type === 'item'"
                     class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20"
@@ -1151,6 +1534,13 @@ onUnmounted(() => {
                         @click="testExtraction"
                     >
                         {{ testingExtraction ? t('app.job_sources.configurator.testing') : t('app.job_sources.configurator.test_extraction') }}
+                    </SecondaryButton>
+                    <SecondaryButton
+                        :disabled="testingFullFlow || currentStep < 3"
+                        type="button"
+                        @click="testFullFlow"
+                    >
+                        {{ testingFullFlow ? t('app.job_sources.configurator.testing_full_flow') : t('app.job_sources.configurator.test_full_flow') }}
                     </SecondaryButton>
                     <PrimaryButton
                         :disabled="saving || currentStep < 3"

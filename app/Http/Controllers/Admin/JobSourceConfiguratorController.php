@@ -11,8 +11,10 @@ use App\Services\JobPreviewHtmlSanitizer;
 use App\Services\JobSourceFetcher;
 use App\Services\JobSourcePreviewService;
 use App\Services\JobSourceConfigRevisionService;
+use App\Services\PlaywrightPageFetcher;
 use App\Support\JobExtractionConfigValidator;
 use App\Support\JobListingGroupResolver;
+use App\Support\PlaywrightInteractionPresets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -160,6 +162,7 @@ class JobSourceConfiguratorController extends Controller
         Request $request,
         JobListingExtractor $extractor,
         JobSourceFetcher $fetcher,
+        PlaywrightPageFetcher $playwrightFetcher,
         JobPreviewHtmlSanitizer $sanitizer,
     ): JsonResponse {
         $this->authorize('viewAny', JobSource::class);
@@ -169,6 +172,8 @@ class JobSourceConfiguratorController extends Controller
             'url' => ['required_without:html', 'url', 'max:2048'],
             'base_url' => ['required', 'url', 'max:2048'],
             'company_name' => ['nullable', 'string', 'max:255'],
+            'engine' => ['nullable', 'string', 'in:http,playwright'],
+            'interactions' => ['nullable', 'array'],
             'item_selector' => ['required_without:item_group.parts', 'nullable', 'string', 'max:500'],
             'item_mode' => ['nullable', 'string', 'in:single,group'],
             'item_group' => ['nullable', 'array'],
@@ -179,7 +184,19 @@ class JobSourceConfiguratorController extends Controller
         $html = $validated['html'] ?? null;
 
         if ($html === null) {
-            $html = $sanitizer->sanitize($fetcher->fetch($validated['url']), $validated['base_url']);
+            $engine = $validated['engine'] ?? JobExtractionEngine::Http->value;
+            $interactions = is_array($validated['interactions'] ?? null)
+                ? $validated['interactions']
+                : [];
+            $usePlaywright = $engine === JobExtractionEngine::Playwright->value || $interactions !== [];
+            $interactions = PlaywrightInteractionPresets::resolve($interactions, $usePlaywright);
+            $pageUrl = $validated['url'];
+
+            $html = $usePlaywright
+                ? $playwrightFetcher->fetch($pageUrl, $interactions)
+                : $fetcher->fetch($pageUrl);
+
+            $html = $sanitizer->sanitize($html, $validated['base_url']);
         }
 
         $config = [

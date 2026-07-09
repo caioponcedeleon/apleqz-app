@@ -231,6 +231,42 @@
         return candidates;
     }
 
+    function buildInteractionSelector(element) {
+        if (!element || element.nodeType !== 1) {
+            return '';
+        }
+
+        if (element.id && !/^\d/.test(element.id)) {
+            return '#' + CSS.escape(element.id);
+        }
+
+        var tag = element.tagName.toLowerCase();
+        var classes = stableClasses(element).slice(0, 4);
+
+        if (classes.length > 0) {
+            var classSelector = tag + '.' + classes.map(function (className) {
+                return CSS.escape(className);
+            }).join('.');
+
+            if (selectorMatchCount(classSelector) === 1) {
+                return classSelector;
+            }
+        }
+
+        var role = element.getAttribute('role');
+        var ariaLabel = element.getAttribute('aria-label');
+
+        if (role && ariaLabel) {
+            var ariaSelector = tag + '[role="' + role.replace(/"/g, '\\"') + '"][aria-label="' + ariaLabel.replace(/"/g, '\\"') + '"]';
+
+            if (selectorMatchCount(ariaSelector) >= 1) {
+                return ariaSelector;
+            }
+        }
+
+        return classOnlySelector(element) || simpleSelector(element);
+    }
+
     function buildGroupPartSelector(element) {
         var cell = element.closest('td, th');
 
@@ -430,6 +466,19 @@
                 mode: 'group_part',
                 selector: partSelector,
                 matchCount: selectorMatchCount(partSelector),
+                tagName: target.tagName,
+            });
+
+            return;
+        }
+
+        if (pickerMode === 'interaction') {
+            var interactionSelector = buildInteractionSelector(target);
+
+            postToParent({
+                mode: 'interaction',
+                selector: interactionSelector,
+                matchCount: selectorMatchCount(interactionSelector),
                 tagName: target.tagName,
             });
 
