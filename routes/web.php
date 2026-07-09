@@ -11,6 +11,8 @@ use App\Http\Controllers\ApplicationImportController;
 use App\Http\Controllers\ApplicationWaveController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\JobAlertMatchesController;
+use App\Http\Controllers\JobAlertSettingsController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
@@ -102,6 +104,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::redirect('/job-alerts', '/job-alerts/settings')->name('job-alerts.index');
+    Route::get('/job-alerts/settings', [JobAlertSettingsController::class, 'edit'])->name('job-alerts.settings');
+    Route::patch('/job-alerts/settings', [JobAlertSettingsController::class, 'update'])->name('job-alerts.settings.update');
+    Route::get('/job-alerts/matches', [JobAlertMatchesController::class, 'index'])->name('job-alerts.matches');
 
     Route::middleware(['admin'])->prefix('job-sources')->name('job-sources.')->group(function () {
         Route::get('/', [JobSourceController::class, 'index'])->name('index');

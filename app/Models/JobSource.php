@@ -76,4 +76,9 @@ class JobSource extends Model
     {
         return $this->hasMany(JobListing::class);
     }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(UserJobSourceSubscription::class);
+    }
 }

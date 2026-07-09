@@ -9,6 +9,7 @@ use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -83,5 +84,15 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference
     public function files(): HasMany
     {
         return $this->hasMany(UserFile::class);
+    }
+
+    public function jobProfile(): HasOne
+    {
+        return $this->hasOne(UserJobProfile::class);
+    }
+
+    public function jobSourceSubscriptions(): HasMany
+    {
+        return $this->hasMany(UserJobSourceSubscription::class);
     }
 }

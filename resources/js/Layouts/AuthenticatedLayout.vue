@@ -54,6 +54,12 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                     {{ t('app.nav.files') }}
                                 </NavLink>
                                 <NavLink
+                                    :href="route('job-alerts.settings')"
+                                    :active="route().current('job-alerts.*')"
+                                >
+                                    {{ t('app.nav.job_alerts') }}
+                                </NavLink>
+                                <NavLink
                                     v-if="isAdmin"
                                     :href="route('job-sources.index')"
                                     :active="route().current('job-sources.*')"
@@ -200,6 +206,12 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                             :active="route().current('files.*')"
                         >
                             {{ t('app.nav.files') }}
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('job-alerts.settings')"
+                            :active="route().current('job-alerts.*')"
+                        >
+                            {{ t('app.nav.job_alerts') }}
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
                             v-if="isAdmin"
