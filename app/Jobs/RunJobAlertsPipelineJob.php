@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Services\JobMatchBackfillService;
 use App\Services\JobMatchRunTracker;
 use DateTime;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +18,7 @@ class RunJobAlertsPipelineJob implements ShouldQueue
         return now()->addHours(2);
     }
 
-    public function handle(JobMatchRunTracker $tracker, JobMatchBackfillService $backfill): void
+    public function handle(JobMatchRunTracker $tracker): void
     {
         if ($tracker->hasPendingScrapeJobs()) {
             $this->release(30);
@@ -27,8 +26,7 @@ class RunJobAlertsPipelineJob implements ShouldQueue
             return;
         }
 
-        $backfill->dispatchPending();
-
+        // Matching is handled per scrape via MatchNewListingsJob (new listings only).
         SendJobDigestsAfterMatchRunJob::dispatch();
     }
 }

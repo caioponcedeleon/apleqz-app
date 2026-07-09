@@ -211,6 +211,31 @@ class JobMatchTest extends TestCase
         Queue::assertPushed(EvaluateJobMatchJob::class, 2);
     }
 
+    public function test_match_new_listings_job_only_evaluates_passed_listing_ids(): void
+    {
+        Queue::fake();
+
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $newListing = JobListing::factory()->create(['job_source_id' => $source->id]);
+        $existingListing = JobListing::factory()->create(['job_source_id' => $source->id]);
+        $user = User::factory()->create();
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        (new MatchNewListingsJob([$newListing->id]))->handle();
+
+        Queue::assertPushed(EvaluateJobMatchJob::class, function (EvaluateJobMatchJob $job) use ($user, $newListing, $existingListing): bool {
+            return $job->userId === $user->id
+                && $job->listingId === $newListing->id
+                && $job->listingId !== $existingListing->id;
+        });
+        Queue::assertPushed(EvaluateJobMatchJob::class, 1);
+    }
+
     public function test_user_can_view_matches_page(): void
     {
         $user = User::factory()->create();

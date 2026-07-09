@@ -35,15 +35,12 @@ class RunJobAlertsPipelineJobTest extends TestCase
         ]);
 
         $job = new RunJobAlertsPipelineJob;
-        $job->handle(
-            app(JobMatchRunTracker::class),
-            app(\App\Services\JobMatchBackfillService::class),
-        );
+        $job->handle(app(JobMatchRunTracker::class));
 
         Queue::assertNotPushed(SendJobDigestsAfterMatchRunJob::class);
     }
 
-    public function test_pipeline_dispatches_match_backfill_and_digest_job_when_scrapes_are_done(): void
+    public function test_pipeline_dispatches_digest_job_without_backfilling_existing_listings(): void
     {
         Config::set('queue.default', 'database');
         Queue::fake();
@@ -64,12 +61,9 @@ class RunJobAlertsPipelineJobTest extends TestCase
         JobListing::factory()->create(['job_source_id' => $source->id]);
 
         $job = new RunJobAlertsPipelineJob;
-        $job->handle(
-            app(JobMatchRunTracker::class),
-            app(\App\Services\JobMatchBackfillService::class),
-        );
+        $job->handle(app(JobMatchRunTracker::class));
 
-        Queue::assertPushed(\App\Jobs\EvaluateJobMatchJob::class);
+        Queue::assertNotPushed(\App\Jobs\EvaluateJobMatchJob::class);
         Queue::assertPushed(SendJobDigestsAfterMatchRunJob::class);
     }
 }

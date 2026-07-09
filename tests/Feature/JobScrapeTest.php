@@ -59,6 +59,8 @@ class JobScrapeTest extends TestCase
 
     public function test_second_scrape_does_not_create_duplicate_listings(): void
     {
+        Queue::fake();
+
         $html = file_get_contents(base_path('tests/fixtures/job-sources/basic-listing.html'));
 
         Http::fake([
@@ -88,6 +90,7 @@ class JobScrapeTest extends TestCase
         $this->assertSame(2, $secondRun->listings_found);
         $this->assertSame(0, $secondRun->listings_new);
         $this->assertDatabaseCount('job_listings', 2);
+        Queue::assertPushed(MatchNewListingsJob::class, 1);
     }
 
     public function test_upsert_matches_existing_listing_by_url_or_title_and_company(): void
