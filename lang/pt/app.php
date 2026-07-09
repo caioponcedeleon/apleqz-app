@@ -612,7 +612,7 @@ return [
         'nav_settings' => 'Configurações',
         'nav_matches' => 'Correspondências',
         'profile_heading' => 'Perfil de busca',
-        'profile_help' => 'Descreva o cargo desejado, habilidades e preferências em até 200 caracteres. Este texto avalia o encaixe das novas vagas.',
+        'profile_help' => 'Descreva o cargo desejado, habilidades e preferências em até 1.000 caracteres. Este texto avalia o encaixe das novas vagas.',
         'profile_ai_privacy' => 'O texto do seu perfil é enviado ao provedor de IA configurado (Mistral API por padrão, ou seu servidor Ollama) apenas para pontuar vagas. Não é usado para treinamento.',
         'profile_placeholder' => 'ex.: Dev Laravel júnior em NRW, híbrido OK',
         'profile_char_count' => '{count}/{max} caracteres',

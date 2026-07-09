@@ -9,7 +9,7 @@ class UserJobProfile extends Model
 {
     public const DEFAULT_MIN_FIT_SCORE = 70;
 
-    public const PROFILE_TEXT_MAX_LENGTH = 200;
+    public const PROFILE_TEXT_MAX_LENGTH = 1000;
 
     protected $primaryKey = 'user_id';
 

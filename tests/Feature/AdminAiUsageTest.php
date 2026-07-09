@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\EvaluateJobMatchJob;
+use App\Jobs\SendJobDigestsAfterMatchRunJob;
 use App\Models\AiUsageRecord;
 use App\Models\JobListing;
 use App\Models\JobSource;
@@ -142,6 +143,7 @@ class AdminAiUsageTest extends TestCase
             ->assertJsonStructure(['run_id', 'total']);
 
         Queue::assertPushed(EvaluateJobMatchJob::class, 1);
+        Queue::assertPushed(SendJobDigestsAfterMatchRunJob::class, 1);
     }
 
     public function test_admin_can_poll_match_run_status(): void

@@ -31,7 +31,7 @@ const props = defineProps({
     },
     profileTextMaxLength: {
         type: Number,
-        default: 200,
+        default: 1000,
     },
 });
 
@@ -203,7 +203,7 @@ const submit = () => {
 
                             <textarea
                                 v-model="form.profile_text"
-                                rows="4"
+                                rows="6"
                                 :maxlength="profileTextMaxLength"
                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                 :placeholder="t('app.job_alerts.profile_placeholder')"

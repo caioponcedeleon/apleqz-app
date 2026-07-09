@@ -612,7 +612,7 @@ return [
         'nav_settings' => 'Einstellungen',
         'nav_matches' => 'Treffer',
         'profile_heading' => 'Jobsuchprofil',
-        'profile_help' => 'Beschreiben Sie Zielrolle, Fähigkeiten und Wünsche in maximal 200 Zeichen. Dieser Text wird zur Bewertung neuer Stellen verwendet.',
+        'profile_help' => 'Beschreiben Sie Zielrolle, Fähigkeiten und Wünsche in maximal 1.000 Zeichen. Dieser Text wird zur Bewertung neuer Stellen verwendet.',
         'profile_ai_privacy' => 'Ihr Profiltext wird nur zur Bewertung von Stellen an den konfigurierten KI-Anbieter gesendet (standardmäßig Mistral API oder Ihr eigener Ollama-Server). Er wird nicht zum Training verwendet.',
         'profile_placeholder' => 'z. B. Junior Laravel-Dev in NRW, hybrid möglich',
         'profile_char_count' => '{count}/{max} Zeichen',

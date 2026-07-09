@@ -85,6 +85,27 @@ class JobMatchRunTracker
             ->count();
     }
 
+    public function hasPendingMatchRelatedJobs(): bool
+    {
+        if (config('queue.default') === 'sync') {
+            return false;
+        }
+
+        if (config('queue.default') !== 'database') {
+            return false;
+        }
+
+        $table = (string) config('queue.connections.database.table', 'jobs');
+
+        return DB::table($table)
+            ->where(function ($query): void {
+                $query->where('payload', 'like', '%EvaluateJobMatchJob%')
+                    ->orWhere('payload', 'like', '%EnrichJobListingDetailJob%')
+                    ->orWhere('payload', 'like', '%MatchNewListingsJob%');
+            })
+            ->exists();
+    }
+
     protected function countFailedMatchJobs(string $startedAt): int
     {
         return (int) DB::table('failed_jobs')

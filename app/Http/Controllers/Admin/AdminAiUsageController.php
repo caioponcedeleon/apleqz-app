@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendJobDigestsAfterMatchRunJob;
 use App\Models\AiUsageRecord;
 use App\Services\AiUsageRecorder;
 use App\Services\JobMatchBackfillService;
@@ -112,6 +113,8 @@ class AdminAiUsageController extends Controller
         }
 
         $runId = $tracker->start($dispatched);
+
+        SendJobDigestsAfterMatchRunJob::dispatch();
 
         if ($request->expectsJson()) {
             return response()->json([

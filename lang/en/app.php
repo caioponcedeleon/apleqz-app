@@ -612,7 +612,7 @@ return [
         'nav_settings' => 'Settings',
         'nav_matches' => 'Matches',
         'profile_heading' => 'Job search profile',
-        'profile_help' => 'Describe your target role, skills, and preferences in up to 200 characters. This text is used to score how well new listings fit you.',
+        'profile_help' => 'Describe your target role, skills, and preferences in up to 1,000 characters. This text is used to score how well new listings fit you.',
         'profile_ai_privacy' => 'Your profile text is sent to the configured AI provider (Mistral API by default, or your own Ollama server) only to score job listings. It is not used for training.',
         'profile_placeholder' => 'e.g. Junior Laravel dev in NRW, hybrid OK',
         'profile_char_count' => '{count}/{max} characters',
