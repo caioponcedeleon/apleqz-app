@@ -19,9 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('applications:send-reminders')->everyThirtyMinutes();
-        $schedule->command('jobs:scrape-sources')->twiceDaily(8, 20);
-        $schedule->command('jobs:send-digests')->twiceDaily(8, 30);
-        $schedule->command('jobs:send-digests')->twiceDaily(20, 30);
+        $schedule->command('jobs:scrape-sources')->dailyAt('09:00')->timezone('UTC');
+        $schedule->command('jobs:scrape-sources')->dailyAt('19:00')->timezone('UTC');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

@@ -37,7 +37,7 @@ class JobDigestDispatchService
                 continue;
             }
 
-            $matches = $this->pendingMatchesForUser($userId);
+            $matches = $this->pendingMatchesForUser($userId, $this->maxMatchesPerEmail());
 
             if ($matches->isEmpty()) {
                 continue;
@@ -54,7 +54,12 @@ class JobDigestDispatchService
     /**
      * @return Collection<int, JobMatch>
      */
-    protected function pendingMatchesForUser(int $userId): Collection
+    protected function maxMatchesPerEmail(): int
+    {
+        return max(1, (int) config('job_match.digest.max_per_email', 10));
+    }
+
+    protected function pendingMatchesForUser(int $userId, int $limit): Collection
     {
         return JobMatch::query()
             ->where('user_id', $userId)
@@ -62,6 +67,7 @@ class JobDigestDispatchService
             ->with(['jobListing:id,title,url,company,location'])
             ->orderByDesc('fit_score')
             ->orderByDesc('created_at')
+            ->limit($limit)
             ->get();
     }
 

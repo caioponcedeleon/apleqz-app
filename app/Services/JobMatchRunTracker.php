@@ -85,7 +85,26 @@ class JobMatchRunTracker
             ->count();
     }
 
+    public function hasPendingScrapeJobs(): bool
+    {
+        return $this->hasPendingJobsMatching([
+            '%ScrapeJobSourceJob%',
+        ]);
+    }
+
     public function hasPendingMatchRelatedJobs(): bool
+    {
+        return $this->hasPendingJobsMatching([
+            '%EvaluateJobMatchJob%',
+            '%EnrichJobListingDetailJob%',
+            '%MatchNewListingsJob%',
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $patterns
+     */
+    protected function hasPendingJobsMatching(array $patterns): bool
     {
         if (config('queue.default') === 'sync') {
             return false;
@@ -98,10 +117,10 @@ class JobMatchRunTracker
         $table = (string) config('queue.connections.database.table', 'jobs');
 
         return DB::table($table)
-            ->where(function ($query): void {
-                $query->where('payload', 'like', '%EvaluateJobMatchJob%')
-                    ->orWhere('payload', 'like', '%EnrichJobListingDetailJob%')
-                    ->orWhere('payload', 'like', '%MatchNewListingsJob%');
+            ->where(function ($query) use ($patterns): void {
+                foreach ($patterns as $pattern) {
+                    $query->orWhere('payload', 'like', $pattern);
+                }
             })
             ->exists();
     }

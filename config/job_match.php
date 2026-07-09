@@ -29,4 +29,8 @@ return [
         'default_prompt_tokens' => (int) env('JOB_MATCH_DEFAULT_PROMPT_TOKENS', 600),
         'default_completion_tokens' => (int) env('JOB_MATCH_DEFAULT_COMPLETION_TOKENS', 40),
     ],
+
+    'digest' => [
+        'max_per_email' => (int) env('JOB_MATCH_DIGEST_MAX_PER_EMAIL', 10),
+    ],
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\RunJobAlertsPipelineJob;
 use App\Jobs\ScrapeJobSourceJob;
 use App\Models\JobSource;
 use Illuminate\Console\Command;
@@ -30,7 +31,9 @@ class ScrapeJobSourcesCommand extends Command
             $this->line("Dispatched scrape for {$source->name}");
         }
 
-        $this->info("Dispatched {$sources->count()} scrape job(s).");
+        RunJobAlertsPipelineJob::dispatch();
+
+        $this->info("Dispatched {$sources->count()} scrape job(s) and the match + digest pipeline.");
 
         return self::SUCCESS;
     }

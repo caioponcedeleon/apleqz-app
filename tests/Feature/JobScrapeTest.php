@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\JobExtractionEngine;
 use App\Enums\JobScrapeStatus;
 use App\Jobs\MatchNewListingsJob;
+use App\Jobs\RunJobAlertsPipelineJob;
 use App\Jobs\ScrapeJobSourceJob;
 use App\Models\JobListing;
 use App\Models\JobSource;
@@ -201,6 +202,7 @@ class JobScrapeTest extends TestCase
 
         Queue::assertPushed(ScrapeJobSourceJob::class, fn (ScrapeJobSourceJob $job) => $job->jobSource->is($active));
         Queue::assertPushed(ScrapeJobSourceJob::class, 1);
+        Queue::assertPushed(RunJobAlertsPipelineJob::class, 1);
     }
 
     public function test_scrape_source_command_runs_single_source(): void

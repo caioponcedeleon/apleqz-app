@@ -124,6 +124,42 @@ class JobDigestTest extends TestCase
         });
     }
 
+    public function test_digest_email_includes_only_top_ten_matches_by_score(): void
+    {
+        Notification::fake();
+
+        $user = $this->userWithJobAlerts();
+
+        for ($score = 100; $score >= 89; $score--) {
+            JobMatch::factory()->create([
+                'user_id' => $user->id,
+                'fit_score' => $score,
+                'status' => JobMatchStatus::PendingNotify,
+            ]);
+        }
+
+        app(JobDigestDispatchService::class)->sendPendingDigests();
+
+        Notification::assertSentTo($user, JobMatchesDigestNotification::class, function (JobMatchesDigestNotification $notification): bool {
+            if ($notification->matches->count() !== 10) {
+                return false;
+            }
+
+            $scores = $notification->matches->pluck('fit_score')->all();
+
+            return $scores === range(100, 91);
+        });
+
+        $this->assertSame(10, JobMatch::query()
+            ->where('user_id', $user->id)
+            ->where('status', JobMatchStatus::Notified)
+            ->count());
+        $this->assertSame(2, JobMatch::query()
+            ->where('user_id', $user->id)
+            ->where('status', JobMatchStatus::PendingNotify)
+            ->count());
+    }
+
     public function test_artisan_command_reports_sent_count(): void
     {
         Notification::fake();
