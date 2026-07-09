@@ -38,11 +38,7 @@ class JobSourceConfiguratorController extends Controller
             'fieldMappings' => is_array($config['listing']['fields'] ?? null)
                 ? $config['listing']['fields']
                 : [],
-            'fieldOptions' => collect(JobListingField::cases())
-                ->mapWithKeys(fn (JobListingField $field): array => [
-                    $field->value => $field->label(),
-                ])
-                ->all(),
+            'fieldOptions' => $this->fieldOptions(),
             'requiredFields' => JobListingField::requiredValues(),
         ]);
     }
@@ -145,17 +141,76 @@ class JobSourceConfiguratorController extends Controller
         }
 
         $itemMatchCount = $this->countSelectorMatches($html, $validated['item_selector']);
+        $fieldKeys = array_keys($validated['fields'] ?? []);
 
         return response()->json([
             'listings' => array_map(fn (array $listing): array => [
-                'title' => $listing['title'],
-                'url' => $listing['url'],
-                'company' => $listing['company'],
-                'location' => $listing['location'],
+                'fields' => $this->listingFieldsForPreview($listing, $fieldKeys),
             ], $listings),
             'count' => count($listings),
             'item_match_count' => $itemMatchCount,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $listing
+     * @param  list<string>  $fieldKeys
+     * @return array<string, string|null>
+     */
+    protected function listingFieldsForPreview(array $listing, array $fieldKeys): array
+    {
+        $rawFields = is_array($listing['raw_fields'] ?? null) ? $listing['raw_fields'] : [];
+        $preview = [];
+
+        foreach ($fieldKeys as $fieldKey) {
+            $value = $rawFields[$fieldKey] ?? null;
+
+            if ($fieldKey === 'job_title' && $value === null) {
+                $value = $listing['title'] ?? null;
+            }
+
+            if ($fieldKey === 'url' && $value === null) {
+                $value = $listing['url'] ?? null;
+            }
+
+            if ($fieldKey === 'company' && $value === null) {
+                $value = $listing['company'] ?? null;
+            }
+
+            if ($fieldKey === 'location' && $value === null) {
+                $value = $listing['location'] ?? null;
+            }
+
+            $preview[$fieldKey] = is_string($value) && trim($value) !== '' ? $value : null;
+        }
+
+        return $preview;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function fieldOptions(): array
+    {
+        $options = collect(JobListingField::cases())
+            ->mapWithKeys(fn (JobListingField $field): array => [
+                $field->value => $this->fieldLabel($field->value),
+            ])
+            ->all();
+
+        $options['__custom__'] = __('app.job_sources.fields.custom');
+
+        return $options;
+    }
+
+    protected function fieldLabel(string $field): string
+    {
+        $key = "app.job_sources.fields.{$field}";
+        $translated = __($key);
+
+        return $translated !== $key
+            ? $translated
+            : config("job_listing_fields.{$field}", str_replace('_', ' ', ucfirst($field)));
     }
 
     protected function countSelectorMatches(string $html, string $selector): int

@@ -102,6 +102,7 @@ class JobSourcePreviewTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('count', 2)
-            ->assertJsonPath('listings.0.title', 'Senior Engineer');
+            ->assertJsonPath('listings.0.fields.job_title', 'Senior Engineer')
+            ->assertJsonPath('listings.0.fields.url', 'https://example.com/jobs/senior-engineer');
     }
 }

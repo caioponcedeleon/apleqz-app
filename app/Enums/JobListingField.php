@@ -13,6 +13,9 @@ enum JobListingField: string
     case Description = 'description';
     case EmploymentType = 'employment_type';
     case Department = 'department';
+    case WorkingHours = 'working_hours';
+    case ContractDuration = 'contract_duration';
+    case ContractStart = 'contract_start';
     case PostedAt = 'posted_at';
     case ExternalId = 'external_id';
 

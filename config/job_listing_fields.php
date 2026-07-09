@@ -10,6 +10,9 @@ return [
     'description' => 'Description',
     'employment_type' => 'Employment type',
     'department' => 'Department',
+    'working_hours' => 'Working hours',
+    'contract_duration' => 'Contract duration',
+    'contract_start' => 'Start date',
     'posted_at' => 'Posted date',
     'external_id' => 'External ID',
 ];

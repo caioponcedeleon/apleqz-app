@@ -34,6 +34,48 @@ const successMessage = ref('');
 
 const pendingSelection = ref(null);
 const selectedField = ref('');
+const customFieldLabel = ref('');
+
+const CUSTOM_FIELD = '__custom__';
+
+const isCustomFieldSelected = computed(() => selectedField.value === CUSTOM_FIELD);
+
+const fieldDisplayLabel = (field, mapping = null) => {
+    const mappingConfig = mapping ?? fieldMappings.value[field];
+
+    return mappingConfig?.label || props.fieldOptions[field] || field;
+};
+
+const buildCustomFieldKey = (label) => {
+    const base = label
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 50) || 'custom_field';
+
+    let key = base;
+    let suffix = 2;
+
+    while (fieldMappings.value[key]) {
+        key = `${base}_${suffix}`;
+        suffix += 1;
+    }
+
+    return key;
+};
+
+const canAssignField = computed(() => {
+    if (!selectedField.value) {
+        return false;
+    }
+
+    if (isCustomFieldSelected.value) {
+        return customFieldLabel.value.trim() !== '';
+    }
+
+    return true;
+});
 
 const currentStep = computed(() => {
     if (!previewLoaded.value) {
@@ -52,6 +94,15 @@ const fieldSelectOptions = computed(() =>
 );
 
 const mappedFields = computed(() => Object.entries(fieldMappings.value));
+
+const testResultColumns = computed(() =>
+    mappedFields.value.map(([key, mapping]) => ({
+        key,
+        label: fieldDisplayLabel(key, mapping),
+    })),
+);
+
+const testResultValue = (row, fieldKey) => row.fields?.[fieldKey] || '—';
 
 const missingRequiredFields = computed(() =>
     props.requiredFields.filter((field) => !fieldMappings.value[field]),
@@ -128,6 +179,7 @@ const sendPickerConfig = () => {
 const clearPendingSelection = () => {
     pendingSelection.value = null;
     selectedField.value = '';
+    customFieldLabel.value = '';
     sendPickerConfig();
 };
 
@@ -164,6 +216,7 @@ const handlePickerMessage = (event) => {
             tagName: event.data.tagName || '',
         };
         selectedField.value = '';
+        customFieldLabel.value = '';
         sendPickerConfig();
     }
 };
@@ -187,29 +240,48 @@ const assignFieldSelection = () => {
         return;
     }
 
+    let fieldKey = selectedField.value;
+    let fieldLabel = props.fieldOptions[fieldKey] || fieldKey;
+
+    if (isCustomFieldSelected.value) {
+        const label = customFieldLabel.value.trim();
+
+        if (!label) {
+            errorMessage.value = t('app.job_sources.configurator.custom_field_required');
+            return;
+        }
+
+        fieldKey = buildCustomFieldKey(label);
+        fieldLabel = label;
+    }
+
     const fieldConfig = {
         selector: pendingSelection.value.selector,
         scope: 'item',
         extract: 'text',
     };
 
-    if (selectedField.value === 'url' && (pendingSelection.value.tagName || '').toLowerCase() === 'a') {
+    if (fieldKey === 'url' && (pendingSelection.value.tagName || '').toLowerCase() === 'a') {
         fieldConfig.extract = 'attribute';
         fieldConfig.attribute = 'href';
         fieldConfig.absolute = true;
     }
 
-    if (!props.requiredFields.includes(selectedField.value)) {
+    if (!props.requiredFields.includes(fieldKey)) {
         fieldConfig.optional = true;
+    }
+
+    if (isCustomFieldSelected.value) {
+        fieldConfig.label = fieldLabel;
     }
 
     fieldMappings.value = {
         ...fieldMappings.value,
-        [selectedField.value]: fieldConfig,
+        [fieldKey]: fieldConfig,
     };
 
     successMessage.value = t('app.job_sources.configurator.field_mapped', {
-        field: props.fieldOptions[selectedField.value] || selectedField.value,
+        field: fieldLabel,
     });
     errorMessage.value = '';
     clearPendingSelection();
@@ -457,8 +529,19 @@ onUnmounted(() => {
                             :aria-label="t('app.job_sources.configurator.field_to_map')"
                         />
                     </div>
+                    <div v-if="isCustomFieldSelected" class="mt-4">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            {{ t('app.job_sources.configurator.custom_field_label') }}
+                        </label>
+                        <TextInput
+                            v-model="customFieldLabel"
+                            type="text"
+                            class="mt-2 block w-full"
+                            :placeholder="t('app.job_sources.configurator.custom_field_placeholder')"
+                        />
+                    </div>
                     <div class="mt-4 flex flex-wrap gap-3">
-                        <PrimaryButton type="button" :disabled="!selectedField" @click="assignFieldSelection">
+                        <PrimaryButton type="button" :disabled="!canAssignField" @click="assignFieldSelection">
                             {{ t('app.job_sources.configurator.add_field_mapping') }}
                         </PrimaryButton>
                         <SecondaryButton type="button" @click="clearPendingSelection">
@@ -504,7 +587,7 @@ onUnmounted(() => {
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                        {{ fieldOptions[field] || field }}
+                                        {{ fieldDisplayLabel(field, mapping) }}
                                     </p>
                                     <p class="mt-1 break-all font-mono text-xs text-gray-600 dark:text-gray-300">
                                         {{ mapping.selector }}
@@ -526,7 +609,7 @@ onUnmounted(() => {
                         class="mt-4 text-sm text-amber-700 dark:text-amber-300"
                     >
                         {{ t('app.job_sources.configurator.still_need') }}
-                        {{ missingRequiredFields.map((field) => fieldOptions[field] || field).join(', ') }}
+                        {{ missingRequiredFields.map((field) => fieldDisplayLabel(field)).join(', ') }}
                     </p>
                 </div>
 
@@ -595,18 +678,39 @@ onUnmounted(() => {
                 <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                     <thead>
                         <tr class="text-left text-gray-500 dark:text-gray-400">
-                            <th class="px-3 py-2 font-medium">{{ t('app.job_sources.configurator.col_title') }}</th>
-                            <th class="px-3 py-2 font-medium">{{ t('app.job_sources.configurator.col_url') }}</th>
-                            <th class="px-3 py-2 font-medium">{{ t('app.job_sources.configurator.col_company') }}</th>
-                            <th class="px-3 py-2 font-medium">{{ t('app.job_sources.configurator.col_location') }}</th>
+                            <th
+                                v-for="column in testResultColumns"
+                                :key="column.key"
+                                class="px-3 py-2 font-medium"
+                            >
+                                {{ column.label }}
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                         <tr v-for="(row, index) in testResults" :key="index">
-                            <td class="px-3 py-2 text-gray-900 dark:text-white">{{ row.title }}</td>
-                            <td class="max-w-xs truncate px-3 py-2 text-indigo-600 dark:text-indigo-400">{{ row.url }}</td>
-                            <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ row.company || '—' }}</td>
-                            <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ row.location || '—' }}</td>
+                            <td
+                                v-for="column in testResultColumns"
+                                :key="column.key"
+                                class="max-w-xs px-3 py-2 text-gray-700 dark:text-gray-300"
+                                :class="column.key === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''"
+                            >
+                                <a
+                                    v-if="column.key === 'url' && row.fields?.url"
+                                    :href="row.fields.url"
+                                    class="hover:underline"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {{ row.fields.url }}
+                                </a>
+                                <span
+                                    v-else
+                                    :class="column.key === 'job_title' ? 'text-gray-900 dark:text-white' : ''"
+                                >
+                                    {{ testResultValue(row, column.key) }}
+                                </span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
