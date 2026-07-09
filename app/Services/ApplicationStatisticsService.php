@@ -57,6 +57,8 @@ class ApplicationStatisticsService
             ? round($dailyCounts->avg(), 2)
             : null;
 
+        $pct = fn (int $count) => $total > 0 ? round($count / $total, 4) : null;
+
         return [
             'total_applications' => $total,
             'total_rejections' => $rejections,
@@ -67,6 +69,12 @@ class ApplicationStatisticsService
             'total_declined_by_me' => $declinedByMe,
             'avg_days_to_rejection' => $avgDaysToRejection,
             'avg_applications_per_day' => $avgApplicationsPerDay,
+            'pct_rejections' => $pct($rejections),
+            'pct_interviews' => $pct($interviews),
+            'pct_offers' => $pct($offers),
+            'pct_waiting' => $pct($waiting),
+            'pct_waiting_to_apply' => $pct($waitingToApply),
+            'pct_declined_by_me' => $pct($declinedByMe),
         ];
     }
 

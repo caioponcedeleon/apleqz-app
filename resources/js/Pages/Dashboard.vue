@@ -253,31 +253,37 @@ const percentBarOptions = {
                         tone="red"
                         :label="t('app.dashboard.total_rejections')"
                         :value="summary.total_rejections"
+                        :percentage="summary.pct_rejections"
                     />
                     <StatCard
                         tone="amber"
                         :label="t('app.dashboard.total_interviews')"
                         :value="summary.total_interviews"
+                        :percentage="summary.pct_interviews"
                     />
                     <StatCard
                         tone="emerald"
                         :label="t('app.dashboard.total_offers')"
                         :value="summary.total_offers"
+                        :percentage="summary.pct_offers"
                     />
                     <StatCard
                         tone="amber"
                         :label="t('app.dashboard.total_waiting')"
                         :value="summary.total_waiting"
+                        :percentage="summary.pct_waiting"
                     />
                     <StatCard
                         tone="slate"
                         :label="t('app.dashboard.total_waiting_to_apply')"
                         :value="summary.total_waiting_to_apply"
+                        :percentage="summary.pct_waiting_to_apply"
                     />
                     <StatCard
                         tone="red"
                         :label="t('app.dashboard.total_declined_by_me')"
                         :value="summary.total_declined_by_me"
+                        :percentage="summary.pct_declined_by_me"
                     />
                     <StatCard
                         tone="red"

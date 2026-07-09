@@ -4,12 +4,21 @@ import { computed } from 'vue';
 const props = defineProps({
     label: { type: String, required: true },
     value: { type: [String, Number], default: '—' },
+    percentage: { type: Number, default: null },
     tone: {
         type: String,
         default: 'neutral',
         validator: (value) =>
             ['neutral', 'red', 'amber', 'emerald', 'slate'].includes(value),
     },
+});
+
+const formattedPercentage = computed(() => {
+    if (props.percentage == null) {
+        return null;
+    }
+
+    return `${Math.round(props.percentage * 100)}%`;
 });
 
 const cardClasses = computed(() => {
@@ -47,7 +56,19 @@ const valueClasses = computed(() => {
         slate: 'text-slate-900 dark:text-slate-100',
     };
 
-    return `mt-2 text-3xl font-semibold tracking-tight ${map[props.tone] ?? map.neutral}`;
+    return `text-3xl font-semibold tracking-tight ${map[props.tone] ?? map.neutral}`;
+});
+
+const percentageClasses = computed(() => {
+    const map = {
+        neutral: 'text-gray-500 dark:text-gray-400',
+        red: 'text-red-700/70 dark:text-red-300/80',
+        amber: 'text-amber-800/70 dark:text-amber-300/80',
+        emerald: 'text-emerald-800/70 dark:text-emerald-300/80',
+        slate: 'text-slate-600/80 dark:text-slate-400',
+    };
+
+    return `shrink-0 text-sm font-normal ${map[props.tone] ?? map.neutral}`;
 });
 </script>
 
@@ -56,8 +77,16 @@ const valueClasses = computed(() => {
         <p :class="labelClasses">
             {{ label }}
         </p>
-        <p :class="valueClasses">
-            {{ value ?? '—' }}
-        </p>
+        <div class="mt-2 flex items-baseline justify-between gap-3">
+            <p :class="valueClasses">
+                {{ value ?? '—' }}
+            </p>
+            <p
+                v-if="formattedPercentage"
+                :class="percentageClasses"
+            >
+                {{ formattedPercentage }}
+            </p>
+        </div>
     </div>
 </template>

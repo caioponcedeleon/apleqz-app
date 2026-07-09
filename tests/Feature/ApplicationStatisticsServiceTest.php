@@ -67,6 +67,45 @@ class ApplicationStatisticsServiceTest extends TestCase
         $this->assertSame(2, $stats['summary']['total_interviews']);
         $this->assertSame(1, $stats['summary']['total_offers']);
         $this->assertSame(1, $stats['summary']['total_waiting']);
+        $this->assertEqualsWithDelta(0.3333, $stats['summary']['pct_rejections'], 0.0001);
+        $this->assertEqualsWithDelta(0.6667, $stats['summary']['pct_interviews'], 0.0001);
+        $this->assertEqualsWithDelta(0.3333, $stats['summary']['pct_offers'], 0.0001);
+        $this->assertEqualsWithDelta(0.3333, $stats['summary']['pct_waiting'], 0.0001);
+    }
+
+    public function test_interview_percentage_counts_applications_not_moments(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+
+        $withTwoInterviews = Application::factory()->create([
+            'user_id' => $user->id,
+            'area_id' => $area->id,
+            'status' => ApplicationStatus::Waiting,
+        ]);
+        $withTwoInterviews->moments()->delete();
+        $withTwoInterviews->moments()->create([
+            'type' => ApplicationMomentType::Interview,
+            'occurred_at' => '2026-01-10',
+            'sort_order' => 0,
+        ]);
+        $withTwoInterviews->moments()->create([
+            'type' => ApplicationMomentType::Interview,
+            'occurred_at' => '2026-01-15',
+            'sort_order' => 1,
+        ]);
+
+        Application::factory()->create([
+            'user_id' => $user->id,
+            'area_id' => $area->id,
+            'status' => ApplicationStatus::Waiting,
+        ])->moments()->delete();
+
+        $stats = app(ApplicationStatisticsService::class)->forUser($user);
+
+        $this->assertSame(2, $stats['summary']['total_applications']);
+        $this->assertSame(1, $stats['summary']['total_interviews']);
+        $this->assertEqualsWithDelta(0.5, $stats['summary']['pct_interviews'], 0.0001);
     }
 
     public function test_user_cannot_access_another_users_application(): void
