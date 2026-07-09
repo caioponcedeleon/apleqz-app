@@ -63,10 +63,16 @@ class Application extends Model
         return $this->hasMany(ApplicationFile::class)->orderBy('created_at');
     }
 
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(ApplicationReminder::class)->orderBy('remind_at');
+    }
+
     protected static function booted(): void
     {
         static::deleting(function (Application $application): void {
             $application->files()->each(fn (ApplicationFile $file) => $file->delete());
+            $application->reminders()->delete();
         });
     }
 

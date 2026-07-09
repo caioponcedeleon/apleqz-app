@@ -25,6 +25,7 @@ class User extends Authenticatable implements FilamentUser
         'personal_files_enabled',
         'excel_import_enabled',
         'locale',
+        'email_reminders_enabled',
         'current_wave_id',
         'onboarding_completed_at',
     ];
@@ -43,6 +44,7 @@ class User extends Authenticatable implements FilamentUser
             'application_files_enabled' => 'boolean',
             'personal_files_enabled' => 'boolean',
             'excel_import_enabled' => 'boolean',
+            'email_reminders_enabled' => 'boolean',
             'onboarding_completed_at' => 'datetime',
         ];
     }

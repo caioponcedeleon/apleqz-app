@@ -1,4 +1,5 @@
 <script setup>
+import ApplicationRemindersSection from '@/Components/ApplicationRemindersSection.vue';
 import ApplicationFormPreview from '@/Components/ApplicationFormPreview.vue';
 import ApplicationMomentModal from '@/Components/ApplicationMomentModal.vue';
 import ChipSelect from '@/Components/ChipSelect.vue';
@@ -22,6 +23,8 @@ const props = defineProps({
     waves: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     momentTypes: { type: Array, default: () => [] },
+    reminderTypes: { type: Array, default: () => [] },
+    reminderFrequencies: { type: Array, default: () => [] },
     canUploadApplicationFiles: { type: Boolean, default: false },
     canCreateApplication: { type: Boolean, default: true },
 });
@@ -255,6 +258,14 @@ const submit = (createAnother = false) => {
 };
 
 const applicationFiles = computed(() => props.application?.files ?? []);
+
+const applicationReminders = computed(() => props.application?.reminders ?? []);
+
+const editableMoments = computed(() =>
+    (props.application?.moments ?? []).filter(
+        (moment) => !moment.is_system && moment.type !== 'status_change',
+    ),
+);
 
 const downloadApplicationFileUrl = (file) =>
     route('applications.files.download', [props.application.id, file.id]);
@@ -556,6 +567,15 @@ const renameApplicationFileUrl = (file) =>
                             </p>
                         </div>
                     </div>
+
+                    <ApplicationRemindersSection
+                        v-if="isEdit"
+                        :application="application"
+                        :reminders="applicationReminders"
+                        :reminder-types="reminderTypes"
+                        :reminder-frequencies="reminderFrequencies"
+                        :moments="editableMoments"
+                    />
 
                     <div class="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
                         <PrimaryButton :disabled="form.processing" type="submit">

@@ -74,7 +74,7 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
-        $application->load(['area', 'wave', 'moments', 'files']);
+        $application->load(['area', 'wave', 'moments', 'files', 'reminders.moment']);
 
         return Inertia::render('Applications/Form', $this->formProps(request(), $application));
     }
@@ -125,6 +125,8 @@ class ApplicationController extends Controller
             'waves' => $user->applicationWaves()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'is_default']),
             'statuses' => ApplicationStatus::values(),
             'momentTypes' => ApplicationMomentType::userEditableValues(),
+            'reminderTypes' => \App\Enums\ApplicationReminderType::values(),
+            'reminderFrequencies' => \App\Enums\ApplicationReminderFrequency::values(),
             'canUploadApplicationFiles' => $user->application_files_enabled,
             'canCreateApplication' => $user->areas()->exists()
                 && $user->applicationWaves()->exists(),

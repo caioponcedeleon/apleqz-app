@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationReminderController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ApplicationExportController;
 use App\Http\Controllers\ApplicationFileController;
@@ -53,6 +54,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/applications/{application}/files/{file}/preview', [ApplicationFileController::class, 'preview'])
             ->name('applications.files.preview')
             ->scopeBindings();
+
+        Route::post('/applications/{application}/reminders', [ApplicationReminderController::class, 'store'])
+            ->name('applications.reminders.store');
+        Route::patch('/applications/{application}/reminders/{reminder}', [ApplicationReminderController::class, 'update'])
+            ->name('applications.reminders.update');
+        Route::delete('/applications/{application}/reminders/{reminder}', [ApplicationReminderController::class, 'destroy'])
+            ->name('applications.reminders.destroy');
     });
 
     Route::post('applications', [ApplicationController::class, 'store'])
