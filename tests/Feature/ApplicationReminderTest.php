@@ -194,4 +194,30 @@ class ApplicationReminderTest extends TestCase
             $reminder->remind_at->toDateTimeString(),
         );
     }
+
+    public function test_force_send_command_sends_all_active_reminders(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email_reminders_enabled' => true,
+            'email_verified_at' => now(),
+        ]);
+        $application = $this->applicationFor($user);
+
+        ApplicationReminder::query()->create([
+            'user_id' => $user->id,
+            'application_id' => $application->id,
+            'type' => ApplicationReminderType::CheckIn,
+            'frequency' => ApplicationReminderFrequency::Once,
+            'remind_at' => now()->addWeek(),
+            'is_active' => true,
+            'channel' => 'mail',
+        ]);
+
+        $this->artisan('applications:force-send-reminders')
+            ->assertSuccessful();
+
+        Notification::assertSentTo($user, ApplicationReminderNotification::class);
+    }
 }

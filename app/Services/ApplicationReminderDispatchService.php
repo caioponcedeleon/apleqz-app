@@ -48,6 +48,39 @@ class ApplicationReminderDispatchService
         return $sentIds;
     }
 
+    /**
+     * Send every active reminder immediately, ignoring schedule and sent state.
+     * Intended for local/testing only.
+     *
+     * @return list<int>
+     */
+    public function sendAllRemindersForTesting(bool $markSent = true, ?Carbon $now = null): array
+    {
+        $now = $now ?? now();
+        $sentIds = [];
+
+        $reminders = ApplicationReminder::query()
+            ->with(['application', 'user', 'moment'])
+            ->where('is_active', true)
+            ->whereHas('user', function ($query) {
+                $query->where('email_reminders_enabled', true)
+                    ->whereNotNull('email_verified_at');
+            })
+            ->get();
+
+        foreach ($reminders as $reminder) {
+            $reminder->user->notify(new \App\Notifications\ApplicationReminderNotification($reminder));
+
+            if ($markSent) {
+                $this->markSent($reminder, $now);
+            }
+
+            $sentIds[] = $reminder->id;
+        }
+
+        return $sentIds;
+    }
+
     public function isDue(ApplicationReminder $reminder, Carbon $now): bool
     {
         if ($reminder->frequency === ApplicationReminderFrequency::Once) {
