@@ -8,6 +8,7 @@ use App\Http\Controllers\ApplicationWaveController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserFileController;
 use App\Http\Controllers\WaveSelectionController;
@@ -70,6 +71,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/waves', [ApplicationWaveController::class, 'store'])->name('waves.store');
     Route::put('/waves/{application_wave}', [ApplicationWaveController::class, 'update'])->name('waves.update');
     Route::delete('/waves/{application_wave}', [ApplicationWaveController::class, 'destroy'])->name('waves.destroy');
+
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

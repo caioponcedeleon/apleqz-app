@@ -193,6 +193,10 @@ const formatDate = (value) => {
                 >
                     {{ page.props.flash.error }}
                 </p>
+                <div
+                    data-onboarding="applications-list"
+                    class="space-y-4"
+                >
                 <div class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                     <TextInput
                         v-model="search"
@@ -386,6 +390,7 @@ const formatDate = (value) => {
                         "
                         v-html="link.label"
                     />
+                </div>
                 </div>
             </div>
         </div>

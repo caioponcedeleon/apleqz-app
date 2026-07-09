@@ -46,6 +46,12 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'onboarding' => fn () => $user
+                ? [
+                    'show' => $user->onboarding_completed_at === null,
+                    'manageApplicationId' => $user->applications()->orderByDesc('updated_at')->value('id'),
+                ]
+                : null,
         ];
     }
 }

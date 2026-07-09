@@ -1,4 +1,5 @@
 <script setup>
+import ApplicationFormPreview from '@/Components/ApplicationFormPreview.vue';
 import ApplicationMomentModal from '@/Components/ApplicationMomentModal.vue';
 import FileManager from '@/Components/FileManager.vue';
 import InputError from '@/Components/InputError.vue';
@@ -32,6 +33,9 @@ const hasWaves = computed(() => props.waves.length > 0);
 const showNoAreasState = computed(() => !isEdit.value && !hasAreas.value);
 const showNoWavesState = computed(() => !isEdit.value && hasAreas.value && !hasWaves.value);
 const canUseForm = computed(() => isEdit.value || (hasAreas.value && hasWaves.value));
+const showOnboardingPreview = computed(
+    () => Boolean(page.props.onboarding?.show) && !isEdit.value && !canUseForm.value,
+);
 
 const mapMoments = (moments) =>
     (moments ?? [])
@@ -261,9 +265,17 @@ const renameApplicationFileUrl = (file) =>
         </template>
 
         <div class="py-8">
-            <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div
+                data-onboarding="application-form"
+                class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8"
+            >
+                <ApplicationFormPreview
+                    v-if="showOnboardingPreview"
+                    :statuses="statuses"
+                />
+
                 <div
-                    v-if="showNoAreasState"
+                    v-else-if="showNoAreasState"
                     class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"
                 >
                     <h3 class="text-lg font-semibold text-amber-950 dark:text-amber-100">
@@ -320,6 +332,7 @@ const renameApplicationFileUrl = (file) =>
 
                 <form
                     v-else
+                    :data-onboarding="isEdit ? 'application-manage' : undefined"
                     class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     @submit.prevent="submit(false)"
                 >

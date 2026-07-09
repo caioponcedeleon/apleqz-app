@@ -1,4 +1,5 @@
 <script setup>
+import OnboardingTour from '@/Components/OnboardingTour.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -211,5 +212,7 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                 <slot />
             </main>
         </div>
+
+        <OnboardingTour />
     </div>
 </template>

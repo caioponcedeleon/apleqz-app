@@ -29,6 +29,7 @@ const deleteWave = (wave) => {
 
 <template>
     <div
+        data-onboarding="wave-manager"
         class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
     >
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">

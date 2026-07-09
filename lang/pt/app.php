@@ -242,6 +242,45 @@ return [
         'your_rights_text' => 'Você pode alterar ou retirar seu consentimento a qualquer momento. Rejeitar cookies não essenciais não afeta o uso do serviço.',
         'back_home' => 'Voltar ao início',
     ],
+    'onboarding' => [
+        'step_of' => 'Passo {current} de {total}',
+        'next' => 'Próximo',
+        'finish' => 'Entendi',
+        'skip' => 'Pular tutorial',
+        'areas' => [
+            'title' => 'Crie suas áreas',
+            'body' => 'As áreas agrupam suas candidaturas por campo ou foco (por exemplo Engenharia ou Design). Adicione pelo menos uma área aqui antes de registrar candidaturas.',
+        ],
+        'waves' => [
+            'title' => 'Crie ondas de candidatura',
+            'body' => 'As ondas separam períodos de busca (por exemplo “Verão 2026”). Crie uma onda para o período atual; você pode trocar de onda no cabeçalho a qualquer momento.',
+        ],
+        'create_application' => [
+            'title' => 'Adicione sua primeira candidatura',
+            'body' => 'Preencha cargo, empresa, área e onda. Você pode registrar uma data planejada ou marcar como já enviada.',
+        ],
+        'manage_application' => [
+            'title' => 'Gerencie uma candidatura',
+            'body' => 'Abra qualquer candidatura para atualizar o status, montar uma linha do tempo de entrevistas e ofertas, anexar arquivos e manter notas conforme o processo avança.',
+        ],
+        'manage_application_list' => [
+            'title' => 'Gerencie suas candidaturas',
+            'body' => 'Suas candidaturas aparecem aqui. Use o botão de editar em uma linha para atualizar status, eventos da linha do tempo e arquivos. Marque favoritas para mantê-las no topo.',
+        ],
+        'preview' => [
+            'badge' => 'Exemplo',
+            'disclaimer' => 'Isto é apenas uma pré-visualização — nada é salvo na sua conta.',
+            'wave' => 'Verão 2026',
+            'area' => 'Engenharia de software',
+            'position' => 'Desenvolvedor frontend',
+            'company' => 'Acme Corp',
+            'location' => 'Lisboa (remoto)',
+            'applied_at' => '2026-03-15',
+            'channel' => 'Site da empresa',
+            'job_url' => 'https://example.com/vagas/desenvolvedor-frontend',
+            'notes' => 'Vaga alinhada com minha experiência. Pretendo fazer follow-up em uma semana.',
+        ],
+    ],
     'footer' => [
         'version' => 'Versão 1.0',
         'created_by' => 'Criado por {author}',

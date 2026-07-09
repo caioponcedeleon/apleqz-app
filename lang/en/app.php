@@ -242,6 +242,45 @@ return [
         'your_rights_text' => 'You can change or withdraw your consent at any time. Rejecting non-essential cookies will not affect your ability to use the service.',
         'back_home' => 'Back to home',
     ],
+    'onboarding' => [
+        'step_of' => 'Step {current} of {total}',
+        'next' => 'Next',
+        'finish' => 'Got it',
+        'skip' => 'Skip tutorial',
+        'areas' => [
+            'title' => 'Create your areas',
+            'body' => 'Areas group your applications by field or focus (for example Engineering or Design). Add at least one area here before you start tracking applications.',
+        ],
+        'waves' => [
+            'title' => 'Create application waves',
+            'body' => 'Waves separate job-search periods (for example “Summer 2026”). Create a wave for the period you are in; you can switch waves from the header at any time.',
+        ],
+        'create_application' => [
+            'title' => 'Add your first application',
+            'body' => 'Fill in the role, company, area, and wave. You can log a planned apply date or mark it as already submitted.',
+        ],
+        'manage_application' => [
+            'title' => 'Manage an application',
+            'body' => 'Open any application to update its status, build a timeline of interviews and offers, attach files, and keep notes as the process moves forward.',
+        ],
+        'manage_application_list' => [
+            'title' => 'Manage your applications',
+            'body' => 'Your applications appear here. Use the edit button on a row to update status, timeline events, and files. Star favourites to keep important ones at the top.',
+        ],
+        'preview' => [
+            'badge' => 'Example',
+            'disclaimer' => 'This is a preview only — nothing is saved to your account.',
+            'wave' => 'Summer 2026',
+            'area' => 'Software engineering',
+            'position' => 'Frontend developer',
+            'company' => 'Acme Corp',
+            'location' => 'Lisbon (remote)',
+            'applied_at' => '2026-03-15',
+            'channel' => 'Company website',
+            'job_url' => 'https://example.com/jobs/frontend-developer',
+            'notes' => 'Role aligns with my experience. Plan to follow up in one week.',
+        ],
+    ],
     'footer' => [
         'version' => 'Version 1.0',
         'created_by' => 'Created by {author}',

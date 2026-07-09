@@ -26,6 +26,7 @@ class User extends Authenticatable implements FilamentUser
         'excel_import_enabled',
         'locale',
         'current_wave_id',
+        'onboarding_completed_at',
     ];
 
     protected $hidden = [
@@ -42,6 +43,7 @@ class User extends Authenticatable implements FilamentUser
             'application_files_enabled' => 'boolean',
             'personal_files_enabled' => 'boolean',
             'excel_import_enabled' => 'boolean',
+            'onboarding_completed_at' => 'datetime',
         ];
     }
 
