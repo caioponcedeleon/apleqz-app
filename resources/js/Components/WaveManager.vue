@@ -25,6 +25,10 @@ const deleteWave = (wave) => {
     if (!confirm(t('app.waves.delete') + '?')) return;
     router.delete(route('waves.destroy', wave.id), { preserveScroll: true });
 };
+
+const setDefaultWave = (wave) => {
+    router.post(route('waves.default', wave.id), {}, { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -70,13 +74,23 @@ const deleteWave = (wave) => {
                         {{ t('app.waves.default_badge') }}
                     </span>
                 </div>
-                <button
-                    type="button"
-                    class="shrink-0 text-red-600 hover:underline"
-                    @click="deleteWave(wave)"
-                >
-                    {{ t('app.waves.delete') }}
-                </button>
+                <div class="flex items-center gap-3">
+                    <button
+                        v-if="!wave.is_default"
+                        type="button"
+                        class="shrink-0 text-indigo-600 hover:underline dark:text-indigo-400"
+                        @click="setDefaultWave(wave)"
+                    >
+                        {{ t('app.waves.set_default') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="shrink-0 text-red-600 hover:underline"
+                        @click="deleteWave(wave)"
+                    >
+                        {{ t('app.waves.delete') }}
+                    </button>
+                </div>
             </li>
         </ul>
 

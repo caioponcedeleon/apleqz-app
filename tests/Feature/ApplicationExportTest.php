@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +18,7 @@ class ApplicationExportTest extends TestCase
     public function test_export_requires_at_least_one_field_without_agentur_format(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
 
         $response = $this->actingAs($user)->post(route('applications.export'), [
             'format' => 'txt',

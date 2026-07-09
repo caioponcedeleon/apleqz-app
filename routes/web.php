@@ -12,12 +12,13 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserFileController;
 use App\Http\Controllers\WaveSelectionController;
+use App\Support\UserHome;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('dashboard')
+        ? redirect(UserHome::route(auth()->user()))
         : Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
@@ -30,30 +31,33 @@ Route::post('/wave', WaveSelectionController::class)->middleware(['auth', 'verif
 Route::get('/cookies', fn () => Inertia::render('Legal/Cookies'))->name('cookies');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::middleware(['user.has.waves'])->group(function () {
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    Route::resource('applications', ApplicationController::class)->except(['show', 'store']);
+        Route::resource('applications', ApplicationController::class)->except(['show', 'store']);
+        Route::patch('/applications/{application}/favourite', [ApplicationController::class, 'toggleFavourite'])
+            ->name('applications.favourite');
+        Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
+        Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
+        Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
+            ->name('applications.files.store');
+        Route::patch('/applications/{application}/files/{file}', [ApplicationFileController::class, 'update'])
+            ->name('applications.files.update')
+            ->scopeBindings();
+        Route::delete('/applications/{application}/files/{file}', [ApplicationFileController::class, 'destroy'])
+            ->name('applications.files.destroy')
+            ->scopeBindings();
+        Route::get('/applications/{application}/files/{file}/download', [ApplicationFileController::class, 'download'])
+            ->name('applications.files.download')
+            ->scopeBindings();
+        Route::get('/applications/{application}/files/{file}/preview', [ApplicationFileController::class, 'preview'])
+            ->name('applications.files.preview')
+            ->scopeBindings();
+    });
+
     Route::post('applications', [ApplicationController::class, 'store'])
         ->middleware(['user.has.areas', 'user.has.waves'])
         ->name('applications.store');
-    Route::patch('/applications/{application}/favourite', [ApplicationController::class, 'toggleFavourite'])
-        ->name('applications.favourite');
-    Route::post('/applications/import', ApplicationImportController::class)->name('applications.import');
-    Route::post('/applications/export', ApplicationExportController::class)->name('applications.export');
-    Route::post('/applications/{application}/files', [ApplicationFileController::class, 'store'])
-        ->name('applications.files.store');
-    Route::patch('/applications/{application}/files/{file}', [ApplicationFileController::class, 'update'])
-        ->name('applications.files.update')
-        ->scopeBindings();
-    Route::delete('/applications/{application}/files/{file}', [ApplicationFileController::class, 'destroy'])
-        ->name('applications.files.destroy')
-        ->scopeBindings();
-    Route::get('/applications/{application}/files/{file}/download', [ApplicationFileController::class, 'download'])
-        ->name('applications.files.download')
-        ->scopeBindings();
-    Route::get('/applications/{application}/files/{file}/preview', [ApplicationFileController::class, 'preview'])
-        ->name('applications.files.preview')
-        ->scopeBindings();
 
     Route::get('/files', [UserFileController::class, 'index'])->name('files.index');
     Route::post('/files', [UserFileController::class, 'store'])->name('files.store');
@@ -70,6 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/waves', [ApplicationWaveController::class, 'index'])->name('waves.index');
     Route::post('/waves', [ApplicationWaveController::class, 'store'])->name('waves.store');
     Route::put('/waves/{application_wave}', [ApplicationWaveController::class, 'update'])->name('waves.update');
+    Route::post('/waves/{application_wave}/default', [ApplicationWaveController::class, 'makeDefault'])->name('waves.default');
     Route::delete('/waves/{application_wave}', [ApplicationWaveController::class, 'destroy'])->name('waves.destroy');
 
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');

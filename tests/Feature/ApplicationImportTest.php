@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -17,6 +18,7 @@ class ApplicationImportTest extends TestCase
     public function test_user_without_flag_cannot_import_applications(): void
     {
         $user = User::factory()->create(['excel_import_enabled' => false]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
         $path = $this->createSampleSpreadsheet();
         $file = new UploadedFile($path, 'vagas.xlsx', null, null, true);
 
@@ -33,6 +35,7 @@ class ApplicationImportTest extends TestCase
     public function test_user_can_import_applications_from_excel(): void
     {
         $user = User::factory()->create(['excel_import_enabled' => true]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
         $path = $this->createSampleSpreadsheet();
         $file = new UploadedFile($path, 'vagas.xlsx', null, null, true);
 
@@ -61,6 +64,7 @@ class ApplicationImportTest extends TestCase
     public function test_import_rejects_file_without_vagas_sheet(): void
     {
         $user = User::factory()->create(['excel_import_enabled' => true]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
         $path = $this->createSpreadsheetWithoutVagasSheet();
         $file = new UploadedFile($path, 'other.xlsx', null, null, true);
 

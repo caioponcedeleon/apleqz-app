@@ -2,6 +2,10 @@
 import StatCard from '@/Components/StatCard.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import {
+    buildDashboardPreviewStatistics,
+    shouldShowDashboardPreview,
+} from '@/composables/useOnboardingPreview';
+import {
     BarElement,
     CategoryScale,
     Chart as ChartJS,
@@ -35,17 +39,22 @@ const props = defineProps({
     statuses: { type: Array, default: () => [] },
 });
 
-const summary = computed(() => props.statistics.summary);
-const byArea = computed(() => props.statistics.by_area ?? []);
+const showPreview = computed(() => shouldShowDashboardPreview(page, props.statistics));
+const displayStatistics = computed(() =>
+    showPreview.value ? buildDashboardPreviewStatistics(t) : props.statistics,
+);
+
+const summary = computed(() => displayStatistics.value.summary);
+const byArea = computed(() => displayStatistics.value.by_area ?? []);
 const areaLabels = computed(() => byArea.value.map((row) => row.area_name));
 const hasAreaData = computed(() => byArea.value.length > 0);
 
 const applicationChart = computed(() => ({
-    labels: props.statistics.application_timeline.map((r) => r.date),
+    labels: displayStatistics.value.application_timeline.map((r) => r.date),
     datasets: [
         {
             label: t('app.dashboard.cumulative'),
-            data: props.statistics.application_timeline.map((r) => r.cumulative),
+            data: displayStatistics.value.application_timeline.map((r) => r.cumulative),
             borderColor: '#4f46e5',
             backgroundColor: 'rgba(79, 70, 229, 0.1)',
             fill: true,
@@ -53,7 +62,7 @@ const applicationChart = computed(() => ({
         },
         {
             label: t('app.dashboard.daily'),
-            data: props.statistics.application_timeline.map((r) => r.daily),
+            data: displayStatistics.value.application_timeline.map((r) => r.daily),
             borderColor: '#10b981',
             tension: 0.3,
         },
@@ -61,11 +70,11 @@ const applicationChart = computed(() => ({
 }));
 
 const interviewChart = computed(() => ({
-    labels: props.statistics.interview_timeline.map((r) => r.date),
+    labels: displayStatistics.value.interview_timeline.map((r) => r.date),
     datasets: [
         {
             label: t('app.dashboard.cumulative'),
-            data: props.statistics.interview_timeline.map((r) => r.cumulative),
+            data: displayStatistics.value.interview_timeline.map((r) => r.cumulative),
             borderColor: '#f59e0b',
             backgroundColor: 'rgba(245, 158, 11, 0.1)',
             fill: true,
@@ -221,6 +230,20 @@ const percentBarOptions = {
 
         <div class="py-8">
             <div class="mx-auto max-w-7xl space-y-8 sm:px-6 lg:px-8">
+                <div
+                    v-if="showPreview"
+                    class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/70 px-4 py-3 dark:border-indigo-900/60 dark:bg-indigo-950/20"
+                >
+                    <span
+                        class="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                    >
+                        {{ t('app.onboarding.preview.badge') }}
+                    </span>
+                    <p class="text-sm text-indigo-900/80 dark:text-indigo-200/80">
+                        {{ t('app.onboarding.preview.disclaimer') }}
+                    </p>
+                </div>
+
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         :label="t('app.dashboard.total_applications')"
@@ -276,7 +299,7 @@ const percentBarOptions = {
                         </h3>
                         <div class="h-64">
                             <Line
-                                v-if="statistics.application_timeline.length"
+                                v-if="displayStatistics.application_timeline.length"
                                 :data="applicationChart"
                                 :options="lineChartOptions"
                             />
@@ -291,7 +314,7 @@ const percentBarOptions = {
                         </h3>
                         <div class="h-64">
                             <Line
-                                v-if="statistics.interview_timeline.length"
+                                v-if="displayStatistics.interview_timeline.length"
                                 :data="interviewChart"
                                 :options="lineChartOptions"
                             />

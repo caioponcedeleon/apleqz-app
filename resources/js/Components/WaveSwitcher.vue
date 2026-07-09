@@ -1,6 +1,6 @@
 <script setup>
 import WaveCreateModal from '@/Components/WaveCreateModal.vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -27,8 +27,9 @@ const selectWave = (event) => {
 </script>
 
 <template>
-    <div v-if="waves.length" class="flex items-center gap-1">
+    <div class="flex items-center gap-1">
         <div
+            v-if="waves.length"
             class="flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-sm dark:border-gray-700 dark:bg-gray-800"
         >
             <label class="sr-only" for="wave-switcher">{{ t('app.waves.select') }}</label>
@@ -43,6 +44,14 @@ const selectWave = (event) => {
                 </option>
             </select>
         </div>
+
+        <Link
+            v-else
+            :href="route('waves.index')"
+            class="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+        >
+            {{ t('app.waves.setup_first') }}
+        </Link>
 
         <button
             type="button"

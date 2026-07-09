@@ -56,6 +56,7 @@ class ApplicationCrudTest extends TestCase
     public function test_create_application_page_blocked_when_user_has_no_areas(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
 
         $this->actingAs($user)
             ->get(route('applications.create'))

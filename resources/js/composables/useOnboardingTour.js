@@ -5,9 +5,7 @@ import { useI18n } from 'vue-i18n';
 const STORAGE_KEY = 'apleqz_onboarding_step';
 const PADDING = 8;
 
-export function buildOnboardingSteps(page) {
-    const manageApplicationId = page.props.onboarding?.manageApplicationId ?? null;
-
+export function buildOnboardingSteps() {
     return [
         {
             id: 'areas',
@@ -35,19 +33,71 @@ export function buildOnboardingSteps(page) {
         },
         {
             id: 'manage_application',
-            routeName: manageApplicationId ? 'applications.edit' : 'applications.index',
-            routeParams: manageApplicationId ? [manageApplicationId] : [],
-            target: manageApplicationId
-                ? '[data-onboarding="application-manage"]'
-                : '[data-onboarding="applications-list"]',
-            titleKey: manageApplicationId
-                ? 'app.onboarding.manage_application.title'
-                : 'app.onboarding.manage_application_list.title',
-            bodyKey: manageApplicationId
-                ? 'app.onboarding.manage_application.body'
-                : 'app.onboarding.manage_application_list.body',
+            routeName: 'applications.index',
+            routeParams: [],
+            target: '[data-onboarding="applications-list"]',
+            titleKey: 'app.onboarding.manage_application_list.title',
+            bodyKey: 'app.onboarding.manage_application_list.body',
         },
     ];
+}
+
+export function hasApplicationWaves(page) {
+    if (page.props.onboarding?.hasWaves) {
+        return true;
+    }
+
+    if (page.props.selectedWave) {
+        return true;
+    }
+
+    if ((page.props.waves?.length ?? 0) > 0) {
+        return true;
+    }
+
+    if (typeof document !== 'undefined') {
+        const manager = document.querySelector('[data-onboarding="wave-manager"]');
+
+        if (manager?.querySelector('ul li')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+export function stepPrerequisites(page, step) {
+    if (!step) {
+        return true;
+    }
+
+    if (step.id === 'create_application' || step.id === 'manage_application') {
+        return hasApplicationWaves(page);
+    }
+
+    return true;
+}
+
+export function normalizeStepIndex(page, steps, index) {
+    let normalized = Math.max(0, Math.min(index, steps.length - 1));
+
+    while (normalized > 0 && !stepPrerequisites(page, steps[normalized])) {
+        normalized -= 1;
+    }
+
+    return normalized;
+}
+
+export function prerequisiteMessageKey(step) {
+    if (!step) {
+        return null;
+    }
+
+    if (step.id === 'create_application' || step.id === 'manage_application') {
+        return 'app.onboarding.waves.create_first';
+    }
+
+    return null;
 }
 
 export function stepRouteHref(step) {
@@ -56,7 +106,11 @@ export function stepRouteHref(step) {
         : route(step.routeName);
 }
 
-export function isOnStepRoute(step) {
+export function stepRoutePath(step) {
+    return new URL(stepRouteHref(step), window.location.origin).pathname;
+}
+
+export function isOnStepRoute(step, pageUrl = null) {
     if (!step) {
         return false;
     }
@@ -65,7 +119,13 @@ export function isOnStepRoute(step) {
         return route().current('applications.edit', step.routeParams[0]);
     }
 
-    return route().current(step.routeName);
+    if (route().current(step.routeName)) {
+        return true;
+    }
+
+    const currentPath = pageUrl ?? window.location.pathname;
+
+    return currentPath === stepRoutePath(step);
 }
 
 export function readOnboardingStepIndex() {
@@ -103,21 +163,57 @@ export function useOnboardingTour() {
     const page = usePage();
     const { t } = useI18n();
 
-    const stepIndex = ref(readOnboardingStepIndex());
+    const steps = computed(() => buildOnboardingSteps());
+    const stepIndex = ref(
+        normalizeStepIndex(page, steps.value, readOnboardingStepIndex()),
+    );
+    writeOnboardingStepIndex(stepIndex.value);
+
     const hole = ref(null);
     const tooltipPosition = ref({ top: 0, left: 0 });
-    const tooltipPlacement = ref('bottom');
+    const centeredTooltip = ref(false);
+    const prerequisiteHint = ref(null);
     const isNavigating = ref(false);
     let targetPollId = null;
     let resizeObserver = null;
 
     const shouldShow = computed(() => Boolean(page.props.onboarding?.show));
 
-    const steps = computed(() => buildOnboardingSteps(page));
-
     const currentStep = computed(() => steps.value[stepIndex.value] ?? null);
 
     const isLastStep = computed(() => stepIndex.value >= steps.value.length - 1);
+
+    const canAdvance = computed(() => {
+        if (isLastStep.value) {
+            return true;
+        }
+
+        if (currentStep.value?.id === 'waves' && !hasApplicationWaves(page)) {
+            return false;
+        }
+
+        const next = steps.value[stepIndex.value + 1];
+
+        return !next || stepPrerequisites(page, next);
+    });
+
+    const nextDisabledHintKey = computed(() =>
+        currentStep.value?.id === 'waves' && !hasApplicationWaves(page)
+            ? 'app.onboarding.next_requires_wave'
+            : null,
+    );
+
+    const tooltipBodyKey = computed(() => {
+        if (prerequisiteHint.value) {
+            return prerequisiteHint.value;
+        }
+
+        if (currentStep.value?.id === 'waves' && !hasApplicationWaves(page)) {
+            return 'app.onboarding.waves.create_first';
+        }
+
+        return currentStep.value?.bodyKey ?? '';
+    });
 
     const overlayPanels = computed(() => {
         if (!hole.value) {
@@ -156,18 +252,26 @@ export function useOnboardingTour() {
     });
 
     const updateTooltipPosition = () => {
+        const tooltipWidth = 320;
+        const margin = 16;
+
         if (!hole.value) {
+            centeredTooltip.value = true;
+            tooltipPosition.value = {
+                top: Math.max(margin, window.innerHeight / 2 - 120),
+                left: Math.max(margin, window.innerWidth / 2 - tooltipWidth / 2),
+            };
+
             return;
         }
 
+        centeredTooltip.value = false;
+
         const { x, y, width, height } = hole.value;
-        const tooltipWidth = 320;
-        const margin = 16;
         const spaceBelow = window.innerHeight - (y + height + PADDING);
         const spaceAbove = y - PADDING;
 
         if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
-            tooltipPlacement.value = 'bottom';
             tooltipPosition.value = {
                 top: y + height + PADDING + margin,
                 left: Math.min(
@@ -176,7 +280,6 @@ export function useOnboardingTour() {
                 ),
             };
         } else {
-            tooltipPlacement.value = 'top';
             tooltipPosition.value = {
                 top: Math.max(margin, y - PADDING - margin - 160),
                 left: Math.min(
@@ -199,6 +302,7 @@ export function useOnboardingTour() {
 
         if (!element) {
             hole.value = null;
+            updateTooltipPosition();
             return false;
         }
 
@@ -206,6 +310,7 @@ export function useOnboardingTour() {
 
         if (rect.width <= 0 || rect.height <= 0) {
             hole.value = null;
+            updateTooltipPosition();
             return false;
         }
 
@@ -274,7 +379,29 @@ export function useOnboardingTour() {
     const ensureStepRoute = async () => {
         const step = currentStep.value;
 
-        if (!step || isOnStepRoute(step)) {
+        if (!step) {
+            isNavigating.value = false;
+            return;
+        }
+
+        if (!stepPrerequisites(page, step)) {
+            const wavesStepIndex = steps.value.findIndex((item) => item.id === 'waves');
+
+            if (wavesStepIndex >= 0 && stepIndex.value !== wavesStepIndex) {
+                stepIndex.value = wavesStepIndex;
+                writeOnboardingStepIndex(wavesStepIndex);
+            }
+
+            prerequisiteHint.value = prerequisiteMessageKey(step);
+            isNavigating.value = false;
+            await nextTick();
+            startTargetPolling();
+            return;
+        }
+
+        prerequisiteHint.value = null;
+
+        if (isOnStepRoute(step, page.url)) {
             isNavigating.value = false;
             await nextTick();
             startTargetPolling();
@@ -284,12 +411,27 @@ export function useOnboardingTour() {
 
         isNavigating.value = true;
         hole.value = null;
+        updateTooltipPosition();
 
         router.visit(stepRouteHref(step), {
             preserveState: false,
             preserveScroll: false,
             onFinish: () => {
                 isNavigating.value = false;
+
+                if (!isOnStepRoute(step, window.location.pathname)) {
+                    const wavesStepIndex = steps.value.findIndex((item) => item.id === 'waves');
+
+                    if (wavesStepIndex >= 0 && !hasApplicationWaves(page)) {
+                        stepIndex.value = wavesStepIndex;
+                        writeOnboardingStepIndex(wavesStepIndex);
+                        prerequisiteHint.value = prerequisiteMessageKey(step);
+                    }
+
+                    startTargetPolling();
+                    return;
+                }
+
                 startTargetPolling();
                 connectResizeObserver();
             },
@@ -320,6 +462,11 @@ export function useOnboardingTour() {
             return;
         }
 
+        if (!canAdvance.value) {
+            return;
+        }
+
+        prerequisiteHint.value = null;
         goToStep(stepIndex.value + 1);
     };
 
@@ -332,13 +479,23 @@ export function useOnboardingTour() {
     };
 
     watch(
-        () => [shouldShow.value, page.url, stepIndex.value, page.props.onboarding?.manageApplicationId],
+        () => [
+            shouldShow.value,
+            page.url,
+            page.props.onboarding?.hasWaves,
+            page.props.selectedWave?.id,
+            page.props.waves?.length,
+        ],
         async () => {
             if (!shouldShow.value) {
                 hole.value = null;
                 stopTargetPolling();
                 disconnectResizeObserver();
                 return;
+            }
+
+            if (hasApplicationWaves(page)) {
+                prerequisiteHint.value = null;
             }
 
             await ensureStepRoute();
@@ -369,7 +526,10 @@ export function useOnboardingTour() {
         overlayPanels,
         highlightStyle,
         tooltipPosition,
-        tooltipPlacement,
+        centeredTooltip,
+        tooltipBodyKey,
+        canAdvance,
+        nextDisabledHintKey,
         nextStep,
         skipTour,
         t,

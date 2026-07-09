@@ -141,6 +141,8 @@ return [
         'delete' => 'Excluir',
         'empty' => 'Nenhuma onda ainda. Adicione uma acima para agrupar suas candidaturas.',
         'default_badge' => 'Padrão',
+        'setup_first' => 'Criar uma onda',
+        'set_default' => 'Definir como padrão',
     ],
     'moment_types' => [
         'feedback' => 'Feedback',
@@ -175,6 +177,7 @@ return [
         'wave_updated' => 'Onda atualizada.',
         'wave_deleted' => 'Onda excluída.',
         'wave_in_use' => 'Não é possível excluir uma onda com candidaturas.',
+        'wave_default_set' => 'Onda padrão atualizada.',
         'application_requires_wave' => 'Crie pelo menos uma onda antes de adicionar uma candidatura.',
         'file_uploaded' => 'Arquivo enviado.',
         'files_uploaded' => ':count arquivos enviados.',
@@ -245,6 +248,8 @@ return [
     'onboarding' => [
         'step_of' => 'Passo {current} de {total}',
         'next' => 'Próximo',
+        'continue_after_wave' => 'Crie uma onda primeiro',
+        'next_requires_wave' => 'Adicione uma onda antes de continuar',
         'finish' => 'Entendi',
         'skip' => 'Pular tutorial',
         'areas' => [
@@ -253,7 +258,8 @@ return [
         ],
         'waves' => [
             'title' => 'Crie ondas de candidatura',
-            'body' => 'As ondas separam períodos de busca (por exemplo “Verão 2026”). Crie uma onda para o período atual; você pode trocar de onda no cabeçalho a qualquer momento.',
+            'body' => 'As ondas separam períodos de busca (por exemplo “Verão 2026”). Crie uma onda aqui, depois escolha a onda ativa no cabeçalho e defina qual deve ser a padrão.',
+            'create_first' => 'Adicione uma onda usando o formulário acima (ou o botão + no cabeçalho) e depois clique em Próximo para continuar o tutorial.',
         ],
         'create_application' => [
             'title' => 'Adicione sua primeira candidatura',
@@ -279,6 +285,21 @@ return [
             'channel' => 'Site da empresa',
             'job_url' => 'https://example.com/vagas/desenvolvedor-frontend',
             'notes' => 'Vaga alinhada com minha experiência. Pretendo fazer follow-up em uma semana.',
+            'area_secondary' => 'Gestão de produto',
+            'applications' => [
+                [
+                    'position' => 'Desenvolvedor frontend',
+                    'company' => 'Acme Corp',
+                ],
+                [
+                    'position' => 'Designer de produto',
+                    'company' => 'Northwind Labs',
+                ],
+                [
+                    'position' => 'Engenheiro backend',
+                    'company' => 'Globex',
+                ],
+            ],
         ],
     ],
     'footer' => [

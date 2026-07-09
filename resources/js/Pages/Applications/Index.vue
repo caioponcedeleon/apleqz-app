@@ -1,6 +1,7 @@
 <script setup>
 import ApplicationExport from '@/Components/ApplicationExport.vue';
 import ApplicationImport from '@/Components/ApplicationImport.vue';
+import ApplicationsListPreview from '@/Components/ApplicationsListPreview.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
@@ -9,6 +10,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { shouldShowApplicationsPreview } from '@/composables/useOnboardingPreview';
 
 const props = defineProps({
     applications: { type: Object, required: true },
@@ -82,6 +84,7 @@ const setupBlockedRoute = computed(() => {
 });
 
 const canImportExcel = computed(() => Boolean(page.props.auth.user?.excel_import_enabled));
+const showOnboardingPreview = computed(() => shouldShowApplicationsPreview(page, props.applications));
 
 const clearFilters = () => {
     clearTimeout(searchDebounce);
@@ -234,8 +237,14 @@ const formatDate = (value) => {
                     </SecondaryButton>
                 </div>
 
+                <ApplicationsListPreview
+                    v-if="showOnboardingPreview"
+                    :sortable-columns="sortableColumns"
+                    :status-colors="statusColors"
+                />
+
                 <div
-                    v-if="!applications.data.length"
+                    v-else-if="!applications.data.length"
                     class="rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-500 dark:border-gray-600"
                 >
                     {{ t('app.applications.empty') }}

@@ -141,6 +141,8 @@ return [
         'delete' => 'Delete',
         'empty' => 'No waves yet. Add one above to group your applications.',
         'default_badge' => 'Default',
+        'setup_first' => 'Create a wave',
+        'set_default' => 'Set as default',
     ],
     'moment_types' => [
         'feedback' => 'Feedback',
@@ -175,6 +177,7 @@ return [
         'wave_updated' => 'Wave updated.',
         'wave_deleted' => 'Wave deleted.',
         'wave_in_use' => 'Cannot delete a wave that has applications.',
+        'wave_default_set' => 'Default wave updated.',
         'application_requires_wave' => 'Create at least one wave before adding an application.',
         'file_uploaded' => 'File uploaded.',
         'files_uploaded' => ':count files uploaded.',
@@ -245,6 +248,8 @@ return [
     'onboarding' => [
         'step_of' => 'Step {current} of {total}',
         'next' => 'Next',
+        'continue_after_wave' => 'Create a wave first',
+        'next_requires_wave' => 'Add a wave before you can continue',
         'finish' => 'Got it',
         'skip' => 'Skip tutorial',
         'areas' => [
@@ -253,7 +258,8 @@ return [
         ],
         'waves' => [
             'title' => 'Create application waves',
-            'body' => 'Waves separate job-search periods (for example “Summer 2026”). Create a wave for the period you are in; you can switch waves from the header at any time.',
+            'body' => 'Waves separate job-search periods (for example “Summer 2026”). Create a wave here, then pick the active wave from the header and set which one should be your default.',
+            'create_first' => 'Add a wave using the form above (or the + button in the header), then click Next to continue the tour.',
         ],
         'create_application' => [
             'title' => 'Add your first application',
@@ -279,6 +285,21 @@ return [
             'channel' => 'Company website',
             'job_url' => 'https://example.com/jobs/frontend-developer',
             'notes' => 'Role aligns with my experience. Plan to follow up in one week.',
+            'area_secondary' => 'Product management',
+            'applications' => [
+                [
+                    'position' => 'Frontend developer',
+                    'company' => 'Acme Corp',
+                ],
+                [
+                    'position' => 'Product designer',
+                    'company' => 'Northwind Labs',
+                ],
+                [
+                    'position' => 'Backend engineer',
+                    'company' => 'Globex',
+                ],
+            ],
         ],
     ],
     'footer' => [

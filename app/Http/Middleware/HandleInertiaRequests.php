@@ -24,6 +24,12 @@ class HandleInertiaRequests extends Middleware
         $selectedWave = $user
             ? app(SelectedWaveService::class)->forRequest($request, $user)
             : null;
+        $waves = $user
+            ? $user->applicationWaves()
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(['id', 'name', 'is_default'])
+            : [];
 
         return [
             ...parent::share($request),
@@ -33,22 +39,18 @@ class HandleInertiaRequests extends Middleware
             'locale' => $locale,
             'locales' => $translationService->availableLocales(),
             'translations' => $translationService->translationsForLocale($locale),
-            'waves' => fn () => $user
-                ? $user->applicationWaves()
-                    ->orderByDesc('is_default')
-                    ->orderBy('name')
-                    ->get(['id', 'name', 'is_default'])
-                : [],
-            'selectedWave' => fn () => $selectedWave
+            'waves' => $waves,
+            'selectedWave' => $selectedWave
                 ? $selectedWave->only(['id', 'name', 'is_default'])
                 : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
-            'onboarding' => fn () => $user
+            'onboarding' => $user
                 ? [
                     'show' => $user->onboarding_completed_at === null,
+                    'hasWaves' => $waves->isNotEmpty(),
                     'manageApplicationId' => $user->applications()->orderByDesc('updated_at')->value('id'),
                 ]
                 : null,

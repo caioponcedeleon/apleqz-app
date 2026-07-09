@@ -29,7 +29,12 @@ class ApplicationWaveController extends Controller
     {
         $this->authorize('create', ApplicationWave::class);
 
-        $wave = $request->user()->applicationWaves()->create($request->validated());
+        $isFirstWave = $request->user()->applicationWaves()->doesntExist();
+
+        $wave = $request->user()->applicationWaves()->create([
+            ...$request->validated(),
+            'is_default' => $isFirstWave,
+        ]);
         $selectedWave->select($request, $request->user(), $wave);
 
         return back()->with('success', __('app.flash.wave_created'));
@@ -52,8 +57,29 @@ class ApplicationWaveController extends Controller
             return back()->with('error', __('app.flash.wave_in_use'));
         }
 
+        $wasDefault = $application_wave->is_default;
+        $user = $application_wave->user;
+
         $application_wave->delete();
 
+        if ($wasDefault) {
+            $user->applicationWaves()->latest()->first()?->update(['is_default' => true]);
+        }
+
         return back()->with('success', __('app.flash.wave_deleted'));
+    }
+
+    public function makeDefault(Request $request, ApplicationWave $application_wave): RedirectResponse
+    {
+        $this->authorize('update', $application_wave);
+
+        $user = $request->user();
+
+        $user->applicationWaves()->update(['is_default' => false]);
+        $application_wave->update(['is_default' => true]);
+
+        app(SelectedWaveService::class)->select($request, $user, $application_wave);
+
+        return back()->with('success', __('app.flash.wave_default_set'));
     }
 }

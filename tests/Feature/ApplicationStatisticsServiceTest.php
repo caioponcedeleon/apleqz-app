@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
 use App\Services\ApplicationStatisticsService;
@@ -72,6 +73,7 @@ class ApplicationStatisticsServiceTest extends TestCase
     {
         $owner = User::factory()->create(['email_verified_at' => now()]);
         $other = User::factory()->create(['email_verified_at' => now()]);
+        ApplicationWave::factory()->create(['user_id' => $other->id]);
         $area = Area::factory()->create(['user_id' => $owner->id]);
 
         $application = Application::factory()->create([
