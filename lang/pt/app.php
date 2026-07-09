@@ -407,6 +407,9 @@ return [
         'company_name' => 'Empresa padrão',
         'no_company' => 'Sem empresa definida',
         'group_source_count' => '{count} fonte(s)',
+        'collapse_all' => 'Recolher todas',
+        'expand_all' => 'Expandir todas',
+        'toggle_group' => 'Alternar {company}',
         'active' => 'Ativa',
         'active_help' => 'Ative somente após configurar a extração de campos. Fontes inativas são ignoradas pelo scraper.',
         'errors' => [

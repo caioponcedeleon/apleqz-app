@@ -407,6 +407,9 @@ return [
         'company_name' => 'Standard-Unternehmen',
         'no_company' => 'Kein Unternehmen angegeben',
         'group_source_count' => '{count} Quelle(n)',
+        'collapse_all' => 'Alle einklappen',
+        'expand_all' => 'Alle ausklappen',
+        'toggle_group' => '{company} umschalten',
         'active' => 'Aktiv',
         'active_help' => 'Erst nach der Feldkonfiguration aktivieren. Inaktive Quellen werden vom Scraper übersprungen.',
         'errors' => [

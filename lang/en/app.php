@@ -407,6 +407,9 @@ return [
         'company_name' => 'Default company name',
         'no_company' => 'No company set',
         'group_source_count' => '{count} source(s)',
+        'collapse_all' => 'Collapse all',
+        'expand_all' => 'Expand all',
+        'toggle_group' => 'Toggle {company}',
         'active' => 'Active',
         'active_help' => 'Turn on only after field extraction is configured. Inactive sources are skipped by the scraper.',
         'errors' => [

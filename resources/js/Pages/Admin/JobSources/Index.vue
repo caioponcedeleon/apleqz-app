@@ -4,7 +4,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -58,6 +58,75 @@ const companyGroups = computed(() => {
 });
 
 const companyLabel = (company) => company || t('app.job_sources.no_company');
+
+const groupKey = (company) => company || '__none__';
+
+/** @type {import('vue').Ref<Set<string>>} */
+const collapsedGroups = ref(new Set());
+const groupsCollapseInitialized = ref(false);
+
+watch(companyGroups, (groups, oldGroups) => {
+    const keys = groups.map((group) => groupKey(group.company));
+
+    if (!groupsCollapseInitialized.value) {
+        if (keys.length > 0) {
+            collapsedGroups.value = new Set(keys);
+            groupsCollapseInitialized.value = true;
+        }
+
+        return;
+    }
+
+    const oldKeys = new Set((oldGroups ?? []).map((group) => groupKey(group.company)));
+    const next = new Set(collapsedGroups.value);
+
+    for (const key of keys) {
+        if (!oldKeys.has(key)) {
+            next.add(key);
+        }
+    }
+
+    for (const key of [...next]) {
+        if (!keys.includes(key)) {
+            next.delete(key);
+        }
+    }
+
+    collapsedGroups.value = next;
+}, { immediate: true });
+
+const isGroupCollapsed = (company) => collapsedGroups.value.has(groupKey(company));
+
+const toggleGroup = (company) => {
+    const key = groupKey(company);
+    const next = new Set(collapsedGroups.value);
+
+    if (next.has(key)) {
+        next.delete(key);
+    } else {
+        next.add(key);
+    }
+
+    collapsedGroups.value = next;
+};
+
+const collapseAllGroups = () => {
+    collapsedGroups.value = new Set(companyGroups.value.map((group) => groupKey(group.company)));
+};
+
+const expandAllGroups = () => {
+    collapsedGroups.value = new Set();
+};
+
+const allGroupsCollapsed = computed(() => {
+    if (companyGroups.value.length === 0) {
+        return false;
+    }
+
+    return companyGroups.value.every((group) => isGroupCollapsed(group.company));
+});
+
+const allGroupsExpanded = computed(() => collapsedGroups.value.size === 0);
 
 const bulkProgressPercent = computed(() => {
     if (!bulkScrape.value.total) {
@@ -440,48 +509,104 @@ const setActive = (source, isActive) => {
 
                 <div
                     v-else
-                    class="space-y-4"
+                    class="space-y-3"
                 >
-                    <section
-                        v-for="group in companyGroups"
-                        :key="group.company || '__none__'"
-                        class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
-                    >
-                        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                                {{ companyLabel(group.company) }}
-                            </h3>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ t('app.job_sources.group_source_count', { count: group.sources.length }) }}
-                            </span>
-                        </div>
+                    <div class="flex flex-wrap justify-end gap-2">
+                        <SecondaryButton
+                            type="button"
+                            :disabled="allGroupsExpanded"
+                            @click="expandAllGroups"
+                        >
+                            {{ t('app.job_sources.expand_all') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="allGroupsCollapsed"
+                            @click="collapseAllGroups"
+                        >
+                            {{ t('app.job_sources.collapse_all') }}
+                        </SecondaryButton>
+                    </div>
 
-                        <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                            <thead class="bg-white dark:bg-gray-800">
-                                <tr class="text-left text-gray-500 dark:text-gray-400">
-                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.name') }}</th>
-                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.url') }}</th>
-                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.active') }}</th>
-                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.last_scraped') }}</th>
-                                    <th class="px-4 py-3 font-medium" />
+                    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <table class="w-full table-fixed text-sm">
+                        <colgroup>
+                            <col style="width: 20%">
+                            <col style="width: 34%">
+                            <col style="width: 12%">
+                            <col style="width: 16%">
+                            <col style="width: 18%">
+                        </colgroup>
+                        <thead class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                            <tr class="text-left text-gray-500 dark:text-gray-400">
+                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.name') }}</th>
+                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.url') }}</th>
+                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.active') }}</th>
+                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.last_scraped') }}</th>
+                                <th class="px-4 py-3 font-medium" />
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <template
+                                v-for="(group, groupIndex) in companyGroups"
+                                :key="group.company || '__none__'"
+                            >
+                                <tr class="bg-gray-50 dark:bg-gray-900/50">
+                                    <td
+                                        colspan="5"
+                                        class="px-4 py-3"
+                                        :class="groupIndex > 0 ? 'border-t border-gray-200 dark:border-gray-700' : ''"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-center gap-2 text-left"
+                                            :aria-expanded="!isGroupCollapsed(group.company)"
+                                            :aria-label="t('app.job_sources.toggle_group', { company: companyLabel(group.company) })"
+                                            @click="toggleGroup(group.company)"
+                                        >
+                                            <svg
+                                                class="size-4 shrink-0 text-gray-500 transition-transform duration-200 dark:text-gray-400"
+                                                :class="isGroupCollapsed(group.company) ? '-rotate-90' : ''"
+                                                viewBox="0 0 20 20"
+                                                fill="currentColor"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    fill-rule="evenodd"
+                                                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                                    clip-rule="evenodd"
+                                                />
+                                            </svg>
+                                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                {{ companyLabel(group.company) }}
+                                            </h3>
+                                            <span class="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                                                {{ t('app.job_sources.group_source_count', { count: group.sources.length }) }}
+                                            </span>
+                                        </button>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                <tr v-for="source in group.sources" :key="source.id">
+                                <tr
+                                    v-for="source in group.sources"
+                                    v-show="!isGroupCollapsed(group.company)"
+                                    :key="source.id"
+                                >
                                     <td class="px-4 py-3 font-medium">
                                         <Link
                                             :href="route('job-sources.edit', source.id)"
-                                            class="text-gray-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
+                                            class="block truncate text-gray-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
+                                            :title="source.name"
                                         >
                                             {{ source.name }}
                                         </Link>
                                     </td>
-                                    <td class="max-w-xs truncate px-4 py-3 text-gray-600 dark:text-gray-300">
+                                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
                                         <a
                                             :href="source.url"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            class="hover:text-indigo-600 hover:underline dark:hover:text-indigo-400"
+                                            class="block truncate hover:text-indigo-600 hover:underline dark:hover:text-indigo-400"
+                                            :title="source.url"
                                         >
                                             {{ source.url }}
                                         </a>
@@ -494,7 +619,7 @@ const setActive = (source, isActive) => {
                                             @update:model-value="setActive(source, $event)"
                                         />
                                     </td>
-                                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                    <td class="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-300">
                                         {{ formatDate(source.last_scraped_at) }}
                                     </td>
                                     <td class="px-4 py-3">
@@ -519,9 +644,10 @@ const setActive = (source, isActive) => {
                                         </div>
                                     </td>
                                 </tr>
-                            </tbody>
-                        </table>
-                    </section>
+                            </template>
+                        </tbody>
+                    </table>
+                    </div>
                 </div>
             </div>
         </div>
