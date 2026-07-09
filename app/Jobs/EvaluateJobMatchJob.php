@@ -8,6 +8,7 @@ use App\Models\JobMatch;
 use App\Models\User;
 use App\Models\UserJobProfile;
 use App\Services\JobListingDetailEnrichmentService;
+use App\Services\JobMatchApplicationOverlapChecker;
 use App\Services\JobMatchEvaluator;
 use App\Support\AiUsageContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,7 +23,11 @@ class EvaluateJobMatchJob implements ShouldQueue
         public string $listingId,
     ) {}
 
-    public function handle(JobMatchEvaluator $evaluator, JobListingDetailEnrichmentService $detailEnrichment): void
+    public function handle(
+        JobMatchEvaluator $evaluator,
+        JobListingDetailEnrichmentService $detailEnrichment,
+        JobMatchApplicationOverlapChecker $applicationOverlap,
+    ): void
     {
         $user = User::query()->find($this->userId);
 
@@ -33,6 +38,10 @@ class EvaluateJobMatchJob implements ShouldQueue
         $listing = JobListing::query()->with('jobSource')->find($this->listingId);
 
         if (! $listing) {
+            return;
+        }
+
+        if ($applicationOverlap->overlapsExistingApplication($user->id, $listing)) {
             return;
         }
 

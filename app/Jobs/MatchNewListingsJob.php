@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\JobListing;
 use App\Models\UserJobSourceSubscription;
+use App\Services\JobMatchApplicationOverlapChecker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -18,7 +19,7 @@ class MatchNewListingsJob implements ShouldQueue
         public array $listingIds,
     ) {}
 
-    public function handle(): void
+    public function handle(JobMatchApplicationOverlapChecker $applicationOverlap): void
     {
         $listingIds = collect($this->listingIds)->filter()->unique()->values();
 
@@ -28,7 +29,7 @@ class MatchNewListingsJob implements ShouldQueue
 
         $listings = JobListing::query()
             ->whereIn('id', $listingIds)
-            ->get(['id', 'job_source_id']);
+            ->get(['id', 'job_source_id', 'title', 'url']);
 
         foreach ($listings as $listing) {
             $userIds = UserJobSourceSubscription::query()
@@ -37,6 +38,10 @@ class MatchNewListingsJob implements ShouldQueue
                 ->pluck('user_id');
 
             foreach ($userIds as $userId) {
+                if ($applicationOverlap->overlapsExistingApplication((int) $userId, $listing)) {
+                    continue;
+                }
+
                 EvaluateJobMatchJob::dispatch($userId, $listing->id);
             }
         }

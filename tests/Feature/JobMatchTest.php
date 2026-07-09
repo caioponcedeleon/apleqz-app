@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\JobMatchStatus;
 use App\Jobs\EnrichJobListingDetailJob;
 use App\Jobs\EvaluateJobMatchJob;
 use App\Jobs\MatchNewListingsJob;
+use App\Models\Application;
 use App\Models\JobListing;
 use App\Models\JobMatch;
 use App\Models\JobSource;
@@ -13,6 +15,7 @@ use App\Models\User;
 use App\Models\UserJobProfile;
 use App\Models\UserJobSourceSubscription;
 use App\Services\JobListingDetailEnrichmentService;
+use App\Services\JobMatchApplicationOverlapChecker;
 use App\Services\JobMatchEvaluator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -94,6 +97,7 @@ class JobMatchTest extends TestCase
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
             app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
         );
 
         $this->assertDatabaseHas('job_matches', [
@@ -126,6 +130,7 @@ class JobMatchTest extends TestCase
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
             app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
         );
 
         $this->assertDatabaseMissing('job_matches', [
@@ -178,6 +183,7 @@ class JobMatchTest extends TestCase
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
             app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
         );
 
         Queue::assertPushed(EnrichJobListingDetailJob::class, function (EnrichJobListingDetailJob $job) use ($listing): bool {
@@ -206,7 +212,7 @@ class JobMatchTest extends TestCase
             ]);
         }
 
-        (new MatchNewListingsJob([$listing->id]))->handle();
+        (new MatchNewListingsJob([$listing->id]))->handle(app(JobMatchApplicationOverlapChecker::class));
 
         Queue::assertPushed(EvaluateJobMatchJob::class, 2);
     }
@@ -226,7 +232,7 @@ class JobMatchTest extends TestCase
             'is_active' => true,
         ]);
 
-        (new MatchNewListingsJob([$newListing->id]))->handle();
+        (new MatchNewListingsJob([$newListing->id]))->handle(app(JobMatchApplicationOverlapChecker::class));
 
         Queue::assertPushed(EvaluateJobMatchJob::class, function (EvaluateJobMatchJob $job) use ($user, $newListing, $existingListing): bool {
             return $job->userId === $user->id
@@ -234,6 +240,123 @@ class JobMatchTest extends TestCase
                 && $job->listingId !== $existingListing->id;
         });
         Queue::assertPushed(EvaluateJobMatchJob::class, 1);
+    }
+
+    public function test_evaluate_job_match_job_skips_when_user_already_has_application_for_listing_url(): void
+    {
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        Http::fake();
+
+        $user = User::factory()->create();
+        $listing = JobListing::factory()->create([
+            'title' => 'Backend Developer',
+            'url' => 'https://example.com/jobs/backend',
+        ]);
+
+        Application::factory()->create([
+            'user_id' => $user->id,
+            'position' => 'Different title',
+            'job_url' => 'https://example.com/jobs/backend/',
+            'applied_at' => now()->subDay(),
+            'status' => ApplicationStatus::Waiting,
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'PHP developer',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
+        );
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+    }
+
+    public function test_evaluate_job_match_job_skips_when_user_already_has_application_for_position_title(): void
+    {
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        Http::fake();
+
+        $user = User::factory()->create();
+        $listing = JobListing::factory()->create([
+            'title' => 'Policy Analyst',
+            'url' => 'https://example.com/jobs/999',
+        ]);
+
+        Application::factory()->create([
+            'user_id' => $user->id,
+            'position' => '  policy   analyst ',
+            'job_url' => null,
+            'applied_at' => now()->subDay(),
+            'status' => ApplicationStatus::Waiting,
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Public policy',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
+        );
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+    }
+
+    public function test_match_new_listings_job_skips_users_with_overlapping_applications(): void
+    {
+        Queue::fake();
+
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Research Assistant',
+            'url' => 'https://example.com/jobs/research',
+        ]);
+        $user = User::factory()->create();
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        Application::factory()->create([
+            'user_id' => $user->id,
+            'position' => 'Research Assistant',
+            'job_url' => null,
+            'applied_at' => now()->subDay(),
+            'status' => ApplicationStatus::Waiting,
+        ]);
+
+        (new MatchNewListingsJob([$listing->id]))->handle(app(JobMatchApplicationOverlapChecker::class));
+
+        Queue::assertNotPushed(EvaluateJobMatchJob::class);
     }
 
     public function test_user_can_view_matches_page(): void

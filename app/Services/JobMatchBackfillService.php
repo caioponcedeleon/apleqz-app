@@ -15,6 +15,7 @@ class JobMatchBackfillService
     public function __construct(
         protected JobMatchEvaluator $evaluator,
         protected AiUsageRecorder $usageRecorder,
+        protected JobMatchApplicationOverlapChecker $applicationOverlap,
     ) {}
 
     /**
@@ -96,7 +97,7 @@ class JobMatchBackfillService
             ->keyBy('user_id');
 
         $subscribersBySource = $subscriptions->groupBy('job_source_id');
-        $listings = JobListing::query()->get(['id', 'job_source_id', 'content_hash']);
+        $listings = JobListing::query()->get(['id', 'job_source_id', 'content_hash', 'title', 'url']);
 
         if ($listings->isEmpty()) {
             return $this->emptyScan();
@@ -131,6 +132,10 @@ class JobMatchBackfillService
                 if ($existing && $existing->evaluation_cache_key === $cacheKey) {
                     $skippedCached++;
 
+                    continue;
+                }
+
+                if ($this->applicationOverlap->overlapsExistingApplication((int) $userId, $listing)) {
                     continue;
                 }
 
