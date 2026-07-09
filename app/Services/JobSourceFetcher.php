@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\HtmlEncodingNormalizer;
 use App\Support\ScrapeUrlGuard;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,7 @@ class JobSourceFetcher
 {
     public function __construct(
         protected ScrapeUrlGuard $urlGuard,
+        protected HtmlEncodingNormalizer $encoding,
     ) {}
 
     /**
@@ -44,7 +46,10 @@ class JobSourceFetcher
             );
         }
 
-        $body = $response->body();
+        $body = $this->encoding->toUtf8(
+            $response->body(),
+            $response->header('Content-Type'),
+        );
 
         if (strlen($body) > $maxBytes) {
             throw new RuntimeException(

@@ -84,6 +84,36 @@ class JobSourcePreviewTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_preview_endpoint_returns_iso_8859_1_html_as_utf8_json(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $html = mb_convert_encoding(
+            '<html><body><article class="job-card">München</article></body></html>',
+            'ISO-8859-1',
+            'UTF-8',
+        );
+
+        Http::fake([
+            'https://example.com/jobs' => Http::response(
+                $html,
+                200,
+                ['Content-Type' => 'text/html; Charset=iso-8859-1'],
+            ),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('job-sources.preview'), [
+                'url' => 'https://example.com/jobs',
+            ])
+            ->assertOk();
+
+        $html = $response->json('html');
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString('job-card', $html);
+        $this->assertStringContainsString('München', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
     public function test_test_extraction_endpoint_returns_listings_from_html(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
