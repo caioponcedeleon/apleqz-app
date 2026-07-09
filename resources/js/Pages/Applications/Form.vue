@@ -175,14 +175,14 @@ const saveMomentDraft = (draft) => {
 
     if (editingMomentId.value) {
         momentForm.patch(
-            route('applications.moments.update', [props.application.id, editingMomentId.value]),
+            route('applications.moments.update', [props.application.uuid, editingMomentId.value]),
             options,
         );
 
         return;
     }
 
-    momentForm.post(route('applications.moments.store', props.application.id), options);
+    momentForm.post(route('applications.moments.store', props.application.uuid), options);
 };
 
 const deleteMomentDraft = () => {
@@ -193,7 +193,7 @@ const deleteMomentDraft = () => {
     }
 
     router.delete(
-        route('applications.moments.destroy', [props.application.id, editingMomentId.value]),
+        route('applications.moments.destroy', [props.application.uuid, editingMomentId.value]),
         {
             preserveScroll: true,
             onSuccess: () => closeMomentModal(),
@@ -250,7 +250,7 @@ const submitDetails = (createAnother = false) => {
     const options = { preserveScroll: true };
 
     if (isEdit.value) {
-        form.put(route('applications.update', props.application.id), options);
+        form.put(route('applications.update', props.application.uuid), options);
     } else {
         form.post(route('applications.store'), options);
     }
@@ -260,16 +260,16 @@ const applicationFiles = computed(() => props.application?.files ?? []);
 const applicationReminders = computed(() => props.application?.reminders ?? []);
 
 const downloadApplicationFileUrl = (file) =>
-    route('applications.files.download', [props.application.id, file.id]);
+    route('applications.files.download', [props.application.uuid, file.id]);
 
 const previewApplicationFileUrl = (file) =>
-    route('applications.files.preview', [props.application.id, file.id]);
+    route('applications.files.preview', [props.application.uuid, file.id]);
 
 const deleteApplicationFileUrl = (file) =>
-    route('applications.files.destroy', [props.application.id, file.id]);
+    route('applications.files.destroy', [props.application.uuid, file.id]);
 
 const renameApplicationFileUrl = (file) =>
-    route('applications.files.update', [props.application.id, file.id]);
+    route('applications.files.update', [props.application.uuid, file.id]);
 </script>
 
 <template>
@@ -449,7 +449,7 @@ const renameApplicationFileUrl = (file) =>
                                 <FileManager
                                     v-if="isEdit"
                                     :files="applicationFiles"
-                                    :upload-url="route('applications.files.store', application.id)"
+                                    :upload-url="route('applications.files.store', application.uuid)"
                                     :download-url="downloadApplicationFileUrl"
                                     :preview-url="previewApplicationFileUrl"
                                     :delete-url="deleteApplicationFileUrl"

@@ -132,7 +132,7 @@ const submitDraft = (draft) => {
     if (isNewReminder.value) {
         addForm
             .transform(() => payload)
-            .post(route('applications.reminders.store', props.application.id), options);
+            .post(route('applications.reminders.store', props.application.uuid), options);
 
         return;
     }
@@ -140,7 +140,7 @@ const submitDraft = (draft) => {
     editForm
         .transform(() => payload)
         .patch(
-            route('applications.reminders.update', [props.application.id, editingReminderId.value]),
+            route('applications.reminders.update', [props.application.uuid, editingReminderId.value]),
             options,
         );
 };
@@ -153,7 +153,7 @@ const deleteEditDraft = () => {
     }
 
     editForm.delete(
-        route('applications.reminders.destroy', [props.application.id, editingReminderId.value]),
+        route('applications.reminders.destroy', [props.application.uuid, editingReminderId.value]),
         {
             preserveScroll: true,
             onSuccess: () => closeReminderModal(),

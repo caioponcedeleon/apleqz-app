@@ -249,5 +249,11 @@ class ApplicationReminderTest extends TestCase
         $this->assertStringContainsString('Todos os direitos reservados', $html);
         $this->assertStringNotContainsString('If you\'re having trouble clicking', $html);
         $this->assertStringContainsString(url('/images/logo.svg'), $html);
+        $this->assertStringContainsString(config('app.name'), $html);
+        $this->assertStringContainsString(
+            route('applications.edit', $application),
+            $html,
+        );
+        $this->assertStringNotContainsString('/applications/'.$application->id.'/', $html);
     }
 }

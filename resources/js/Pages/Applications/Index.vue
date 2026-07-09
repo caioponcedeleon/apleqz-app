@@ -148,13 +148,13 @@ watch(search, () => {
     searchDebounce = setTimeout(applyFilters, 300);
 });
 
-const deleteApplication = (id) => {
+const deleteApplication = (uuid) => {
     if (!confirm(t('app.applications.delete_confirm'))) return;
-    router.delete(route('applications.destroy', id));
+    router.delete(route('applications.destroy', uuid));
 };
 
 const toggleFavourite = (application) => {
-    router.patch(route('applications.favourite', application.id), {}, { preserveScroll: true });
+    router.patch(route('applications.favourite', application.uuid), {}, { preserveScroll: true });
 };
 
 const formatDate = (value) => {
@@ -344,7 +344,7 @@ const formatDate = (value) => {
                                 <td class="whitespace-nowrap px-4 py-3">
                                     <div class="flex items-center justify-end gap-1">
                                         <Link
-                                            :href="route('applications.edit', app.id)"
+                                            :href="route('applications.edit', app.uuid)"
                                             class="inline-flex rounded-md p-1.5 text-indigo-600 transition hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
                                             :title="t('app.actions.edit')"
                                             :aria-label="t('app.actions.edit')"
@@ -370,7 +370,7 @@ const formatDate = (value) => {
                                             class="inline-flex rounded-md p-1.5 text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
                                             :title="t('app.actions.delete')"
                                             :aria-label="t('app.actions.delete')"
-                                            @click="deleteApplication(app.id)"
+                                            @click="deleteApplication(app.uuid)"
                                         >
                                             <svg
                                                 class="h-5 w-5"

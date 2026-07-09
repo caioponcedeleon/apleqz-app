@@ -54,7 +54,7 @@ class HandleInertiaRequests extends Middleware
                 ? [
                     'show' => $user->onboarding_completed_at === null,
                     'hasWaves' => $waves->isNotEmpty(),
-                    'manageApplicationId' => $user->applications()->orderByDesc('updated_at')->value('id'),
+                    'manageApplicationUuid' => $user->applications()->orderByDesc('updated_at')->value('uuid'),
                 ]
                 : null,
         ];

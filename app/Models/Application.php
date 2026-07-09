@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Application extends Model
 {
@@ -68,8 +69,19 @@ class Application extends Model
         return $this->hasMany(ApplicationReminder::class)->orderByDesc('remind_at');
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
     protected static function booted(): void
     {
+        static::creating(function (Application $application): void {
+            if (empty($application->uuid)) {
+                $application->uuid = (string) Str::uuid();
+            }
+        });
+
         static::deleting(function (Application $application): void {
             $application->files()->each(fn (ApplicationFile $file) => $file->delete());
             $application->reminders()->delete();

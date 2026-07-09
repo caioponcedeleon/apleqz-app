@@ -124,4 +124,27 @@ class ApplicationStatisticsServiceTest extends TestCase
             ->get(route('applications.edit', $application))
             ->assertForbidden();
     }
+
+    public function test_application_routes_use_uuid_not_integer_id(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        ApplicationWave::factory()->create(['user_id' => $user->id]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+
+        $application = Application::factory()->create([
+            'user_id' => $user->id,
+            'area_id' => $area->id,
+        ]);
+
+        $this->assertNotEmpty($application->uuid);
+        $this->assertStringContainsString($application->uuid, route('applications.edit', $application));
+
+        $this->actingAs($user)
+            ->get(route('applications.edit', $application))
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->get('/applications/'.$application->id.'/edit')
+            ->assertNotFound();
+    }
 }
