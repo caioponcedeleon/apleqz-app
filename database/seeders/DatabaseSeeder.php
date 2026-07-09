@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
         $translations = app(TranslationService::class);
         $translations->seedFromFiles('en');
         $translations->seedFromFiles('pt');
+        $translations->seedFromFiles('de');
 
         $this->command->info('Admin: admin@apleqz.test / password');
         $this->command->info('Demo:  demo@apleqz.test / password');

@@ -38,6 +38,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'locale' => $locale,
             'locales' => $translationService->availableLocales(),
+            'localeLabels' => collect(config('app.locale_labels', []))
+                ->only($translationService->availableLocales())
+                ->all(),
             'translations' => $translationService->translationsForLocale($locale),
             'waves' => $waves,
             'selectedWave' => $selectedWave

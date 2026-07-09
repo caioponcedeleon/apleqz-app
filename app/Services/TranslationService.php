@@ -11,7 +11,9 @@ class TranslationService
 {
     public function localeForRequest(?string $sessionLocale, ?string $userLocale): string
     {
-        $locale = $sessionLocale ?? $userLocale ?? config('app.locale');
+        $locale = filled($userLocale)
+            ? $userLocale
+            : ($sessionLocale ?? config('app.locale'));
 
         if (! in_array($locale, $this->availableLocales(), true)) {
             return config('app.locale');

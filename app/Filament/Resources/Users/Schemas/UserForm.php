@@ -23,7 +23,11 @@ class UserForm
                     ->maxLength(255),
                 DateTimePicker::make('email_verified_at'),
                 Select::make('locale')
-                    ->options(array_combine(config('app.available_locales'), config('app.available_locales')))
+                    ->options(collect(config('app.available_locales'))
+                        ->mapWithKeys(fn (string $locale) => [
+                            $locale => config("app.locale_labels.{$locale}", strtoupper($locale)),
+                        ])
+                        ->all())
                     ->default('en')
                     ->required(),
                 Toggle::make('is_admin')->label('Administrator'),

@@ -17,6 +17,7 @@ return [
         'files' => 'Meus arquivos',
         'profile' => 'Perfil',
         'admin' => 'Admin',
+        'language' => 'Idioma',
     ],
     'dashboard' => [
         'title' => 'Painel',

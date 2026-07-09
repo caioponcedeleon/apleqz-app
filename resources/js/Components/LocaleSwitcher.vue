@@ -1,9 +1,24 @@
 <script setup>
+import ChipSelect from '@/Components/ChipSelect.vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const page = usePage();
 
+const localeOptions = computed(() =>
+    (page.props.locales ?? []).map((locale) => ({
+        value: locale,
+        label: page.props.localeLabels?.[locale] ?? locale.toUpperCase(),
+    })),
+);
+
 const switchLocale = (locale) => {
+    if (!locale || locale === page.props.locale) {
+        return;
+    }
+
     router.post(
         route('locale.update'),
         { locale },
@@ -13,22 +28,13 @@ const switchLocale = (locale) => {
 </script>
 
 <template>
-    <div
-        class="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-0.5 text-sm dark:border-gray-700 dark:bg-gray-800"
-    >
-        <button
-            v-for="loc in page.props.locales"
-            :key="loc"
-            type="button"
-            class="rounded-md px-2.5 py-1 font-medium uppercase transition"
-            :class="
-                page.props.locale === loc
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-            "
-            @click="switchLocale(loc)"
-        >
-            {{ loc }}
-        </button>
-    </div>
+    <ChipSelect
+        id="locale-switcher"
+        compact
+        class="max-w-[9rem] sm:max-w-[10rem]"
+        :model-value="page.props.locale"
+        :options="localeOptions"
+        :aria-label="t('app.nav.language')"
+        @change="switchLocale"
+    />
 </template>

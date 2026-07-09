@@ -38,10 +38,6 @@ class TranslationLineForm
 
     protected static function localeLabel(string $locale): string
     {
-        return match ($locale) {
-            'en' => 'English',
-            'pt' => 'Portuguese',
-            default => strtoupper($locale),
-        };
+        return config("app.locale_labels.{$locale}", strtoupper($locale));
     }
 }
