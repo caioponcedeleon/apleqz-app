@@ -23,4 +23,10 @@ return [
         'ministral-8b-latest' => ['input' => 0.15, 'output' => 0.15],
         'open-mistral-nemo' => ['input' => 0.15, 'output' => 0.15],
     ],
+
+    'estimates' => [
+        'seconds_per_evaluation' => (int) env('JOB_MATCH_SECONDS_PER_EVALUATION', 3),
+        'default_prompt_tokens' => (int) env('JOB_MATCH_DEFAULT_PROMPT_TOKENS', 600),
+        'default_completion_tokens' => (int) env('JOB_MATCH_DEFAULT_COMPLETION_TOKENS', 40),
+    ],
 ];

@@ -117,6 +117,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['admin'])->prefix('administration')->name('administration.')->group(function () {
         Route::get('/', [AdministrationController::class, 'index'])->name('index');
         Route::get('/ai-usage', [AdminAiUsageController::class, 'index'])->name('ai-usage');
+        Route::get('/ai-usage/match-preview', [AdminAiUsageController::class, 'matchPreview'])->name('ai-usage.match-preview');
+        Route::get('/ai-usage/match-status', [AdminAiUsageController::class, 'matchStatus'])->name('ai-usage.match-status');
+        Route::post('/ai-usage/run-matches', [AdminAiUsageController::class, 'runMatches'])->name('ai-usage.run-matches');
     });
 
     Route::middleware(['admin'])->prefix('job-sources')->name('job-sources.')->group(function () {
