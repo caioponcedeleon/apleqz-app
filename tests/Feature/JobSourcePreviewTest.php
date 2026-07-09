@@ -139,6 +139,41 @@ class JobSourcePreviewTest extends TestCase
             ->assertJsonPath('listings.0.fields.url', 'https://example.com/jobs/senior-engineer');
     }
 
+    public function test_test_extraction_endpoint_returns_detail_fields_without_list_item_selector(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $html = <<<'HTML'
+        <html><body>
+            <h1>Studentische Hilfskraft</h1>
+            <p class="deadline">Bewerbungsfrist: 31.07.2026</p>
+            <div class="description">Assist with research projects.</div>
+        </body></html>
+        HTML;
+
+        $this->actingAs($admin)
+            ->postJson(route('job-sources.test-extraction'), [
+                'html' => $html,
+                'base_url' => 'https://example.com/jobs/1',
+                'extraction_type' => 'detail',
+                'fields' => [
+                    'application_deadline' => [
+                        'selector' => 'p.deadline',
+                        'scope' => 'document',
+                        'extract' => 'text',
+                    ],
+                    'description' => [
+                        'selector' => 'div.description',
+                        'scope' => 'document',
+                        'extract' => 'text',
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('count', 1)
+            ->assertJsonPath('listings.0.fields.application_deadline', 'Bewerbungsfrist: 31.07.2026')
+            ->assertJsonPath('listings.0.fields.description', 'Assist with research projects.');
+    }
+
     public function test_preview_endpoint_suggests_playwright_for_dynamic_jobboard_placeholder(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);

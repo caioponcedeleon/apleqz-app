@@ -97,7 +97,11 @@ const detailCustomFieldLabel = ref('');
 const pendingSelection = ref(null);
 
 const activePendingCandidate = computed(() => {
-    if (!pendingSelection.value || pendingSelection.value.type !== 'item') {
+    if (!pendingSelection.value) {
+        return null;
+    }
+
+    if (pendingSelection.value.type !== 'item' && pendingSelection.value.type !== 'detail_field') {
         return null;
     }
 
@@ -112,6 +116,7 @@ const activePendingCandidate = computed(() => {
         return {
             selector: pendingSelection.value.selector,
             matchCount: pendingSelection.value.matchCount || 0,
+            tagName: pendingSelection.value.tagName || '',
         };
     }
 
@@ -119,7 +124,11 @@ const activePendingCandidate = computed(() => {
 });
 
 const canUseParentElement = computed(() => {
-    if (!pendingSelection.value || pendingSelection.value.type !== 'item') {
+    if (!pendingSelection.value) {
+        return false;
+    }
+
+    if (pendingSelection.value.type !== 'item' && pendingSelection.value.type !== 'detail_field') {
         return false;
     }
 
@@ -127,6 +136,14 @@ const canUseParentElement = computed(() => {
     const index = pendingSelection.value.candidateIndex ?? 0;
 
     return index < candidates.length - 1;
+});
+
+const canUseChildElement = computed(() => {
+    if (!pendingSelection.value || pendingSelection.value.type !== 'detail_field') {
+        return false;
+    }
+
+    return (pendingSelection.value.candidateIndex ?? 0) > 0;
 });
 
 const groupPartMatchCounts = computed(() =>
@@ -369,6 +386,13 @@ const testResultColumns = computed(() =>
     })),
 );
 
+const detailTestResultColumns = computed(() =>
+    detailMappedFields.value.map(([key, mapping]) => ({
+        key,
+        label: detailFieldDisplayLabel(key, mapping),
+    })),
+);
+
 const testResultValue = (row, fieldKey) => row.fields?.[fieldKey] || '—';
 
 const missingRequiredFields = computed(() =>
@@ -499,6 +523,14 @@ const stepPrompt = computed(() => {
     return t('app.job_sources.configurator.step_field_prompt');
 });
 
+const pinnedSelector = computed(() => {
+    if (!pendingSelection.value) {
+        return '';
+    }
+
+    return activePendingCandidate.value?.selector || pendingSelection.value.selector || '';
+});
+
 const sendPickerConfig = () => {
     previewFrame.value?.contentWindow?.postMessage({
         type: 'job-source-picker-config',
@@ -507,6 +539,7 @@ const sendPickerConfig = () => {
         itemMode: itemMode.value,
         itemGroupParts: itemGroupParts.value.map((part) => part.selector),
         enabled: pickerInteractive.value,
+        pinnedSelector: pinnedSelector.value,
     }, '*');
 };
 
@@ -562,10 +595,14 @@ const handlePickerMessage = (event) => {
     }
 
     if (event.data.mode === 'detail_field' && isDetailTab.value) {
+        const candidates = Array.isArray(event.data.candidates) ? event.data.candidates : [];
+
         pendingSelection.value = {
             type: 'detail_field',
-            selector,
+            selector: event.data.selector || '',
             tagName: event.data.tagName || '',
+            candidates,
+            candidateIndex: 0,
         };
         detailSelectedField.value = '';
         detailCustomFieldLabel.value = '';
@@ -721,6 +758,17 @@ const useParentElement = () => {
     };
 };
 
+const useChildElement = () => {
+    if (!canUseChildElement.value || !pendingSelection.value) {
+        return;
+    }
+
+    pendingSelection.value = {
+        ...pendingSelection.value,
+        candidateIndex: (pendingSelection.value.candidateIndex ?? 0) - 1,
+    };
+};
+
 const assignDetailFieldSelection = () => {
     if (!pendingSelection.value || pendingSelection.value.type !== 'detail_field' || !detailSelectedField.value) {
         errorMessage.value = t('app.job_sources.configurator.select_field_first');
@@ -743,7 +791,7 @@ const assignDetailFieldSelection = () => {
     }
 
     const fieldConfig = {
-        selector: pendingSelection.value.selector,
+        selector: activePendingCandidate.value?.selector || pendingSelection.value.selector,
         scope: 'document',
         extract: 'text',
         optional: fieldKey !== 'description',
@@ -1129,10 +1177,13 @@ const testDetailExtraction = async () => {
         });
 
         detailTestResults.value = data.listings || [];
-        successMessage.value = t('app.job_sources.configurator.detail_extracted');
+        successMessage.value = t('app.job_sources.configurator.detail_extracted_count', {
+            count: data.count || detailTestResults.value.length,
+        });
     } catch (error) {
         detailTestResults.value = [];
         errorMessage.value = error.response?.data?.errors?.extraction?.[0]
+            || Object.values(error.response?.data?.errors ?? {}).flat().join(' ')
             || error.response?.data?.message
             || t('app.job_sources.configurator.extraction_failed');
     } finally {
@@ -1206,6 +1257,7 @@ watch(previewLoaded, sendPickerConfig);
 watch(itemGroupBuilding, sendPickerConfig);
 watch(interactionRecordingType, sendPickerConfig);
 watch(pendingInteraction, sendPickerConfig);
+watch(pendingSelection, sendPickerConfig, { deep: true });
 
 onMounted(() => {
     window.addEventListener('message', handlePickerMessage);
@@ -1723,8 +1775,20 @@ onUnmounted(() => {
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         {{ t('app.job_sources.configurator.confirm_detail_field_help') }}
                     </p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.confirm_detail_field_parent_help') }}
+                    </p>
+                    <p
+                        v-if="activePendingCandidate?.tagName"
+                        class="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                    >
+                        {{ activePendingCandidate.tagName }}
+                        <span v-if="activePendingCandidate.matchCount > 1">
+                            · {{ t('app.job_sources.configurator.detail_field_match_count', { count: activePendingCandidate.matchCount }) }}
+                        </span>
+                    </p>
                     <p class="mt-3 break-all rounded-lg bg-white/80 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
-                        {{ pendingSelection.selector }}
+                        {{ activePendingCandidate?.selector || '—' }}
                     </p>
                     <div class="mt-4">
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -1733,8 +1797,10 @@ onUnmounted(() => {
                         <ChipSelect
                             v-model="detailSelectedField"
                             class="mt-2"
+                            searchable
                             :options="detailFieldSelectOptions"
                             :placeholder="t('app.job_sources.configurator.choose_field')"
+                            :no-results-text="t('app.job_sources.configurator.no_field_results')"
                             :aria-label="t('app.job_sources.configurator.field_to_map')"
                         />
                     </div>
@@ -1753,6 +1819,20 @@ onUnmounted(() => {
                         <PrimaryButton type="button" :disabled="!canAssignDetailField" @click="assignDetailFieldSelection">
                             {{ t('app.job_sources.configurator.add_field_mapping') }}
                         </PrimaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!canUseParentElement"
+                            @click="useParentElement"
+                        >
+                            {{ t('app.job_sources.configurator.use_parent_element') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!canUseChildElement"
+                            @click="useChildElement"
+                        >
+                            {{ t('app.job_sources.configurator.use_child_element') }}
+                        </SecondaryButton>
                         <SecondaryButton type="button" @click="clearPendingSelection">
                             {{ t('app.job_sources.configurator.pick_again') }}
                         </SecondaryButton>
@@ -1779,8 +1859,10 @@ onUnmounted(() => {
                         <ChipSelect
                             v-model="selectedField"
                             class="mt-2"
+                            searchable
                             :options="fieldSelectOptions"
                             :placeholder="t('app.job_sources.configurator.choose_field')"
+                            :no-results-text="t('app.job_sources.configurator.no_field_results')"
                             :aria-label="t('app.job_sources.configurator.field_to_map')"
                         />
                     </div>
@@ -2093,6 +2175,54 @@ onUnmounted(() => {
                                 <span
                                     v-else
                                     :class="column.key === 'job_title' ? 'text-gray-900 dark:text-white' : ''"
+                                >
+                                    {{ testResultValue(row, column.key) }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div
+            v-if="!isListingTab && detailTestResults.length"
+            class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        >
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                {{ t('app.job_sources.configurator.detail_test_results') }}
+            </h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t('app.job_sources.configurator.detail_test_results_help') }}
+            </p>
+
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <thead>
+                        <tr class="text-left text-gray-500 dark:text-gray-400">
+                            <th
+                                v-for="column in detailTestResultColumns"
+                                :key="column.key"
+                                class="px-3 py-2 font-medium"
+                            >
+                                {{ column.label }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        <tr v-for="(row, index) in detailTestResults" :key="index">
+                            <td
+                                v-for="column in detailTestResultColumns"
+                                :key="column.key"
+                                class="px-3 py-2 align-top text-gray-700 dark:text-gray-300"
+                                :class="column.key === 'description'
+                                    ? 'max-w-2xl whitespace-pre-wrap'
+                                    : 'max-w-xs'"
+                            >
+                                <span
+                                    :class="column.key === 'job_title' || column.key === 'employment_type'
+                                        ? 'font-medium text-gray-900 dark:text-white'
+                                        : ''"
                                 >
                                     {{ testResultValue(row, column.key) }}
                                 </span>

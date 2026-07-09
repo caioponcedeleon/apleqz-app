@@ -6,7 +6,11 @@
     var itemMode = 'single';
     var itemGroupParts = [];
     var highlightEl = null;
+    var highlightEls = [];
     var pickerEnabled = true;
+    var pinnedSelector = '';
+    var tooltipEl = null;
+    var tooltipText = '';
 
     function postToParent(payload) {
         if (window.parent && window.parent !== window) {
@@ -292,6 +296,47 @@
         return buildItemSelector(element);
     }
 
+    function buildDetailFieldSelector(element) {
+        if (!element || element.nodeType !== 1) {
+            return '';
+        }
+
+        if (element.id && !/^\d/.test(element.id)) {
+            return '#' + CSS.escape(element.id);
+        }
+
+        var classSelector = classOnlySelector(element);
+
+        if (classSelector && selectorMatchCount(classSelector) === 1) {
+            return classSelector;
+        }
+
+        return buildPathSelector(element, document.documentElement);
+    }
+
+    function buildDetailFieldCandidates(element) {
+        var seen = {};
+        var candidates = [];
+        var current = element;
+
+        while (current && current.nodeType === 1 && current !== document.documentElement) {
+            var selector = buildDetailFieldSelector(current);
+
+            if (selector && !seen[selector]) {
+                seen[selector] = true;
+                candidates.push({
+                    selector: selector,
+                    tagName: current.tagName,
+                    matchCount: selectorMatchCount(selector),
+                });
+            }
+
+            current = current.parentElement;
+        }
+
+        return candidates;
+    }
+
     function lowestCommonAncestor(nodes) {
         if (!nodes || nodes.length === 0) {
             return null;
@@ -386,22 +431,133 @@
         return element;
     }
 
-    function clearHighlight() {
-        if (highlightEl) {
-            highlightEl.classList.remove('job-source-picker-highlight');
-            highlightEl = null;
+    function normalizePreviewText(text) {
+        return (text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function truncateText(text, maxLength) {
+        if (text.length <= maxLength) {
+            return text;
+        }
+
+        return text.slice(0, maxLength - 1) + '…';
+    }
+
+    function extractPreviewText(element) {
+        if (!element) {
+            return '';
+        }
+
+        return truncateText(normalizePreviewText(element.innerText || element.textContent || ''), 280);
+    }
+
+    function removeTooltip() {
+        if (tooltipEl && tooltipEl.parentNode) {
+            tooltipEl.parentNode.removeChild(tooltipEl);
+        }
+
+        tooltipEl = null;
+        tooltipText = '';
+    }
+
+    function positionTooltip(element) {
+        if (!tooltipEl || !element) {
+            return;
+        }
+
+        var rect = element.getBoundingClientRect();
+        var top = rect.bottom + 8;
+        var left = Math.max(8, rect.left);
+        var maxLeft = window.innerWidth - tooltipEl.offsetWidth - 8;
+
+        tooltipEl.style.top = Math.max(8, top) + 'px';
+        tooltipEl.style.left = Math.min(left, maxLeft) + 'px';
+    }
+
+    function showTooltip(element, text) {
+        removeTooltip();
+
+        if (!element || !text) {
+            return;
+        }
+
+        tooltipText = text;
+        tooltipEl = document.createElement('div');
+        tooltipEl.className = 'job-source-picker-tooltip';
+        tooltipEl.textContent = text;
+        document.body.appendChild(tooltipEl);
+        positionTooltip(element);
+    }
+
+    function repositionTooltip() {
+        if (tooltipEl && highlightEl) {
+            positionTooltip(highlightEl);
         }
     }
 
-    function setHighlight(element) {
+    function clearHighlight() {
+        highlightEls.forEach(function (element) {
+            element.classList.remove('job-source-picker-highlight');
+            element.classList.remove('job-source-picker-highlight-pinned');
+        });
+        highlightEls = [];
+        highlightEl = null;
+        removeTooltip();
+    }
+
+    function setHighlight(element, pinned) {
         clearHighlight();
 
-        if (!element || element.nodeType !== 1 || !pickerEnabled) {
+        if (!element || element.nodeType !== 1) {
+            return;
+        }
+
+        if (!pickerEnabled && !pinned) {
             return;
         }
 
         highlightEl = element;
+        highlightEls = [element];
         highlightEl.classList.add('job-source-picker-highlight');
+
+        if (pinned) {
+            highlightEl.classList.add('job-source-picker-highlight-pinned');
+        }
+    }
+
+    function applyPinnedHighlight() {
+        clearHighlight();
+
+        if (!pinnedSelector) {
+            return;
+        }
+
+        var elements;
+
+        try {
+            elements = document.querySelectorAll(pinnedSelector);
+        } catch (error) {
+            return;
+        }
+
+        if (!elements.length) {
+            return;
+        }
+
+        var element = elements[0];
+        setHighlight(element, true);
+
+        var previewText = extractPreviewText(element);
+
+        if (elements.length > 1) {
+            previewText = '(' + elements.length + ' matches) ' + previewText;
+        }
+
+        if (!previewText) {
+            previewText = '(' + (element.tagName || 'element').toLowerCase() + ')';
+        }
+
+        showTooltip(element, previewText);
     }
 
     function injectStyles() {
@@ -411,7 +567,10 @@
 
         var style = document.createElement('style');
         style.id = 'job-source-picker-styles';
-        style.textContent = '.job-source-picker-highlight{outline:2px solid #f59e0b!important;outline-offset:2px!important;cursor:crosshair!important;}';
+        style.textContent = ''
+            + '.job-source-picker-highlight{outline:2px solid #f59e0b!important;outline-offset:2px!important;cursor:crosshair!important;}'
+            + '.job-source-picker-highlight-pinned{outline-color:#6366f1!important;cursor:default!important;}'
+            + '.job-source-picker-tooltip{position:fixed;z-index:2147483647;max-width:min(420px,calc(100vw - 16px));padding:8px 12px;border-radius:8px;background:rgba(17,24,39,.95);color:#f9fafb;font:12px/1.45 system-ui,-apple-system,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;white-space:pre-wrap;word-break:break-word;}';
         (document.head || document.documentElement).appendChild(style);
     }
 
@@ -425,9 +584,23 @@
         itemMode = event.data.itemMode || 'single';
         itemGroupParts = Array.isArray(event.data.itemGroupParts) ? event.data.itemGroupParts : [];
         pickerEnabled = event.data.enabled !== false;
+        pinnedSelector = typeof event.data.pinnedSelector === 'string' ? event.data.pinnedSelector : '';
+
+        if (pinnedSelector) {
+            applyPinnedHighlight();
+        } else if (!pickerEnabled) {
+            clearHighlight();
+        }
     });
 
+    window.addEventListener('scroll', repositionTooltip, true);
+    window.addEventListener('resize', repositionTooltip);
+
     document.addEventListener('mouseover', function (event) {
+        if (pinnedSelector) {
+            return;
+        }
+
         if (!pickerEnabled) {
             return;
         }
@@ -438,10 +611,14 @@
             return;
         }
 
-        setHighlight(target);
+        setHighlight(target, false);
     }, true);
 
     document.addEventListener('mouseout', function () {
+        if (pinnedSelector) {
+            return;
+        }
+
         clearHighlight();
     }, true);
 
@@ -486,12 +663,14 @@
         }
 
         if (pickerMode === 'detail_field') {
-            var detailSelector = buildPathSelector(target, document.documentElement);
+            var detailCandidates = buildDetailFieldCandidates(target);
 
             postToParent({
                 mode: 'detail_field',
-                selector: detailSelector,
+                selector: detailCandidates.length > 0 ? detailCandidates[0].selector : '',
                 tagName: target.tagName,
+                candidates: detailCandidates,
+                candidateIndex: 0,
             });
 
             return;

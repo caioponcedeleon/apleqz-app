@@ -177,20 +177,31 @@ class JobSourceConfiguratorController extends Controller
     ): JsonResponse {
         $this->authorize('viewAny', JobSource::class);
 
-        $validated = $request->validate([
+        $extractionType = $request->input('extraction_type', 'listing');
+
+        if (! is_string($extractionType) || ! in_array($extractionType, ['listing', 'detail'], true)) {
+            $extractionType = 'listing';
+        }
+
+        $rules = [
             'html' => ['required_without:url', 'string'],
             'url' => ['required_without:html', 'url', 'max:2048'],
             'base_url' => ['required', 'url', 'max:2048'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'engine' => ['nullable', 'string', 'in:http,playwright'],
             'interactions' => ['nullable', 'array'],
-            'item_selector' => ['required_without:item_group.parts', 'nullable', 'string', 'max:500'],
-            'item_mode' => ['nullable', 'string', 'in:single,group'],
-            'item_group' => ['nullable', 'array'],
-            'item_group.parts' => ['nullable', 'array'],
             'fields' => ['nullable', 'array'],
             'extraction_type' => ['nullable', 'string', 'in:listing,detail'],
-        ]);
+        ];
+
+        if ($extractionType === 'listing') {
+            $rules['item_selector'] = ['required_without:item_group.parts', 'nullable', 'string', 'max:500'];
+            $rules['item_mode'] = ['nullable', 'string', 'in:single,group'];
+            $rules['item_group'] = ['nullable', 'array'];
+            $rules['item_group.parts'] = ['nullable', 'array'];
+        }
+
+        $validated = $request->validate($rules);
 
         $extractionType = $validated['extraction_type'] ?? 'listing';
         $html = $validated['html'] ?? null;
