@@ -121,7 +121,7 @@ onUnmounted(() => {
 
         <div
             v-if="open"
-            class="absolute z-50 mt-1 max-h-60 w-full min-w-[10rem] overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            class="absolute z-[100] mt-1 max-h-60 w-full min-w-[10rem] overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
             role="listbox"
         >
             <button

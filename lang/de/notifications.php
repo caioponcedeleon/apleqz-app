@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'mail' => [
+        'hello' => 'Hallo!',
+        'whoops' => 'Hoppla!',
+        'regards' => 'Mit freundlichen Grüßen,',
+        'rights_reserved' => 'Alle Rechte vorbehalten.',
+        'subcopy' => 'Wenn Sie Probleme beim Klicken auf die Schaltfläche „:actionText“ haben, kopieren Sie die folgende URL und fügen Sie sie in Ihren Browser ein:',
+    ],
     'reminder' => [
         'subject' => 'Erinnerung: :position bei :company',
         'greeting' => 'Hallo :name,',

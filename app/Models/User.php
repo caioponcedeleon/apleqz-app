@@ -5,13 +5,14 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -52,6 +53,11 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_admin;
+    }
+
+    public function preferredLocale(): ?string
+    {
+        return $this->locale;
     }
 
     public function areas(): HasMany

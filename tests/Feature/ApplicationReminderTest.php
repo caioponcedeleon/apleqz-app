@@ -220,4 +220,34 @@ class ApplicationReminderTest extends TestCase
 
         Notification::assertSentTo($user, ApplicationReminderNotification::class);
     }
+
+    public function test_reminder_email_uses_user_locale_for_salutation_and_subcopy(): void
+    {
+        $user = User::factory()->create([
+            'locale' => 'pt',
+            'email_reminders_enabled' => true,
+        ]);
+        $application = $this->applicationFor($user);
+
+        $reminder = ApplicationReminder::query()->create([
+            'user_id' => $user->id,
+            'application_id' => $application->id,
+            'type' => ApplicationReminderType::CheckIn,
+            'frequency' => ApplicationReminderFrequency::Once,
+            'remind_at' => now()->subMinute(),
+            'is_active' => true,
+            'channel' => 'mail',
+        ]);
+
+        $reminder->load('application');
+        app()->setLocale($user->locale);
+        $mail = (new ApplicationReminderNotification($reminder))->toMail($user);
+        $html = $mail->render()->toHtml();
+
+        $this->assertStringContainsString('Atenciosamente', $html);
+        $this->assertStringContainsString('Se você tiver problemas para clicar no botão', $html);
+        $this->assertStringContainsString('Todos os direitos reservados', $html);
+        $this->assertStringNotContainsString('If you\'re having trouble clicking', $html);
+        $this->assertStringContainsString(url('/images/logo.svg'), $html);
+    }
 }

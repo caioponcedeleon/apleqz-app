@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'mail' => [
+        'hello' => 'Olá!',
+        'whoops' => 'Ops!',
+        'regards' => 'Atenciosamente,',
+        'rights_reserved' => 'Todos os direitos reservados.',
+        'subcopy' => 'Se você tiver problemas para clicar no botão ":actionText", copie e cole o URL abaixo no seu navegador:',
+    ],
     'reminder' => [
         'subject' => 'Lembrete: :position na :company',
         'greeting' => 'Olá :name,',

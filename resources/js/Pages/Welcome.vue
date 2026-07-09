@@ -20,7 +20,7 @@ const { t } = useI18n();
 
     <div class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
         <!-- Header -->
-        <header class="border-b border-slate-200/80 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+        <header class="relative z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
             <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                 <Link href="/" class="shrink-0">
                     <ApplicationLogo class="h-10 w-auto sm:h-11" />
