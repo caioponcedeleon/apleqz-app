@@ -32,6 +32,7 @@ class JobAlertSettingsController extends Controller
             ],
             'sources' => JobSource::query()
                 ->where('is_active', true)
+                ->orderBy('company_name')
                 ->orderBy('name')
                 ->get(['id', 'name', 'company_name']),
             'subscribedSourceIds' => $subscribedSourceIds,

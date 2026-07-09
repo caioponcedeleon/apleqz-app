@@ -3,7 +3,6 @@ import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
@@ -14,7 +13,6 @@ const form = useForm({
     name: '',
     url: '',
     company_name: '',
-    is_active: false,
 });
 
 const submit = () => {
@@ -64,14 +62,8 @@ const submit = () => {
                             <InputError class="mt-2" :message="form.errors.company_name" />
                         </div>
 
-                        <div>
-                            <ToggleSwitch
-                                v-model="form.is_active"
-                                :label="t('app.job_sources.active')"
-                            />
-                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                {{ t('app.job_sources.active_help') }}
-                            </p>
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                            {{ t('app.job_sources.create_inactive_note') }}
                         </div>
 
                         <div class="flex items-center gap-3">

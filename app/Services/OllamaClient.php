@@ -8,13 +8,19 @@ use RuntimeException;
 
 class OllamaClient implements AiChatClient
 {
+    public function __construct(
+        protected AiUsageRecorder $usageRecorder,
+    ) {}
+
     /**
      * @param  list<array{role: string, content: string}>  $messages
      */
     public function chat(array $messages, bool $jsonObject = false): string
     {
+        $model = (string) config('job_match.ollama.model');
+
         $payload = [
-            'model' => config('job_match.ollama.model'),
+            'model' => $model,
             'messages' => $messages,
             'stream' => false,
         ];
@@ -32,6 +38,12 @@ class OllamaClient implements AiChatClient
             throw new RuntimeException(
                 'Ollama API request failed: '.$response->status().' '.$response->body(),
             );
+        }
+
+        $usage = $response->json('usage');
+
+        if (is_array($usage)) {
+            $this->usageRecorder->record('ollama', $model, $usage, 'job_match');
         }
 
         $content = $response->json('choices.0.message.content');

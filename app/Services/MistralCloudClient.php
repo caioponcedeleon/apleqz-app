@@ -8,6 +8,10 @@ use RuntimeException;
 
 class MistralCloudClient implements AiChatClient
 {
+    public function __construct(
+        protected AiUsageRecorder $usageRecorder,
+    ) {}
+
     /**
      * @param  list<array{role: string, content: string}>  $messages
      */
@@ -19,8 +23,10 @@ class MistralCloudClient implements AiChatClient
             throw new RuntimeException('MISTRAL_API_KEY is not configured.');
         }
 
+        $model = (string) config('job_match.mistral.model');
+
         $payload = [
-            'model' => config('job_match.mistral.model'),
+            'model' => $model,
             'messages' => $messages,
         ];
 
@@ -38,6 +44,12 @@ class MistralCloudClient implements AiChatClient
             throw new RuntimeException(
                 'Mistral API request failed: '.$response->status().' '.$response->body(),
             );
+        }
+
+        $usage = $response->json('usage');
+
+        if (is_array($usage)) {
+            $this->usageRecorder->record('mistral_cloud', $model, $usage, 'job_match');
         }
 
         $content = $response->json('choices.0.message.content');

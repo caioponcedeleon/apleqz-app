@@ -67,6 +67,75 @@ class JobSourceManagementTest extends TestCase
         ]);
     }
 
+    public function test_create_always_stores_source_as_inactive_even_when_active_is_submitted(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)->post(route('job-sources.store'), [
+            'name' => 'Active attempt',
+            'url' => 'https://example.com/jobs',
+            'is_active' => true,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('job_sources', [
+            'name' => 'Active attempt',
+            'is_active' => false,
+        ]);
+    }
+
+    public function test_cannot_activate_source_on_edit_before_extraction_is_configured(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'is_active' => false,
+            'extraction_config' => JobSource::defaultExtractionConfig(),
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('job-sources.update', $source), [
+                'name' => $source->name,
+                'url' => $source->url,
+                'is_active' => true,
+            ])
+            ->assertSessionHasErrors('is_active');
+    }
+
+    public function test_admin_can_toggle_source_active_from_index(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'is_active' => false,
+            'extraction_config' => JobSource::factory()->make()->extraction_config,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('job-sources.index'))
+            ->patch(route('job-sources.toggle-active', $source), [
+                'is_active' => true,
+            ])
+            ->assertRedirect(route('job-sources.index'));
+
+        $this->assertTrue($source->fresh()->is_active);
+    }
+
+    public function test_toggle_active_rejects_unconfigured_source(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'is_active' => false,
+            'extraction_config' => JobSource::defaultExtractionConfig(),
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('job-sources.index'))
+            ->patch(route('job-sources.toggle-active', $source), [
+                'is_active' => true,
+            ])
+            ->assertSessionHasErrors('is_active');
+
+        $this->assertFalse($source->fresh()->is_active);
+    }
+
     public function test_job_source_can_have_scrape_runs_and_listings(): void
     {
         $source = JobSource::factory()->create();

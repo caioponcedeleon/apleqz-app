@@ -61,10 +61,10 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                 </NavLink>
                                 <NavLink
                                     v-if="isAdmin"
-                                    :href="route('job-sources.index')"
-                                    :active="route().current('job-sources.*')"
+                                    :href="route('administration.index')"
+                                    :active="route().current('administration.*') || route().current('job-sources.*')"
                                 >
-                                    {{ t('app.nav.job_sources') }}
+                                    {{ t('app.nav.administration') }}
                                 </NavLink>
                             </div>
                         </div>
@@ -104,6 +104,12 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                     </DropdownLink>
                                     <DropdownLink :href="route('profile.edit')">
                                         {{ t('app.nav.profile') }}
+                                    </DropdownLink>
+                                    <DropdownLink
+                                        v-if="isAdmin"
+                                        :href="route('administration.index')"
+                                    >
+                                        {{ t('app.nav.administration') }}
                                     </DropdownLink>
                                     <DropdownLink
                                         v-if="isAdmin"
@@ -215,10 +221,10 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
                             v-if="isAdmin"
-                            :href="route('job-sources.index')"
-                            :active="route().current('job-sources.*')"
+                            :href="route('administration.index')"
+                            :active="route().current('administration.*') || route().current('job-sources.*')"
                         >
-                            {{ t('app.nav.job_sources') }}
+                            {{ t('app.nav.administration') }}
                         </ResponsiveNavLink>
                     </div>
                     <div class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700">

@@ -76,76 +76,77 @@ const scoreClass = (score) => {
                     <li
                         v-for="match in matches"
                         :key="match.id"
-                        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                        class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     >
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span
-                                        class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                                        :class="scoreClass(match.fit_score)"
-                                    >
-                                        {{ t('app.job_alerts.match_score', { score: match.fit_score }) }}
-                                    </span>
-                                    <span
-                                        v-if="match.listing?.company"
-                                        class="text-sm text-gray-500 dark:text-gray-400"
-                                    >
-                                        {{ match.listing.company }}
-                                    </span>
-                                </div>
-
-                                <h3 class="mt-2 text-base font-semibold text-gray-900 dark:text-white">
-                                    <a
-                                        v-if="match.listing?.url"
-                                        :href="match.listing.url"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="hover:text-indigo-600 hover:underline dark:hover:text-indigo-400"
-                                    >
-                                        {{ match.listing.title }}
-                                    </a>
-                                    <span v-else>{{ match.listing?.title }}</span>
-                                </h3>
-
-                                <p
-                                    v-if="match.listing?.location"
-                                    class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                        <div class="p-5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                    :class="scoreClass(match.fit_score)"
                                 >
-                                    {{ match.listing.location }}
-                                </p>
-
-                                <p class="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-                                    {{ match.reason }}
-                                </p>
+                                    {{ t('app.job_alerts.match_score', { score: match.fit_score }) }}
+                                </span>
+                                <span
+                                    v-if="match.listing?.company"
+                                    class="text-sm text-gray-500 dark:text-gray-400"
+                                >
+                                    {{ match.listing.company }}
+                                </span>
                             </div>
 
-                            <div class="flex shrink-0 flex-wrap gap-2">
-                                <Link
-                                    v-if="canCreateApplication"
-                                    :href="route('job-alerts.matches.apply', match.id)"
-                                >
-                                    <PrimaryButton type="button">
-                                        {{ t('app.job_alerts.track_application') }}
-                                    </PrimaryButton>
-                                </Link>
+                            <h3 class="mt-2 text-base font-semibold text-gray-900 dark:text-white">
                                 <a
                                     v-if="match.listing?.url"
                                     :href="match.listing.url"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    class="hover:text-indigo-600 hover:underline dark:hover:text-indigo-400"
                                 >
-                                    <SecondaryButton type="button">
-                                        {{ t('app.job_alerts.view_job') }}
-                                    </SecondaryButton>
+                                    {{ match.listing.title }}
                                 </a>
-                                <SecondaryButton
-                                    type="button"
-                                    @click="dismissMatch(match.id)"
-                                >
-                                    {{ t('app.job_alerts.dismiss') }}
+                                <span v-else>{{ match.listing?.title }}</span>
+                            </h3>
+
+                            <p
+                                v-if="match.listing?.location"
+                                class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                            >
+                                {{ match.listing.location }}
+                            </p>
+
+                            <p class="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                                {{ match.reason }}
+                            </p>
+                        </div>
+
+                        <div class="flex flex-col gap-2 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:flex-wrap dark:border-gray-700 dark:bg-gray-900/40">
+                            <Link
+                                v-if="canCreateApplication"
+                                :href="route('job-alerts.matches.apply', match.id)"
+                                class="sm:order-1"
+                            >
+                                <PrimaryButton type="button" class="w-full justify-center sm:w-auto">
+                                    {{ t('app.job_alerts.track_application') }}
+                                </PrimaryButton>
+                            </Link>
+                            <a
+                                v-if="match.listing?.url"
+                                :href="match.listing.url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="sm:order-2"
+                            >
+                                <SecondaryButton type="button" class="w-full justify-center sm:w-auto">
+                                    {{ t('app.job_alerts.view_job') }}
                                 </SecondaryButton>
-                            </div>
+                            </a>
+                            <SecondaryButton
+                                type="button"
+                                class="w-full justify-center sm:order-3 sm:w-auto"
+                                @click="dismissMatch(match.id)"
+                            >
+                                {{ t('app.job_alerts.dismiss') }}
+                            </SecondaryButton>
                         </div>
                     </li>
                 </ul>

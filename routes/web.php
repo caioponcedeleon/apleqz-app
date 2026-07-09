@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAiUsageController;
+use App\Http\Controllers\Admin\AdministrationController;
 use App\Http\Controllers\Admin\JobSourceConfiguratorController;
 use App\Http\Controllers\Admin\JobSourceController;
 use App\Http\Controllers\ApplicationMomentController;
@@ -112,6 +114,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/job-alerts/matches/{jobMatch}/dismiss', [JobAlertMatchesController::class, 'dismiss'])->name('job-alerts.matches.dismiss');
     Route::get('/job-alerts/matches/{jobMatch}/apply', [JobAlertMatchesController::class, 'apply'])->name('job-alerts.matches.apply');
 
+    Route::middleware(['admin'])->prefix('administration')->name('administration.')->group(function () {
+        Route::get('/', [AdministrationController::class, 'index'])->name('index');
+        Route::get('/ai-usage', [AdminAiUsageController::class, 'index'])->name('ai-usage');
+    });
+
     Route::middleware(['admin'])->prefix('job-sources')->name('job-sources.')->group(function () {
         Route::get('/', [JobSourceController::class, 'index'])->name('index');
         Route::get('/create', [JobSourceController::class, 'create'])->name('create');
@@ -122,6 +129,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{jobSource}/extraction-config', [JobSourceConfiguratorController::class, 'update'])->name('extraction-config.update');
         Route::get('/{jobSource}/edit', [JobSourceController::class, 'edit'])->name('edit');
         Route::put('/{jobSource}', [JobSourceController::class, 'update'])->name('update');
+        Route::patch('/{jobSource}/active', [JobSourceController::class, 'toggleActive'])->name('toggle-active');
         Route::post('/{jobSource}/scrape', [JobSourceController::class, 'scrape'])->name('scrape');
         Route::delete('/{jobSource}', [JobSourceController::class, 'destroy'])->name('destroy');
     });

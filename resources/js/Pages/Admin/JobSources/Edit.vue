@@ -88,6 +88,7 @@ const confirmDelete = () => {
                             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 {{ t('app.job_sources.active_help') }}
                             </p>
+                            <InputError class="mt-2" :message="form.errors.is_active" />
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">

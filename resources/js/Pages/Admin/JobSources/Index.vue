@@ -1,14 +1,13 @@
 <script setup>
-import ConfirmDeleteModal from '@/Components/ConfirmDeleteModal.vue';
-import DangerButton from '@/Components/DangerButton.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-defineProps({
+const props = defineProps({
     jobSources: { type: Array, default: () => [] },
 });
 
@@ -16,7 +15,34 @@ const { t } = useI18n();
 const page = usePage();
 
 const scrapingId = ref(null);
-const deleteTarget = ref(null);
+const togglingId = ref(null);
+const activationError = ref(null);
+
+const companyGroups = computed(() => {
+    const groups = new Map();
+
+    for (const source of props.jobSources) {
+        const company = typeof source.company_name === 'string' ? source.company_name.trim() : '';
+
+        if (!groups.has(company)) {
+            groups.set(company, {
+                company,
+                sources: [],
+            });
+        }
+
+        groups.get(company).sources.push(source);
+    }
+
+    return [...groups.values()].sort((left, right) => {
+        const leftLabel = left.company || t('app.job_sources.no_company');
+        const rightLabel = right.company || t('app.job_sources.no_company');
+
+        return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
+    });
+});
+
+const companyLabel = (company) => company || t('app.job_sources.no_company');
 
 const formatDate = (value) => {
     if (!value) {
@@ -37,15 +63,23 @@ const scrapeNow = (source) => {
     });
 };
 
-const confirmDelete = () => {
-    if (!deleteTarget.value) {
-        return;
-    }
+const setActive = (source, isActive) => {
+    togglingId.value = source.id;
+    activationError.value = null;
 
-    router.delete(route('job-sources.destroy', deleteTarget.value.id), {
+    router.patch(route('job-sources.toggle-active', source.id), {
+        is_active: isActive,
+    }, {
         preserveScroll: true,
+        onError: (errors) => {
+            const message = errors.is_active;
+
+            activationError.value = Array.isArray(message)
+                ? message[0]
+                : (message ?? t('app.job_sources.errors.cannot_activate_before_config'));
+        },
         onFinish: () => {
-            deleteTarget.value = null;
+            togglingId.value = null;
         },
     });
 };
@@ -56,10 +90,16 @@ const confirmDelete = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between gap-4">
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                    {{ t('app.job_sources.title') }}
-                </h2>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Link :href="route('administration.index')" class="hover:text-indigo-600 dark:hover:text-indigo-400">
+                        {{ t('app.administration.title') }}
+                    </Link>
+                    <span>/</span>
+                    <span class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                        {{ t('app.job_sources.title') }}
+                    </span>
+                </div>
                 <Link :href="route('job-sources.create')">
                     <PrimaryButton type="button">{{ t('app.job_sources.add') }}</PrimaryButton>
                 </Link>
@@ -89,6 +129,13 @@ const confirmDelete = () => {
                     {{ page.props.flash.warning }}
                 </div>
 
+                <div
+                    v-if="activationError"
+                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                >
+                    {{ activationError }}
+                </div>
+
                 <p
                     class="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400"
                 >
@@ -104,82 +151,90 @@ const confirmDelete = () => {
 
                 <div
                     v-else
-                    class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    class="space-y-4"
                 >
-                    <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-900/50">
-                            <tr class="text-left text-gray-500 dark:text-gray-400">
-                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.name') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.url') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.active') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('app.job_sources.last_scraped') }}</th>
-                                <th class="px-4 py-3 font-medium" />
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            <tr v-for="source in jobSources" :key="source.id">
-                                <td class="px-4 py-3 font-medium">
-                                    <Link
-                                        :href="route('job-sources.edit', source.id)"
-                                        class="text-gray-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
-                                    >
-                                        {{ source.name }}
-                                    </Link>
-                                </td>
-                                <td class="max-w-xs truncate px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ source.url }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                                        :class="source.is_active
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200'
-                                            : 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'"
-                                    >
-                                        {{ source.is_active ? t('app.job_sources.yes') : t('app.job_sources.no') }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ formatDate(source.last_scraped_at) }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap justify-end gap-2">
-                                        <Link :href="route('job-sources.configure', source.id)">
-                                            <SecondaryButton type="button">
-                                                {{ t('app.job_sources.configure') }}
-                                            </SecondaryButton>
-                                        </Link>
-                                        <Link :href="route('job-sources.edit', source.id)">
-                                            <SecondaryButton type="button">
-                                                {{ t('app.job_sources.edit') }}
-                                            </SecondaryButton>
-                                        </Link>
-                                        <SecondaryButton
-                                            type="button"
-                                            :disabled="scrapingId === source.id"
-                                            @click="scrapeNow(source)"
+                    <section
+                        v-for="group in companyGroups"
+                        :key="group.company || '__none__'"
+                        class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ companyLabel(group.company) }}
+                            </h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ t('app.job_sources.group_source_count', { count: group.sources.length }) }}
+                            </span>
+                        </div>
+
+                        <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <thead class="bg-white dark:bg-gray-800">
+                                <tr class="text-left text-gray-500 dark:text-gray-400">
+                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.name') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.url') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.active') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ t('app.job_sources.last_scraped') }}</th>
+                                    <th class="px-4 py-3 font-medium" />
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                <tr v-for="source in group.sources" :key="source.id">
+                                    <td class="px-4 py-3 font-medium">
+                                        <Link
+                                            :href="route('job-sources.edit', source.id)"
+                                            class="text-gray-900 hover:text-indigo-600 hover:underline dark:text-white dark:hover:text-indigo-400"
                                         >
-                                            {{ scrapingId === source.id ? t('app.job_sources.scraping') : t('app.job_sources.scrape_now') }}
-                                        </SecondaryButton>
-                                        <DangerButton type="button" @click="deleteTarget = source">
-                                            {{ t('app.job_sources.delete') }}
-                                        </DangerButton>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                            {{ source.name }}
+                                        </Link>
+                                    </td>
+                                    <td class="max-w-xs truncate px-4 py-3 text-gray-600 dark:text-gray-300">
+                                        <a
+                                            :href="source.url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="hover:text-indigo-600 hover:underline dark:hover:text-indigo-400"
+                                        >
+                                            {{ source.url }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <ToggleSwitch
+                                            :model-value="source.is_active"
+                                            :disabled="togglingId === source.id"
+                                            :label="source.is_active ? t('app.job_sources.yes') : t('app.job_sources.no')"
+                                            @update:model-value="setActive(source, $event)"
+                                        />
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                        {{ formatDate(source.last_scraped_at) }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-wrap justify-end gap-2">
+                                            <Link :href="route('job-sources.configure', source.id)">
+                                                <SecondaryButton type="button">
+                                                    {{ t('app.job_sources.configure') }}
+                                                </SecondaryButton>
+                                            </Link>
+                                            <Link :href="route('job-sources.edit', source.id)">
+                                                <SecondaryButton type="button">
+                                                    {{ t('app.job_sources.edit') }}
+                                                </SecondaryButton>
+                                            </Link>
+                                            <SecondaryButton
+                                                type="button"
+                                                :disabled="scrapingId === source.id"
+                                                @click="scrapeNow(source)"
+                                            >
+                                                {{ scrapingId === source.id ? t('app.job_sources.scraping') : t('app.job_sources.scrape_now') }}
+                                            </SecondaryButton>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
                 </div>
             </div>
         </div>
-
-        <ConfirmDeleteModal
-            :show="deleteTarget !== null"
-            :title="t('app.job_sources.delete_title')"
-            :message="t('app.job_sources.delete_message')"
-            :item-name="deleteTarget?.name || ''"
-            @close="deleteTarget = null"
-            @confirm="confirmDelete"
-        />
     </AuthenticatedLayout>
 </template>

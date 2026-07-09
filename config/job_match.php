@@ -15,4 +15,10 @@ return [
         'base_url' => env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434/v1'),
         'model' => env('OLLAMA_MODEL', 'phi3:mini'),
     ],
+
+    'pricing' => [
+        'ministral-3b-latest' => ['input' => 0.10, 'output' => 0.10],
+        'ministral-8b-latest' => ['input' => 0.15, 'output' => 0.15],
+        'open-mistral-nemo' => ['input' => 0.15, 'output' => 0.15],
+    ],
 ];

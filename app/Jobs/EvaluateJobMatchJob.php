@@ -8,6 +8,7 @@ use App\Models\JobMatch;
 use App\Models\User;
 use App\Models\UserJobProfile;
 use App\Services\JobMatchEvaluator;
+use App\Support\AiUsageContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -52,7 +53,10 @@ class EvaluateJobMatchJob implements ShouldQueue
             return;
         }
 
-        $result = $evaluator->evaluate($profile->profile_text, $listing);
+        $result = AiUsageContext::run(
+            ['user_id' => $user->id, 'purpose' => 'job_match'],
+            fn (): array => $evaluator->evaluate($profile->profile_text, $listing),
+        );
 
         if ($result['fit_score'] < $profile->min_fit_score) {
             if ($existing) {

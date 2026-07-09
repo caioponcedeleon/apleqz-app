@@ -5,7 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -69,6 +69,97 @@ const toggleSource = (sourceId) => {
 };
 
 const isSourceSubscribed = (sourceId) => form.subscribed_source_ids.includes(sourceId);
+
+const companyGroups = computed(() => {
+    const groups = new Map();
+
+    for (const source of props.sources) {
+        const company = typeof source.company_name === 'string' ? source.company_name.trim() : '';
+        const key = company || '__none__';
+
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                company,
+                sources: [],
+            });
+        }
+
+        groups.get(key).sources.push(source);
+    }
+
+    return [...groups.values()].sort((left, right) => {
+        const leftLabel = left.company || t('app.job_alerts.no_company');
+        const rightLabel = right.company || t('app.job_alerts.no_company');
+
+        return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
+    });
+});
+
+const expandedCompanies = ref(new Set(
+    companyGroups.value
+        .filter((group) => group.sources.length > 1)
+        .filter((group) => group.sources.some((source) => props.subscribedSourceIds.includes(source.id)))
+        .map((group) => group.key),
+));
+
+const companyLabel = (company) => company || t('app.job_alerts.no_company');
+
+const isCompanyExpanded = (group) => group.sources.length === 1 || expandedCompanies.value.has(group.key);
+
+const toggleCompanyExpanded = (group) => {
+    if (group.sources.length === 1) {
+        return;
+    }
+
+    const next = new Set(expandedCompanies.value);
+
+    if (next.has(group.key)) {
+        next.delete(group.key);
+    } else {
+        next.add(group.key);
+    }
+
+    expandedCompanies.value = next;
+};
+
+const companySourceIds = (group) => group.sources.map((source) => source.id);
+
+const companyAllSelected = (group) => companySourceIds(group).every((id) => isSourceSubscribed(id));
+
+const companySomeSelected = (group) => companySourceIds(group).some((id) => isSourceSubscribed(id));
+
+const companyIndeterminate = (group) => companySomeSelected(group) && !companyAllSelected(group);
+
+const syncCompanyCheckbox = (element, group) => {
+    if (element) {
+        element.indeterminate = companyIndeterminate(group);
+    }
+};
+
+const toggleCompany = (group) => {
+    const ids = new Set(form.subscribed_source_ids);
+    const sourceIds = companySourceIds(group);
+    const selectAll = !companyAllSelected(group);
+
+    for (const sourceId of sourceIds) {
+        if (selectAll) {
+            ids.add(sourceId);
+        } else {
+            ids.delete(sourceId);
+        }
+    }
+
+    form.subscribed_source_ids = [...ids];
+
+    if (selectAll && group.sources.length > 1) {
+        expandedCompanies.value = new Set([...expandedCompanies.value, group.key]);
+    }
+};
+
+const toggleSingleSourceGroup = (group) => {
+    toggleSource(group.sources[0].id);
+};
 
 const profileTextLength = computed(() => form.profile_text.length);
 
@@ -206,35 +297,101 @@ const submit = () => {
                                 {{ t('app.job_alerts.sources_empty') }}
                             </p>
 
-                            <ul v-else class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
-                                <li
-                                    v-for="source in sources"
-                                    :key="source.id"
-                                    class="flex items-start gap-3 px-4 py-3"
+                            <div
+                                v-else
+                                class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700"
+                            >
+                                <section
+                                    v-for="group in companyGroups"
+                                    :key="group.key"
                                 >
-                                    <input
-                                        :id="`source-${source.id}`"
-                                        type="checkbox"
-                                        class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900"
-                                        :checked="isSourceSubscribed(source.id)"
-                                        @change="toggleSource(source.id)"
-                                    />
-                                    <label
-                                        :for="`source-${source.id}`"
-                                        class="min-w-0 flex-1 cursor-pointer"
-                                    >
-                                        <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                                            {{ source.name }}
-                                        </span>
-                                        <span
-                                            v-if="source.company_name"
-                                            class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
-                                        >
-                                            {{ source.company_name }}
-                                        </span>
-                                    </label>
-                                </li>
-                            </ul>
+                                    <div class="flex items-start gap-3 px-4 py-3">
+                                        <input
+                                            :id="`company-${group.key}`"
+                                            type="checkbox"
+                                            class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900"
+                                            :checked="companyAllSelected(group)"
+                                            :ref="(element) => syncCompanyCheckbox(element, group)"
+                                            @change="group.sources.length === 1 ? toggleSingleSourceGroup(group) : toggleCompany(group)"
+                                        />
+
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <label
+                                                    :for="`company-${group.key}`"
+                                                    class="cursor-pointer"
+                                                >
+                                                    <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                                        {{ companyLabel(group.company) }}
+                                                    </span>
+                                                    <span
+                                                        v-if="group.sources.length > 1"
+                                                        class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400"
+                                                    >
+                                                        {{ t('app.job_alerts.sources_company_count', { count: group.sources.length }) }}
+                                                    </span>
+                                                    <span
+                                                        v-else
+                                                        class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
+                                                    >
+                                                        {{ group.sources[0].name }}
+                                                    </span>
+                                                </label>
+
+                                                <button
+                                                    v-if="group.sources.length > 1"
+                                                    type="button"
+                                                    class="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                                    :aria-expanded="isCompanyExpanded(group)"
+                                                    :aria-label="isCompanyExpanded(group)
+                                                        ? t('app.job_alerts.sources_collapse_company', { company: companyLabel(group.company) })
+                                                        : t('app.job_alerts.sources_expand_company', { company: companyLabel(group.company) })"
+                                                    @click="toggleCompanyExpanded(group)"
+                                                >
+                                                    <svg
+                                                        class="size-5 transition-transform"
+                                                        :class="{ 'rotate-180': isCompanyExpanded(group) }"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            fill-rule="evenodd"
+                                                            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                                            clip-rule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <ul
+                                                v-if="group.sources.length > 1 && isCompanyExpanded(group)"
+                                                class="mt-3 space-y-2 border-l border-gray-200 ps-4 dark:border-gray-700"
+                                            >
+                                                <li
+                                                    v-for="source in group.sources"
+                                                    :key="source.id"
+                                                    class="flex items-start gap-3"
+                                                >
+                                                    <input
+                                                        :id="`source-${source.id}`"
+                                                        type="checkbox"
+                                                        class="mt-0.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900"
+                                                        :checked="isSourceSubscribed(source.id)"
+                                                        @change="toggleSource(source.id)"
+                                                    />
+                                                    <label
+                                                        :for="`source-${source.id}`"
+                                                        class="min-w-0 flex-1 cursor-pointer text-sm text-gray-700 dark:text-gray-300"
+                                                    >
+                                                        {{ source.name }}
+                                                    </label>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
 
                             <InputError :message="form.errors.subscribed_source_ids" />
                         </section>

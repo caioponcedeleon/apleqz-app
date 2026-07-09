@@ -22,6 +22,7 @@ class JobSourceController extends Controller
 
         return Inertia::render('Admin/JobSources/Index', [
             'jobSources' => JobSource::query()
+                ->orderBy('company_name')
                 ->orderBy('name')
                 ->get([
                     'id',
@@ -48,7 +49,7 @@ class JobSourceController extends Controller
         $this->authorize('create', JobSource::class);
 
         $data = $request->validated();
-        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        $data['is_active'] = false;
         $data['extraction_config'] = JobSource::defaultExtractionConfig();
         $data['config_version'] = 1;
 
@@ -87,7 +88,7 @@ class JobSourceController extends Controller
         $data = $request->validated();
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
 
-        app(JobExtractionConfigValidator::class)->validate(
+        $this->validateExtractionForActive(
             $jobSource->extraction_config ?? JobSource::defaultExtractionConfig(),
             $data['is_active'],
         );
@@ -97,6 +98,26 @@ class JobSourceController extends Controller
         return redirect()
             ->route('job-sources.index')
             ->with('success', __('app.job_sources.flash.updated'));
+    }
+
+    public function toggleActive(Request $request, JobSource $jobSource): RedirectResponse
+    {
+        $this->authorize('update', $jobSource);
+
+        $validated = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $isActive = (bool) $validated['is_active'];
+
+        $this->validateExtractionForActive(
+            $jobSource->extraction_config ?? JobSource::defaultExtractionConfig(),
+            $isActive,
+        );
+
+        $jobSource->update(['is_active' => $isActive]);
+
+        return back();
     }
 
     public function destroy(JobSource $jobSource): RedirectResponse
@@ -138,5 +159,23 @@ class JobSourceController extends Controller
             ->with('error', __('app.job_sources.flash.scrape_failed', [
                 'error' => $run->error_message ?? __('app.job_sources.flash.scrape_failed_unknown'),
             ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    protected function validateExtractionForActive(array $config, bool $isActive): void
+    {
+        try {
+            app(JobExtractionConfigValidator::class)->validate($config, $isActive);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            if ($isActive && isset($exception->errors()['extraction_config'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'is_active' => [__('app.job_sources.errors.cannot_activate_before_config')],
+                ]);
+            }
+
+            throw $exception;
+        }
     }
 }
