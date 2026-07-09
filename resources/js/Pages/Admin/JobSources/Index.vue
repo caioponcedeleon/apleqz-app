@@ -17,6 +17,21 @@ const page = usePage();
 const scrapingId = ref(null);
 const togglingId = ref(null);
 const activationError = ref(null);
+const bulkScrapeNotice = ref('');
+const bulkScrapeSummary = ref(null);
+const bulkScrape = ref({
+    active: false,
+    total: 0,
+    completed: 0,
+    currentName: '',
+    succeeded: 0,
+    failed: 0,
+    found: 0,
+    newListings: 0,
+    startedAt: null,
+});
+
+const activeSources = computed(() => props.jobSources.filter((source) => source.is_active));
 
 const companyGroups = computed(() => {
     const groups = new Map();
@@ -44,6 +59,89 @@ const companyGroups = computed(() => {
 
 const companyLabel = (company) => company || t('app.job_sources.no_company');
 
+const bulkProgressPercent = computed(() => {
+    if (!bulkScrape.value.total) {
+        return 0;
+    }
+
+    return Math.min(100, Math.round((bulkScrape.value.completed / bulkScrape.value.total) * 100));
+});
+
+const bulkInProgress = computed(() => bulkScrape.value.active);
+
+const estimatedSecondsRemaining = computed(() => {
+    const { completed, total, startedAt, active } = bulkScrape.value;
+
+    if (!active || !startedAt || completed === 0 || completed >= total) {
+        return null;
+    }
+
+    const elapsedSeconds = (Date.now() - startedAt) / 1000;
+    const averageSeconds = elapsedSeconds / completed;
+
+    return Math.max(1, Math.ceil(averageSeconds * (total - completed)));
+});
+
+const bulkEtaLabel = computed(() => {
+    const seconds = estimatedSecondsRemaining.value;
+
+    if (seconds === null) {
+        return bulkScrape.value.active && bulkScrape.value.completed === bulkScrape.value.total
+            ? t('app.job_sources.bulk_scrape_finishing')
+            : '';
+    }
+
+    if (seconds < 60) {
+        return t('app.job_sources.bulk_scrape_eta_seconds', { seconds });
+    }
+
+    return t('app.job_sources.bulk_scrape_eta_minutes', { minutes: Math.ceil(seconds / 60) });
+});
+
+const bulkStatusLabel = computed(() => {
+    if (!bulkScrape.value.active) {
+        return '';
+    }
+
+    const current = Math.min(bulkScrape.value.completed + 1, bulkScrape.value.total);
+
+    return t('app.job_sources.bulk_scrape_running', {
+        current,
+        total: bulkScrape.value.total,
+        name: bulkScrape.value.currentName,
+    });
+});
+
+const bulkProgressStatsLabel = computed(() => {
+    if (!bulkScrape.value.active) {
+        return '';
+    }
+
+    return t('app.job_sources.bulk_scrape_progress_stats', {
+        success: bulkScrape.value.succeeded,
+        failed: bulkScrape.value.failed,
+    });
+});
+
+const bulkScrapeSummaryLabel = computed(() => {
+    if (!bulkScrapeSummary.value) {
+        return '';
+    }
+
+    const summary = bulkScrapeSummary.value;
+
+    return t('app.job_sources.bulk_scrape_summary', {
+        success: summary.succeeded,
+        failed: summary.failed,
+        found: summary.found,
+        new: summary.newListings,
+    });
+});
+
+const dismissBulkScrapeSummary = () => {
+    bulkScrapeSummary.value = null;
+};
+
 const formatDate = (value) => {
     if (!value) {
         return '—';
@@ -53,6 +151,10 @@ const formatDate = (value) => {
 };
 
 const scrapeNow = (source) => {
+    if (bulkInProgress.value) {
+        return;
+    }
+
     scrapingId.value = source.id;
 
     router.post(route('job-sources.scrape', source.id), {}, {
@@ -63,7 +165,81 @@ const scrapeNow = (source) => {
     });
 };
 
+const scrapeAllNow = async () => {
+    if (bulkInProgress.value) {
+        return;
+    }
+
+    bulkScrapeNotice.value = '';
+    bulkScrapeSummary.value = null;
+
+    const sources = activeSources.value;
+
+    if (sources.length === 0) {
+        bulkScrapeNotice.value = t('app.job_sources.bulk_scrape_no_active');
+
+        return;
+    }
+
+    bulkScrape.value = {
+        active: true,
+        total: sources.length,
+        completed: 0,
+        currentName: sources[0].name,
+        succeeded: 0,
+        failed: 0,
+        found: 0,
+        newListings: 0,
+        startedAt: Date.now(),
+    };
+
+    for (const source of sources) {
+        bulkScrape.value.currentName = source.name;
+
+        try {
+            const { data } = await window.axios.post(route('job-sources.scrape', source.id));
+
+            if (data.status === 'failed') {
+                bulkScrape.value.failed += 1;
+            } else {
+                bulkScrape.value.succeeded += 1;
+                bulkScrape.value.found += data.listings_found ?? 0;
+                bulkScrape.value.newListings += data.listings_new ?? 0;
+            }
+        } catch {
+            bulkScrape.value.failed += 1;
+        }
+
+        bulkScrape.value.completed += 1;
+    }
+
+    bulkScrape.value.active = false;
+    bulkScrape.value.currentName = '';
+
+    const summary = {
+        succeeded: bulkScrape.value.succeeded,
+        failed: bulkScrape.value.failed,
+        found: bulkScrape.value.found,
+        newListings: bulkScrape.value.newListings,
+    };
+
+    bulkScrapeSummary.value = summary;
+
+    router.reload({
+        only: ['jobSources'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            bulkScrapeSummary.value ??= summary;
+        },
+    });
+};
+
 const setActive = (source, isActive) => {
+    if (bulkInProgress.value) {
+        return;
+    }
+
     togglingId.value = source.id;
     activationError.value = null;
 
@@ -100,14 +276,76 @@ const setActive = (source, isActive) => {
                         {{ t('app.job_sources.title') }}
                     </span>
                 </div>
-                <Link :href="route('job-sources.create')">
-                    <PrimaryButton type="button">{{ t('app.job_sources.add') }}</PrimaryButton>
-                </Link>
+                <div class="flex flex-wrap items-center gap-3">
+                    <SecondaryButton
+                        type="button"
+                        :disabled="bulkInProgress || activeSources.length === 0"
+                        @click="scrapeAllNow"
+                    >
+                        {{ bulkInProgress ? t('app.job_sources.scraping') : t('app.job_sources.scrape_all_now') }}
+                    </SecondaryButton>
+                    <Link :href="route('job-sources.create')">
+                        <PrimaryButton type="button">{{ t('app.job_sources.add') }}</PrimaryButton>
+                    </Link>
+                </div>
             </div>
         </template>
 
         <div class="py-12">
             <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+                <div
+                    v-if="bulkInProgress"
+                    class="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="flex items-start gap-3">
+                        <svg
+                            class="mt-0.5 size-5 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            />
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                        </svg>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-indigo-950 dark:text-indigo-100">
+                                {{ bulkStatusLabel }}
+                            </p>
+                            <p class="mt-1 text-xs text-indigo-800/90 dark:text-indigo-200/90">
+                                {{ bulkProgressStatsLabel }}
+                            </p>
+                            <p
+                                v-if="bulkEtaLabel"
+                                class="mt-1 text-xs text-indigo-800/80 dark:text-indigo-200/80"
+                            >
+                                {{ bulkEtaLabel }}
+                            </p>
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-900/50">
+                                <div
+                                    class="h-full rounded-full bg-indigo-600 transition-all duration-500 ease-out dark:bg-indigo-400"
+                                    :style="{ width: `${bulkProgressPercent}%` }"
+                                />
+                            </div>
+                            <p class="mt-2 text-xs text-indigo-800/70 dark:text-indigo-200/70">
+                                {{ bulkProgressPercent }}%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div
                     v-if="page.props.flash?.success"
                     class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
@@ -127,6 +365,57 @@ const setActive = (source, isActive) => {
                     class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
                 >
                     {{ page.props.flash.warning }}
+                </div>
+
+                <div
+                    v-if="bulkScrapeSummary && !bulkInProgress"
+                    class="rounded-xl border px-4 py-4 shadow-sm"
+                    :class="bulkScrapeSummary.failed > 0
+                        ? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30'
+                        : 'border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30'"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <p
+                                class="text-sm font-medium"
+                                :class="bulkScrapeSummary.failed > 0
+                                    ? 'text-amber-950 dark:text-amber-100'
+                                    : 'text-green-950 dark:text-green-100'"
+                            >
+                                {{ bulkScrapeSummaryLabel }}
+                            </p>
+                            <p
+                                class="mt-1 text-xs"
+                                :class="bulkScrapeSummary.failed > 0
+                                    ? 'text-amber-800/80 dark:text-amber-200/80'
+                                    : 'text-green-800/80 dark:text-green-200/80'"
+                            >
+                                {{ t('app.job_sources.bulk_scrape_progress_stats', {
+                                    success: bulkScrapeSummary.succeeded,
+                                    failed: bulkScrapeSummary.failed,
+                                }) }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="shrink-0 text-xs font-medium underline-offset-2 hover:underline"
+                            :class="bulkScrapeSummary.failed > 0
+                                ? 'text-amber-900 dark:text-amber-200'
+                                : 'text-green-900 dark:text-green-200'"
+                            @click="dismissBulkScrapeSummary"
+                        >
+                            {{ t('app.job_sources.bulk_scrape_dismiss') }}
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    v-if="bulkScrapeNotice && !bulkInProgress && !bulkScrapeSummary"
+                    class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
+                >
+                    {{ bulkScrapeNotice }}
                 </div>
 
                 <div
@@ -200,7 +489,7 @@ const setActive = (source, isActive) => {
                                     <td class="px-4 py-3">
                                         <ToggleSwitch
                                             :model-value="source.is_active"
-                                            :disabled="togglingId === source.id"
+                                            :disabled="togglingId === source.id || bulkInProgress"
                                             :label="source.is_active ? t('app.job_sources.yes') : t('app.job_sources.no')"
                                             @update:model-value="setActive(source, $event)"
                                         />
@@ -211,18 +500,18 @@ const setActive = (source, isActive) => {
                                     <td class="px-4 py-3">
                                         <div class="flex flex-wrap justify-end gap-2">
                                             <Link :href="route('job-sources.configure', source.id)">
-                                                <SecondaryButton type="button">
+                                                <SecondaryButton type="button" :disabled="bulkInProgress">
                                                     {{ t('app.job_sources.configure') }}
                                                 </SecondaryButton>
                                             </Link>
                                             <Link :href="route('job-sources.edit', source.id)">
-                                                <SecondaryButton type="button">
+                                                <SecondaryButton type="button" :disabled="bulkInProgress">
                                                     {{ t('app.job_sources.edit') }}
                                                 </SecondaryButton>
                                             </Link>
                                             <SecondaryButton
                                                 type="button"
-                                                :disabled="scrapingId === source.id"
+                                                :disabled="scrapingId === source.id || bulkInProgress"
                                                 @click="scrapeNow(source)"
                                             >
                                                 {{ scrapingId === source.id ? t('app.job_sources.scraping') : t('app.job_sources.scrape_now') }}

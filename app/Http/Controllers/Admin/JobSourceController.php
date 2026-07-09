@@ -9,6 +9,7 @@ use App\Models\JobSource;
 use App\Services\JobScrapeService;
 use App\Services\JobSourceConfigRevisionService;
 use App\Support\JobExtractionConfigValidator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -131,11 +132,20 @@ class JobSourceController extends Controller
             ->with('success', __('app.job_sources.flash.deleted'));
     }
 
-    public function scrape(JobSource $jobSource, JobScrapeService $scraper): RedirectResponse
+    public function scrape(Request $request, JobSource $jobSource, JobScrapeService $scraper): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $jobSource);
 
         $run = $scraper->scrape($jobSource);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $run->status->value,
+                'listings_found' => $run->listings_found,
+                'listings_new' => $run->listings_new,
+                'error_message' => $run->error_message,
+            ], $run->status === JobScrapeStatus::Failed ? 422 : 200);
+        }
 
         if ($run->status === JobScrapeStatus::Success) {
             return redirect()
