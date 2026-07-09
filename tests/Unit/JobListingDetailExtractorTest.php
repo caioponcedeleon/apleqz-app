@@ -38,6 +38,30 @@ class JobListingDetailExtractorTest extends TestCase
         $this->assertSame('Build APIs with Laravel and PostgreSQL.', $result['description']);
     }
 
+    public function test_extract_detail_uses_match_index_for_repeated_selectors(): void
+    {
+        $html = <<<'HTML'
+        <html><body>
+            <div class="module"><div class="text">Deadline section</div></div>
+            <div class="module"><div class="text">Provider section</div></div>
+            <div class="module"><div class="text">Full job description body.</div></div>
+        </body></html>
+        HTML;
+
+        $fields = [
+            'description' => [
+                'selector' => 'div.text',
+                'scope' => 'document',
+                'extract' => 'text',
+                'match_index' => 2,
+            ],
+        ];
+
+        $result = app(JobListingExtractor::class)->extractDetail($html, $fields, 'https://example.com/jobs/1');
+
+        $this->assertSame('Full job description body.', $result['description']);
+    }
+
     public function test_enrichment_service_updates_listing_and_marks_enriched(): void
     {
         $source = JobSource::factory()->create([

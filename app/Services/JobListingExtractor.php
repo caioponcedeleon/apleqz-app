@@ -221,7 +221,15 @@ class JobListingExtractor
             return null;
         }
 
-        $node = $nodes->item(0);
+        $matchIndex = is_int($fieldConfig['match_index'] ?? null)
+            ? $fieldConfig['match_index']
+            : 0;
+
+        if ($matchIndex < 0 || $matchIndex >= $nodes->length) {
+            return null;
+        }
+
+        $node = $nodes->item($matchIndex);
 
         if (! $node instanceof DOMElement) {
             return null;

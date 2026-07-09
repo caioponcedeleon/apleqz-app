@@ -146,6 +146,28 @@ const canUseChildElement = computed(() => {
     return (pendingSelection.value.candidateIndex ?? 0) > 0;
 });
 
+const activePendingMatchCount = computed(() => activePendingCandidate.value?.matchCount || 0);
+
+const activePendingMatchIndex = computed(() => {
+    if (!pendingSelection.value) {
+        return 0;
+    }
+
+    if (pendingSelection.value.matchIndex !== undefined && pendingSelection.value.matchIndex !== null) {
+        return pendingSelection.value.matchIndex;
+    }
+
+    return activePendingCandidate.value?.matchIndex ?? 0;
+});
+
+const canCycleMatch = computed(() => {
+    if (!pendingSelection.value || pendingSelection.value.type !== 'detail_field') {
+        return false;
+    }
+
+    return activePendingMatchCount.value > 1;
+});
+
 const groupPartMatchCounts = computed(() =>
     itemGroupParts.value.map((part) => part.matchCount ?? 0),
 );
@@ -540,6 +562,9 @@ const sendPickerConfig = () => {
         itemGroupParts: itemGroupParts.value.map((part) => part.selector),
         enabled: pickerInteractive.value,
         pinnedSelector: pinnedSelector.value,
+        pinnedMatchIndex: pendingSelection.value?.type === 'detail_field'
+            ? activePendingMatchIndex.value
+            : 0,
     }, '*');
 };
 
@@ -603,6 +628,7 @@ const handlePickerMessage = (event) => {
             tagName: event.data.tagName || '',
             candidates,
             candidateIndex: 0,
+            matchIndex: candidates[0]?.matchIndex ?? event.data.matchIndex ?? 0,
         };
         detailSelectedField.value = '';
         detailCustomFieldLabel.value = '';
@@ -752,9 +778,13 @@ const useParentElement = () => {
         return;
     }
 
+    const newIndex = (pendingSelection.value.candidateIndex ?? 0) + 1;
+    const candidate = (pendingSelection.value.candidates || [])[newIndex];
+
     pendingSelection.value = {
         ...pendingSelection.value,
-        candidateIndex: (pendingSelection.value.candidateIndex ?? 0) + 1,
+        candidateIndex: newIndex,
+        matchIndex: candidate?.matchIndex ?? 0,
     };
 };
 
@@ -763,9 +793,41 @@ const useChildElement = () => {
         return;
     }
 
+    const newIndex = (pendingSelection.value.candidateIndex ?? 0) - 1;
+    const candidate = (pendingSelection.value.candidates || [])[newIndex];
+
     pendingSelection.value = {
         ...pendingSelection.value,
-        candidateIndex: (pendingSelection.value.candidateIndex ?? 0) - 1,
+        candidateIndex: newIndex,
+        matchIndex: candidate?.matchIndex ?? 0,
+    };
+};
+
+const useNextMatch = () => {
+    if (!canCycleMatch.value || !pendingSelection.value) {
+        return;
+    }
+
+    const count = activePendingMatchCount.value;
+    const current = activePendingMatchIndex.value;
+
+    pendingSelection.value = {
+        ...pendingSelection.value,
+        matchIndex: (current + 1) % count,
+    };
+};
+
+const usePreviousMatch = () => {
+    if (!canCycleMatch.value || !pendingSelection.value) {
+        return;
+    }
+
+    const count = activePendingMatchCount.value;
+    const current = activePendingMatchIndex.value;
+
+    pendingSelection.value = {
+        ...pendingSelection.value,
+        matchIndex: (current - 1 + count) % count,
     };
 };
 
@@ -790,12 +852,17 @@ const assignDetailFieldSelection = () => {
         fieldLabel = label;
     }
 
+    const candidate = activePendingCandidate.value;
     const fieldConfig = {
-        selector: activePendingCandidate.value?.selector || pendingSelection.value.selector,
+        selector: candidate?.selector || pendingSelection.value.selector,
         scope: 'document',
         extract: 'text',
         optional: fieldKey !== 'description',
     };
+
+    if ((candidate?.matchCount || 0) > 1) {
+        fieldConfig.match_index = activePendingMatchIndex.value;
+    }
 
     if (isDetailCustomFieldSelected.value) {
         fieldConfig.label = fieldLabel;
@@ -1783,9 +1850,18 @@ onUnmounted(() => {
                         class="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
                     >
                         {{ activePendingCandidate.tagName }}
-                        <span v-if="activePendingCandidate.matchCount > 1">
-                            · {{ t('app.job_sources.configurator.detail_field_match_count', { count: activePendingCandidate.matchCount }) }}
+                        <span v-if="activePendingMatchCount > 1">
+                            · {{ t('app.job_sources.configurator.detail_field_match_position', {
+                                current: activePendingMatchIndex + 1,
+                                total: activePendingMatchCount,
+                            }) }}
                         </span>
+                    </p>
+                    <p
+                        v-if="canCycleMatch"
+                        class="mt-2 text-xs text-amber-800 dark:text-amber-200"
+                    >
+                        {{ t('app.job_sources.configurator.confirm_detail_field_match_help') }}
                     </p>
                     <p class="mt-3 break-all rounded-lg bg-white/80 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
                         {{ activePendingCandidate?.selector || '—' }}
@@ -1832,6 +1908,20 @@ onUnmounted(() => {
                             @click="useChildElement"
                         >
                             {{ t('app.job_sources.configurator.use_child_element') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!canCycleMatch"
+                            @click="usePreviousMatch"
+                        >
+                            {{ t('app.job_sources.configurator.use_previous_match') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!canCycleMatch"
+                            @click="useNextMatch"
+                        >
+                            {{ t('app.job_sources.configurator.use_next_match') }}
                         </SecondaryButton>
                         <SecondaryButton type="button" @click="clearPendingSelection">
                             {{ t('app.job_sources.configurator.pick_again') }}

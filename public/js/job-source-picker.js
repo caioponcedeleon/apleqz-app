@@ -9,6 +9,7 @@
     var highlightEls = [];
     var pickerEnabled = true;
     var pinnedSelector = '';
+    var pinnedMatchIndex = 0;
     var tooltipEl = null;
     var tooltipText = '';
 
@@ -40,9 +41,19 @@
         var classes = stableClasses(element).slice(0, 3);
 
         if (classes.length > 0) {
-            return tag + '.' + classes.map(function (className) {
+            var classSelector = tag + '.' + classes.map(function (className) {
                 return CSS.escape(className);
             }).join('.');
+
+            if (similarSiblingCount(element) >= 2) {
+                var classParent = element.parentElement;
+
+                if (classParent) {
+                    return classSelector + ':nth-child(' + (Array.prototype.indexOf.call(classParent.children, element) + 1) + ')';
+                }
+            }
+
+            return classSelector;
         }
 
         var parent = element.parentElement;
@@ -314,6 +325,30 @@
         return buildPathSelector(element, document.documentElement);
     }
 
+    function matchIndexForElement(selector, element) {
+        var elements;
+
+        try {
+            elements = document.querySelectorAll(selector);
+        } catch (error) {
+            return 0;
+        }
+
+        for (var index = 0; index < elements.length; index += 1) {
+            if (elements[index] === element) {
+                return index;
+            }
+        }
+
+        for (var matchIndex = 0; matchIndex < elements.length; matchIndex += 1) {
+            if (elements[matchIndex].contains && elements[matchIndex].contains(element)) {
+                return matchIndex;
+            }
+        }
+
+        return 0;
+    }
+
     function buildDetailFieldCandidates(element) {
         var seen = {};
         var candidates = [];
@@ -324,10 +359,13 @@
 
             if (selector && !seen[selector]) {
                 seen[selector] = true;
+                var matchCount = selectorMatchCount(selector);
+
                 candidates.push({
                     selector: selector,
                     tagName: current.tagName,
-                    matchCount: selectorMatchCount(selector),
+                    matchCount: matchCount,
+                    matchIndex: matchIndexForElement(selector, element),
                 });
             }
 
@@ -544,20 +582,19 @@
             return;
         }
 
-        var element = elements[0];
+        var element = elements[Math.min(Math.max(pinnedMatchIndex, 0), elements.length - 1)];
         setHighlight(element, true);
 
         var previewText = extractPreviewText(element);
-
-        if (elements.length > 1) {
-            previewText = '(' + elements.length + ' matches) ' + previewText;
-        }
+        var matchPosition = elements.length > 1
+            ? 'Match ' + (Math.min(Math.max(pinnedMatchIndex, 0), elements.length - 1) + 1) + ' of ' + elements.length + ' — '
+            : '';
 
         if (!previewText) {
             previewText = '(' + (element.tagName || 'element').toLowerCase() + ')';
         }
 
-        showTooltip(element, previewText);
+        showTooltip(element, matchPosition + previewText);
     }
 
     function injectStyles() {
@@ -585,6 +622,7 @@
         itemGroupParts = Array.isArray(event.data.itemGroupParts) ? event.data.itemGroupParts : [];
         pickerEnabled = event.data.enabled !== false;
         pinnedSelector = typeof event.data.pinnedSelector === 'string' ? event.data.pinnedSelector : '';
+        pinnedMatchIndex = typeof event.data.pinnedMatchIndex === 'number' ? event.data.pinnedMatchIndex : 0;
 
         if (pinnedSelector) {
             applyPinnedHighlight();
@@ -671,6 +709,7 @@
                 tagName: target.tagName,
                 candidates: detailCandidates,
                 candidateIndex: 0,
+                matchIndex: detailCandidates.length > 0 ? (detailCandidates[0].matchIndex || 0) : 0,
             });
 
             return;
