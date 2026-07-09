@@ -85,6 +85,38 @@ class JobScrapeTest extends TestCase
         $this->assertDatabaseCount('job_listings', 2);
     }
 
+    public function test_upsert_matches_existing_listing_by_url_or_title_and_company(): void
+    {
+        $source = JobSource::factory()->create([
+            'company_name' => 'Acme GmbH',
+        ]);
+
+        $existing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'external_id' => 'legacy-id',
+            'title' => 'Senior Engineer',
+            'url' => 'https://example.com/jobs/senior-engineer',
+            'company' => 'Acme GmbH',
+        ]);
+
+        app(\App\Services\JobListingUpserter::class)->upsertMany($source, [[
+            'external_id' => hash('sha256', 'https://example.com/jobs/senior-engineer'),
+            'title' => 'Senior Engineer',
+            'url' => 'https://example.com/jobs/senior-engineer',
+            'company' => 'Acme GmbH',
+            'location' => 'Berlin',
+            'salary' => null,
+            'application_deadline' => null,
+            'description' => null,
+            'raw_fields' => [],
+            'content_hash' => 'hash',
+        ]]);
+
+        $this->assertDatabaseCount('job_listings', 1);
+        $this->assertSame('Berlin', $existing->fresh()->location);
+        $this->assertNotSame('legacy-id', $existing->fresh()->external_id);
+    }
+
     public function test_playwright_sources_fail_until_phase_d(): void
     {
         $source = JobSource::factory()->create([

@@ -3,6 +3,7 @@ import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
@@ -63,15 +64,15 @@ const submit = () => {
                             <InputError class="mt-2" :message="form.errors.company_name" />
                         </div>
 
-                        <label class="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-200">
-                            <input v-model="form.is_active" type="checkbox" class="mt-1 rounded border-gray-300 text-indigo-600" />
-                            <span>
-                                <span class="font-medium">{{ t('app.job_sources.active') }}</span>
-                                <span class="mt-1 block text-gray-500 dark:text-gray-400">
-                                    {{ t('app.job_sources.active_help') }}
-                                </span>
-                            </span>
-                        </label>
+                        <div>
+                            <ToggleSwitch
+                                v-model="form.is_active"
+                                :label="t('app.job_sources.active')"
+                            />
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                {{ t('app.job_sources.active_help') }}
+                            </p>
+                        </div>
 
                         <div class="flex items-center gap-3">
                             <PrimaryButton :disabled="form.processing" type="submit">

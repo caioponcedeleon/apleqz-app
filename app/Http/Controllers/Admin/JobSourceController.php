@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\JobListingField;
+use App\Enums\JobScrapeStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\JobSourceRequest;
 use App\Models\JobSource;
+use App\Services\JobScrapeService;
 use App\Support\JobExtractionConfigValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -106,5 +107,27 @@ class JobSourceController extends Controller
         return redirect()
             ->route('job-sources.index')
             ->with('success', __('app.job_sources.flash.deleted'));
+    }
+
+    public function scrape(JobSource $jobSource, JobScrapeService $scraper): RedirectResponse
+    {
+        $this->authorize('update', $jobSource);
+
+        $run = $scraper->scrape($jobSource);
+
+        if ($run->status === JobScrapeStatus::Success) {
+            return redirect()
+                ->route('job-sources.index')
+                ->with('success', __('app.job_sources.flash.scrape_success', [
+                    'found' => $run->listings_found,
+                    'new' => $run->listings_new,
+                ]));
+        }
+
+        return redirect()
+            ->route('job-sources.index')
+            ->with('error', __('app.job_sources.flash.scrape_failed', [
+                'error' => $run->error_message ?? __('app.job_sources.flash.scrape_failed_unknown'),
+            ]));
     }
 }

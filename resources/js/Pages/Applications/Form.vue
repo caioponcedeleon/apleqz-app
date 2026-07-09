@@ -220,6 +220,32 @@ const form = useForm({
 
 const requiresAppliedDate = computed(() => form.status !== 'a_candidatar');
 
+const normalizedJobUrl = computed(() => {
+    const raw = (form.job_url ?? '').trim();
+
+    if (!raw) {
+        return null;
+    }
+
+    const candidates = /^https?:\/\//i.test(raw) ? [raw] : [raw, `https://${raw}`];
+
+    for (const candidate of candidates) {
+        try {
+            const parsed = new URL(candidate);
+
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.href;
+            }
+        } catch {
+            // try next candidate
+        }
+    }
+
+    return null;
+});
+
+const canOpenJobUrl = computed(() => normalizedJobUrl.value !== null);
+
 const appliedAtLabel = computed(() =>
     requiresAppliedDate.value
         ? t('app.applications.applied_at')
@@ -420,7 +446,58 @@ const renameApplicationFileUrl = (file) =>
 
                             <div class="sm:col-span-2">
                                 <InputLabel :value="t('app.applications.job_url')" />
-                                <TextInput v-model="form.job_url" type="url" class="mt-1 block w-full" />
+                                <div class="mt-1 flex items-stretch gap-2">
+                                    <TextInput
+                                        v-model="form.job_url"
+                                        type="url"
+                                        class="block min-w-0 flex-1"
+                                    />
+                                    <a
+                                        v-if="canOpenJobUrl"
+                                        :href="normalizedJobUrl"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="inline-flex shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white px-3 text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                        :title="t('app.applications.open_job_url')"
+                                        :aria-label="t('app.applications.open_job_url')"
+                                    >
+                                        <svg
+                                            class="size-4"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke-width="1.5"
+                                            stroke="currentColor"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                            />
+                                        </svg>
+                                    </a>
+                                    <span
+                                        v-else
+                                        class="inline-flex shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white px-3 text-gray-400 opacity-40 dark:border-gray-600 dark:bg-gray-800"
+                                        aria-hidden="true"
+                                    >
+                                        <svg
+                                            class="size-4"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke-width="1.5"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                            />
+                                        </svg>
+                                    </span>
+                                </div>
                                 <InputError class="mt-1" :message="form.errors.job_url" />
                             </div>
 

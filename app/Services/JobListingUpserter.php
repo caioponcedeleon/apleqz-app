@@ -19,13 +19,11 @@ class JobListingUpserter
         $new = 0;
 
         foreach ($listings as $listing) {
-            $existing = JobListing::query()
-                ->where('job_source_id', $source->id)
-                ->where('external_id', $listing['external_id'])
-                ->first();
+            $existing = $this->findExisting($source, $listing);
 
             if ($existing) {
                 $existing->update([
+                    'external_id' => $listing['external_id'],
                     'title' => $listing['title'],
                     'url' => $listing['url'],
                     'company' => $listing['company'],
@@ -63,5 +61,45 @@ class JobListingUpserter
             'found' => $found,
             'new' => $new,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $listing
+     */
+    protected function findExisting(JobSource $source, array $listing): ?JobListing
+    {
+        $query = JobListing::query()->where('job_source_id', $source->id);
+
+        $externalId = $listing['external_id'] ?? null;
+
+        if (is_string($externalId) && $externalId !== '') {
+            $match = (clone $query)->where('external_id', $externalId)->first();
+
+            if ($match) {
+                return $match;
+            }
+        }
+
+        $url = $listing['url'] ?? null;
+
+        if (is_string($url) && trim($url) !== '') {
+            $match = (clone $query)->where('url', trim($url))->first();
+
+            if ($match) {
+                return $match;
+            }
+        }
+
+        $title = $listing['title'] ?? null;
+        $company = $listing['company'] ?? null;
+
+        if (is_string($title) && trim($title) !== '' && is_string($company) && trim($company) !== '') {
+            return (clone $query)
+                ->where('title', trim($title))
+                ->where('company', trim($company))
+                ->first();
+        }
+
+        return null;
     }
 }

@@ -101,4 +101,37 @@ class JobSourceManagementTest extends TestCase
             'external_id' => 'senior-engineer',
         ]);
     }
+
+    public function test_admin_can_scrape_job_source_from_ui(): void
+    {
+        $html = file_get_contents(base_path('tests/fixtures/job-sources/basic-listing.html'));
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://example.com/jobs' => \Illuminate\Support\Facades\Http::response($html, 200),
+        ]);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'url' => 'https://example.com/jobs',
+            'extraction_config' => [
+                'version' => 1,
+                'engine' => 'http',
+                'interactions' => [],
+                'listing' => [
+                    'item_selector' => 'article.job-card',
+                    'fields' => [
+                        'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                        'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('job-sources.scrape', $source))
+            ->assertRedirect(route('job-sources.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, JobListing::query()->where('job_source_id', $source->id)->count());
+    }
 }

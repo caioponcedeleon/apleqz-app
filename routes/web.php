@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{jobSource}/extraction-config', [JobSourceConfiguratorController::class, 'update'])->name('extraction-config.update');
         Route::get('/{jobSource}/edit', [JobSourceController::class, 'edit'])->name('edit');
         Route::put('/{jobSource}', [JobSourceController::class, 'update'])->name('update');
+        Route::post('/{jobSource}/scrape', [JobSourceController::class, 'scrape'])->name('scrape');
         Route::delete('/{jobSource}', [JobSourceController::class, 'destroy'])->name('destroy');
     });
 });
