@@ -52,7 +52,13 @@ class JobSourcePreviewTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Admin/JobSources/Configure')
                 ->has('jobSource')
-                ->has('fieldOptions'));
+                ->has('fieldOptions')
+                ->has('detailFieldOptions')
+                ->where('detailFieldOptions.job_title', __('app.job_sources.detail_fields.job_title'))
+                ->where(
+                    'detailFieldOptions',
+                    fn ($options): bool => ! $options->has('url'),
+                ));
     }
 
     public function test_non_admin_cannot_access_configure_page(): void

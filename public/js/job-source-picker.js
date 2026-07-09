@@ -70,7 +70,7 @@
             return tag;
         }
 
-        return tag + ':nth-child(' + (siblings.indexOf(element) + 1) + ')';
+        return tag + ':nth-of-type(' + (siblings.indexOf(element) + 1) + ')';
     }
 
     function classOnlySelector(element) {

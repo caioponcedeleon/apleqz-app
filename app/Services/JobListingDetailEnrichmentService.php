@@ -94,6 +94,7 @@ class JobListingDetailEnrichmentService
             $rawFields,
         );
 
+        $title = $this->limitedField($rawFields['job_title'] ?? null) ?? $listing->title;
         $description = $this->cleanText($rawFields['description'] ?? null) ?? $listing->description;
         $location = $this->limitedField($rawFields['location'] ?? null) ?? $listing->location;
         $salary = $this->limitedField($rawFields['salary'] ?? null) ?? $listing->salary;
@@ -102,13 +103,14 @@ class JobListingDetailEnrichmentService
         $company = $this->limitedField($rawFields['company'] ?? null) ?? $listing->company;
 
         $listing->update([
+            'title' => $title,
             'description' => $description,
             'location' => $location,
             'salary' => $salary,
             'application_deadline' => $applicationDeadline,
             'company' => $company,
             'raw_fields' => $mergedRawFields,
-            'content_hash' => hash('sha256', $listing->title.($description ?? '')),
+            'content_hash' => hash('sha256', $title.($description ?? '')),
             'detail_enriched_at' => now(),
         ]);
 

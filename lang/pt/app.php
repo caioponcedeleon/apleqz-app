@@ -445,6 +445,9 @@ return [
             'external_id' => 'ID externo',
             'custom' => 'Campo personalizado…',
         ],
+        'detail_fields' => [
+            'job_title' => 'Título do cargo',
+        ],
         'configurator' => [
             'step_load' => 'Carregar prévia',
             'step_item' => 'Item da lista',

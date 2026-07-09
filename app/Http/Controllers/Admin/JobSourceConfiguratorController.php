@@ -510,15 +510,27 @@ class JobSourceConfiguratorController extends Controller
      */
     protected function detailFieldOptions(): array
     {
-        $skip = [JobListingField::JobTitle->value, JobListingField::Url->value];
+        $skip = [JobListingField::Url->value];
 
         return collect(JobListingField::cases())
             ->reject(fn (JobListingField $field): bool => in_array($field->value, $skip, true))
             ->mapWithKeys(fn (JobListingField $field): array => [
-                $field->value => $this->fieldLabel($field->value),
+                $field->value => $this->detailFieldLabel($field->value),
             ])
             ->put('__custom__', __('app.job_sources.fields.custom'))
             ->all();
+    }
+
+    protected function detailFieldLabel(string $field): string
+    {
+        $key = "app.job_sources.detail_fields.{$field}";
+        $translated = __($key);
+
+        if ($translated !== $key) {
+            return $translated;
+        }
+
+        return $this->fieldLabel($field);
     }
 
     /**

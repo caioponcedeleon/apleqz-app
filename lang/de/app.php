@@ -445,6 +445,9 @@ return [
             'external_id' => 'Externe ID',
             'custom' => 'Benutzerdefiniertes Feld…',
         ],
+        'detail_fields' => [
+            'job_title' => 'Stellenbezeichnung',
+        ],
         'configurator' => [
             'step_load' => 'Vorschau laden',
             'step_item' => 'Listeneintrag',
