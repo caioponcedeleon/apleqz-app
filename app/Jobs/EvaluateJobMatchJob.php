@@ -7,6 +7,7 @@ use App\Models\JobListing;
 use App\Models\JobMatch;
 use App\Models\User;
 use App\Models\UserJobProfile;
+use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchEvaluator;
 use App\Support\AiUsageContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,7 +22,7 @@ class EvaluateJobMatchJob implements ShouldQueue
         public string $listingId,
     ) {}
 
-    public function handle(JobMatchEvaluator $evaluator): void
+    public function handle(JobMatchEvaluator $evaluator, JobListingDetailEnrichmentService $detailEnrichment): void
     {
         $user = User::query()->find($this->userId);
 
@@ -29,7 +30,7 @@ class EvaluateJobMatchJob implements ShouldQueue
             return;
         }
 
-        $listing = JobListing::query()->find($this->listingId);
+        $listing = JobListing::query()->with('jobSource')->find($this->listingId);
 
         if (! $listing) {
             return;
@@ -57,6 +58,24 @@ class EvaluateJobMatchJob implements ShouldQueue
             ['user_id' => $user->id, 'purpose' => 'job_match'],
             fn (): array => $evaluator->evaluate($profile->profile_text, $listing),
         );
+
+        $detailConfig = $listing->jobSource
+            ? $detailEnrichment->detailConfigFor($listing->jobSource)
+            : null;
+        $fetchMinScore = is_array($detailConfig)
+            ? (int) ($detailConfig['fetch_min_score'] ?? config('job_match.detail_fetch_min_score', 60))
+            : (int) config('job_match.detail_fetch_min_score', 60);
+        $needsDetail = $detailConfig !== null
+            && $listing->detail_enriched_at === null
+            && $result['fit_score'] >= $fetchMinScore;
+
+        if ($needsDetail) {
+            EnrichJobListingDetailJob::dispatch($listing->id);
+
+            if ($result['fit_score'] >= $profile->min_fit_score) {
+                return;
+            }
+        }
 
         if ($result['fit_score'] < $profile->min_fit_score) {
             if ($existing) {

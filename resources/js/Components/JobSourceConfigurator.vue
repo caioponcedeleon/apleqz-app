@@ -22,10 +22,23 @@ const props = defineProps({
     interactions: { type: Array, default: () => [] },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
+    detail: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            sample_url: '',
+            fetch_min_score: 60,
+            engine: 'inherit',
+            interactions: [],
+            fields: {},
+        }),
+    },
+    detailFieldOptions: { type: Object, default: () => ({}) },
 });
 
 const { t } = useI18n();
 
+const activeTab = ref('listing');
 const previewUrl = ref(props.previewUrl);
 const itemSelector = ref(props.itemSelector);
 const itemMode = ref(props.itemMode === 'group' ? 'group' : 'single');
@@ -53,6 +66,7 @@ const pendingInteraction = ref(null);
 const testingFullFlow = ref(false);
 const suggestPlaywright = ref(false);
 const cachedHtml = ref(null);
+const listingPreviewHtml = ref(null);
 const testResults = ref([]);
 const itemMatchCount = ref(null);
 const previewFrame = ref(null);
@@ -62,6 +76,23 @@ const testingExtraction = ref(false);
 const saving = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+
+const detailEnabled = ref(Boolean(props.detail?.enabled));
+const detailSampleUrl = ref(props.detail?.sample_url || '');
+const detailFetchMinScore = ref(props.detail?.fetch_min_score ?? 60);
+const detailEngine = ref(props.detail?.engine === 'playwright' ? 'playwright' : props.detail?.engine === 'http' ? 'http' : 'inherit');
+const detailFieldMappings = ref({ ...(props.detail?.fields || {}) });
+const detailInteractionSteps = ref(
+    Array.isArray(props.detail?.interactions)
+        ? props.detail.interactions.map((step) => normalizeInteractionStep(step))
+        : [],
+);
+const detailCachedHtml = ref(null);
+const detailPreviewHtml = ref(null);
+const detailPreviewLoaded = ref(false);
+const detailTestResults = ref([]);
+const detailSelectedField = ref('');
+const detailCustomFieldLabel = ref('');
 
 const pendingSelection = ref(null);
 
@@ -228,7 +259,7 @@ const buildCustomFieldKey = (label) => {
     let key = base;
     let suffix = 2;
 
-    while (fieldMappings.value[key]) {
+    while (fieldMappings.value[key] || detailFieldMappings.value[key]) {
         key = `${base}_${suffix}`;
         suffix += 1;
     }
@@ -248,7 +279,72 @@ const canAssignField = computed(() => {
     return true;
 });
 
+const isListingTab = computed(() => activeTab.value === 'listing');
+const isDetailTab = computed(() => activeTab.value === 'detail');
+
+const activePreviewUrl = computed(() => (isListingTab.value ? previewUrl.value : detailSampleUrl.value));
+const activePreviewEngine = computed(() => {
+    if (isListingTab.value) {
+        return previewEngine.value;
+    }
+
+    if (detailEngine.value === 'playwright') {
+        return 'playwright';
+    }
+
+    if (detailEngine.value === 'http') {
+        return 'http';
+    }
+
+    return previewEngine.value;
+});
+const activeInteractionSteps = computed(() => (
+    isListingTab.value ? interactionSteps.value : detailInteractionSteps.value
+));
+const activeCachedHtml = computed(() => (isListingTab.value ? cachedHtml.value : detailCachedHtml.value));
+const activePreviewLoaded = computed(() => (
+    isListingTab.value ? previewLoaded.value : detailPreviewLoaded.value
+));
+
+const detailCurrentStep = computed(() => {
+    if (!detailPreviewLoaded.value) {
+        return 1;
+    }
+
+    return 2;
+});
+
+const detailMappedFields = computed(() => Object.entries(detailFieldMappings.value));
+
+const detailFieldSelectOptions = computed(() =>
+    Object.entries(props.detailFieldOptions ?? {}).map(([value, label]) => ({ value, label })),
+);
+
+const isDetailCustomFieldSelected = computed(() => detailSelectedField.value === CUSTOM_FIELD);
+
+const canAssignDetailField = computed(() => {
+    if (!detailSelectedField.value) {
+        return false;
+    }
+
+    if (isDetailCustomFieldSelected.value) {
+        return detailCustomFieldLabel.value.trim() !== '';
+    }
+
+    return true;
+});
+
+const detailFieldDisplayLabel = (field, mapping = null) => {
+    const mappingConfig = mapping ?? detailFieldMappings.value[field];
+
+    return mappingConfig?.label || props.detailFieldOptions[field] || field;
+};
+
 const currentStep = computed(() => {
+    if (isDetailTab.value) {
+        return detailCurrentStep.value;
+    }
+
     if (!previewLoaded.value) {
         return 1;
     }
@@ -332,6 +428,14 @@ const pickerMode = computed(() => {
         return 'interaction';
     }
 
+    if (isDetailTab.value) {
+        if (detailCurrentStep.value === 2) {
+            return 'detail_field';
+        }
+
+        return 'item';
+    }
+
     if (itemGroupBuilding.value) {
         return 'item_group_part';
     }
@@ -344,12 +448,16 @@ const pickerMode = computed(() => {
 });
 
 const pickerInteractive = computed(() => {
-    if (!previewLoaded.value) {
+    if (!activePreviewLoaded.value) {
         return false;
     }
 
     if (interactionRecordingType.value) {
         return true;
+    }
+
+    if (isDetailTab.value) {
+        return !pendingSelection.value && !pendingInteraction.value;
     }
 
     if (itemGroupBuilding.value) {
@@ -360,6 +468,18 @@ const pickerInteractive = computed(() => {
 });
 
 const stepPrompt = computed(() => {
+    if (isDetailTab.value) {
+        if (detailCurrentStep.value === 1) {
+            return t('app.job_sources.configurator.detail_step_load_prompt');
+        }
+
+        if (pendingSelection.value) {
+            return t('app.job_sources.configurator.detail_step_field_assign_prompt');
+        }
+
+        return t('app.job_sources.configurator.detail_step_field_prompt');
+    }
+
     if (currentStep.value === 1) {
         return t('app.job_sources.configurator.step_load_prompt');
     }
@@ -437,7 +557,20 @@ const handlePickerMessage = (event) => {
     }
 
     const selector = (event.data.selector || '').trim();
-    if (!selector || !previewLoaded.value) {
+    if (!selector || !activePreviewLoaded.value) {
+        return;
+    }
+
+    if (event.data.mode === 'detail_field' && isDetailTab.value) {
+        pendingSelection.value = {
+            type: 'detail_field',
+            selector,
+            tagName: event.data.tagName || '',
+        };
+        detailSelectedField.value = '';
+        detailCustomFieldLabel.value = '';
+        sendPickerConfig();
+
         return;
     }
 
@@ -490,7 +623,7 @@ const handlePickerMessage = (event) => {
         return;
     }
 
-    if (currentStep.value === 2 && event.data.mode === 'item') {
+    if (currentStep.value === 2 && event.data.mode === 'item' && isListingTab.value) {
         const candidates = Array.isArray(event.data.candidates) ? event.data.candidates : [];
 
         pendingSelection.value = {
@@ -505,7 +638,7 @@ const handlePickerMessage = (event) => {
         return;
     }
 
-    if (currentStep.value === 3 && event.data.mode === 'field') {
+    if (currentStep.value === 3 && event.data.mode === 'field' && isListingTab.value) {
         pendingSelection.value = {
             type: 'field',
             selector,
@@ -588,6 +721,56 @@ const useParentElement = () => {
     };
 };
 
+const assignDetailFieldSelection = () => {
+    if (!pendingSelection.value || pendingSelection.value.type !== 'detail_field' || !detailSelectedField.value) {
+        errorMessage.value = t('app.job_sources.configurator.select_field_first');
+        return;
+    }
+
+    let fieldKey = detailSelectedField.value;
+    let fieldLabel = props.detailFieldOptions[fieldKey] || fieldKey;
+
+    if (isDetailCustomFieldSelected.value) {
+        const label = detailCustomFieldLabel.value.trim();
+
+        if (!label) {
+            errorMessage.value = t('app.job_sources.configurator.custom_field_required');
+            return;
+        }
+
+        fieldKey = buildCustomFieldKey(label);
+        fieldLabel = label;
+    }
+
+    const fieldConfig = {
+        selector: pendingSelection.value.selector,
+        scope: 'document',
+        extract: 'text',
+        optional: fieldKey !== 'description',
+    };
+
+    if (isDetailCustomFieldSelected.value) {
+        fieldConfig.label = fieldLabel;
+    }
+
+    detailFieldMappings.value = {
+        ...detailFieldMappings.value,
+        [fieldKey]: fieldConfig,
+    };
+
+    successMessage.value = t('app.job_sources.configurator.field_mapped', {
+        field: fieldLabel,
+    });
+    errorMessage.value = '';
+    clearPendingSelection();
+};
+
+const removeDetailFieldMapping = (field) => {
+    const next = { ...detailFieldMappings.value };
+    delete next[field];
+    detailFieldMappings.value = next;
+};
+
 const assignFieldSelection = () => {
     if (!pendingSelection.value || pendingSelection.value.type !== 'field' || !selectedField.value) {
         errorMessage.value = t('app.job_sources.configurator.select_field_first');
@@ -642,14 +825,20 @@ const assignFieldSelection = () => {
 };
 
 const startInteractionRecording = (type) => {
-    if (!previewLoaded.value) {
+    if (!activePreviewLoaded.value) {
         errorMessage.value = t('app.job_sources.configurator.preview_required');
         return;
     }
 
     clearAllPending();
     interactionRecordingType.value = type;
-    previewEngine.value = 'playwright';
+
+    if (isDetailTab.value && detailEngine.value === 'inherit') {
+        detailEngine.value = 'playwright';
+    } else if (isListingTab.value) {
+        previewEngine.value = 'playwright';
+    }
+
     successMessage.value = t(`app.job_sources.configurator.interaction_record_${type}`);
     errorMessage.value = '';
     sendPickerConfig();
@@ -708,11 +897,18 @@ const confirmInteractionStep = () => {
         return;
     }
 
-    interactionSteps.value = [
-        ...interactionSteps.value,
-        normalizeInteractionStep(pendingInteraction.value),
-    ];
-    previewEngine.value = 'playwright';
+    const step = normalizeInteractionStep(pendingInteraction.value);
+
+    if (isDetailTab.value) {
+        detailInteractionSteps.value = [...detailInteractionSteps.value, step];
+        if (detailEngine.value === 'inherit') {
+            detailEngine.value = 'playwright';
+        }
+    } else {
+        interactionSteps.value = [...interactionSteps.value, step];
+        previewEngine.value = 'playwright';
+    }
+
     successMessage.value = t('app.job_sources.configurator.interaction_added');
     errorMessage.value = '';
     clearPendingInteraction();
@@ -742,20 +938,34 @@ const loadPreview = async () => {
     suggestPlaywright.value = false;
     clearAllPending();
     itemGroupBuilding.value = false;
-    testResults.value = [];
-    itemMatchCount.value = null;
 
-    const interactions = serializeInteractionSteps(interactionSteps.value);
+    if (isListingTab.value) {
+        testResults.value = [];
+        itemMatchCount.value = null;
+    } else {
+        detailTestResults.value = [];
+    }
+
+    const interactions = serializeInteractionSteps(activeInteractionSteps.value);
+    const engine = activePreviewEngine.value === 'playwright' ? 'playwright' : 'http';
 
     try {
         const { data } = await window.axios.post(route('job-sources.preview'), {
-            url: previewUrl.value,
-            engine: previewEngine.value,
+            url: activePreviewUrl.value,
+            engine,
             interactions,
         });
 
-        cachedHtml.value = data.cached_html;
-        previewLoaded.value = true;
+        if (isListingTab.value) {
+            cachedHtml.value = data.cached_html;
+            listingPreviewHtml.value = data.html;
+            previewLoaded.value = true;
+        } else {
+            detailCachedHtml.value = data.cached_html;
+            detailPreviewHtml.value = data.html;
+            detailPreviewLoaded.value = true;
+        }
+
         suggestPlaywright.value = Boolean(data.suggest_playwright);
 
         if (previewFrame.value) {
@@ -768,7 +978,12 @@ const loadPreview = async () => {
             successMessage.value = t('app.job_sources.configurator.preview_loaded');
         }
     } catch (error) {
-        previewLoaded.value = false;
+        if (isListingTab.value) {
+            previewLoaded.value = false;
+        } else {
+            detailPreviewLoaded.value = false;
+        }
+
         errorMessage.value = error.response?.data?.message
             || error.response?.data?.errors?.url?.[0]
             || t('app.job_sources.configurator.preview_failed');
@@ -889,6 +1104,42 @@ const resetItemSelector = () => {
     clearPendingSelection();
 };
 
+const testDetailExtraction = async () => {
+    if (!detailCachedHtml.value) {
+        errorMessage.value = t('app.job_sources.configurator.preview_required');
+        return;
+    }
+
+    testingExtraction.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+
+    const engine = detailEngine.value === 'inherit'
+        ? (previewEngine.value === 'playwright' ? 'playwright' : 'http')
+        : detailEngine.value;
+
+    try {
+        const { data } = await window.axios.post(route('job-sources.test-extraction'), {
+            html: detailCachedHtml.value,
+            base_url: detailSampleUrl.value,
+            extraction_type: 'detail',
+            engine,
+            interactions: serializeInteractionSteps(detailInteractionSteps.value),
+            fields: detailFieldMappings.value,
+        });
+
+        detailTestResults.value = data.listings || [];
+        successMessage.value = t('app.job_sources.configurator.detail_extracted');
+    } catch (error) {
+        detailTestResults.value = [];
+        errorMessage.value = error.response?.data?.errors?.extraction?.[0]
+            || error.response?.data?.message
+            || t('app.job_sources.configurator.extraction_failed');
+    } finally {
+        testingExtraction.value = false;
+    }
+};
+
 const saveConfiguration = () => {
     if (missingRequiredFields.value.length > 0) {
         errorMessage.value = t('app.job_sources.configurator.required_fields_missing');
@@ -899,8 +1150,6 @@ const saveConfiguration = () => {
     errorMessage.value = '';
     successMessage.value = '';
 
-    const interactions = serializeInteractionSteps(interactionSteps.value);
-
     router.patch(route('job-sources.extraction-config.update', props.jobSource.id), {
         preview_url: previewUrl.value,
         item_mode: itemMode.value,
@@ -908,11 +1157,19 @@ const saveConfiguration = () => {
         item_group: itemMode.value === 'group' ? { parts: itemGroupParts.value } : null,
         fields: fieldMappings.value,
         engine: previewEngine.value,
-        interactions,
+        interactions: serializeInteractionSteps(interactionSteps.value),
         pagination: {
             type: paginationType.value,
             param: paginationParam.value,
             max_pages: paginationMaxPages.value,
+        },
+        detail: {
+            enabled: detailEnabled.value,
+            sample_url: detailSampleUrl.value || null,
+            fetch_min_score: detailFetchMinScore.value,
+            engine: detailEngine.value,
+            interactions: serializeInteractionSteps(detailInteractionSteps.value),
+            fields: detailFieldMappings.value,
         },
     }, {
         preserveScroll: true,
@@ -927,6 +1184,19 @@ const saveConfiguration = () => {
         },
     });
 };
+
+watch(activeTab, () => {
+    clearAllPending();
+    sendPickerConfig();
+
+    if (previewFrame.value) {
+        const html = isListingTab.value ? listingPreviewHtml.value : detailPreviewHtml.value;
+
+        if (html && activePreviewLoaded.value) {
+            previewFrame.value.srcdoc = html;
+        }
+    }
+});
 
 watch(itemSelector, sendPickerConfig);
 watch(itemMode, sendPickerConfig);
@@ -969,21 +1239,57 @@ onUnmounted(() => {
             {{ errorMessage }}
         </div>
 
+        <div class="flex flex-wrap gap-2">
+            <button
+                type="button"
+                class="rounded-lg px-4 py-2 text-sm font-medium transition"
+                :class="isListingTab
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'"
+                @click="activeTab = 'listing'"
+            >
+                {{ t('app.job_sources.configurator.tab_listing') }}
+            </button>
+            <button
+                type="button"
+                class="rounded-lg px-4 py-2 text-sm font-medium transition"
+                :class="isDetailTab
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'"
+                @click="activeTab = 'detail'"
+            >
+                {{ t('app.job_sources.configurator.tab_detail') }}
+            </button>
+        </div>
+
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                <span :class="currentStep >= 1 ? 'text-indigo-600 dark:text-indigo-400' : ''">
-                    1. {{ t('app.job_sources.configurator.step_load') }}
-                </span>
-                <span>→</span>
-                <span :class="currentStep >= 2 ? 'text-indigo-600 dark:text-indigo-400' : ''">
-                    2. {{ t('app.job_sources.configurator.step_item') }}
-                </span>
-                <span>→</span>
-                <span :class="currentStep >= 3 ? 'text-indigo-600 dark:text-indigo-400' : ''">
-                    3. {{ t('app.job_sources.configurator.step_fields') }}
-                </span>
-                <span>→</span>
-                <span>4. {{ t('app.job_sources.configurator.step_save') }}</span>
+                <template v-if="isListingTab">
+                    <span :class="currentStep >= 1 ? 'text-indigo-600 dark:text-indigo-400' : ''">
+                        1. {{ t('app.job_sources.configurator.step_load') }}
+                    </span>
+                    <span>→</span>
+                    <span :class="currentStep >= 2 ? 'text-indigo-600 dark:text-indigo-400' : ''">
+                        2. {{ t('app.job_sources.configurator.step_item') }}
+                    </span>
+                    <span>→</span>
+                    <span :class="currentStep >= 3 ? 'text-indigo-600 dark:text-indigo-400' : ''">
+                        3. {{ t('app.job_sources.configurator.step_fields') }}
+                    </span>
+                    <span>→</span>
+                    <span>4. {{ t('app.job_sources.configurator.step_save') }}</span>
+                </template>
+                <template v-else>
+                    <span :class="currentStep >= 1 ? 'text-indigo-600 dark:text-indigo-400' : ''">
+                        1. {{ t('app.job_sources.configurator.step_load') }}
+                    </span>
+                    <span>→</span>
+                    <span :class="currentStep >= 2 ? 'text-indigo-600 dark:text-indigo-400' : ''">
+                        2. {{ t('app.job_sources.configurator.step_fields') }}
+                    </span>
+                    <span>→</span>
+                    <span>3. {{ t('app.job_sources.configurator.step_save') }}</span>
+                </template>
             </div>
 
             <p class="mt-4 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
@@ -991,24 +1297,41 @@ onUnmounted(() => {
             </p>
 
             <p
-                v-if="currentStep >= 3"
+                v-if="isListingTab && currentStep >= 3"
                 class="mt-2 text-sm text-gray-500 dark:text-gray-400"
             >
                 {{ t('app.job_sources.configurator.repeating_help') }}
+            </p>
+
+            <p
+                v-if="isDetailTab"
+                class="mt-2 text-sm text-gray-500 dark:text-gray-400"
+            >
+                {{ t('app.job_sources.configurator.detail_help') }}
             </p>
         </div>
 
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ t('app.job_sources.configurator.preview_url') }}
+                {{ isListingTab
+                    ? t('app.job_sources.configurator.preview_url')
+                    : t('app.job_sources.configurator.detail_sample_url') }}
             </h3>
             <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div class="flex-1">
                     <TextInput
+                        v-if="isListingTab"
                         v-model="previewUrl"
                         type="url"
                         class="block w-full"
                         :placeholder="t('app.job_sources.configurator.preview_placeholder')"
+                    />
+                    <TextInput
+                        v-else
+                        v-model="detailSampleUrl"
+                        type="url"
+                        class="block w-full"
+                        :placeholder="t('app.job_sources.configurator.detail_sample_url_placeholder')"
                     />
                 </div>
                 <PrimaryButton :disabled="loadingPreview" type="button" @click="loadPreview">
@@ -1016,7 +1339,7 @@ onUnmounted(() => {
                 </PrimaryButton>
             </div>
 
-            <div class="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-700">
+            <div v-if="isListingTab" class="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-700">
                 <label class="flex cursor-pointer items-start gap-3">
                     <input
                         v-model="previewEngine"
@@ -1183,8 +1506,58 @@ onUnmounted(() => {
                 </div>
             </div>
 
+            <div v-else class="mt-4 space-y-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+                <label class="flex cursor-pointer items-start gap-3">
+                    <input
+                        v-model="detailEnabled"
+                        type="checkbox"
+                        class="mt-1 rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900"
+                    >
+                    <span class="text-sm text-gray-700 dark:text-gray-300">
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            {{ t('app.job_sources.configurator.detail_enabled') }}
+                        </span>
+                        <span class="mt-1 block text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_sources.configurator.detail_enabled_help') }}
+                        </span>
+                    </span>
+                </label>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        {{ t('app.job_sources.configurator.detail_fetch_min_score') }}
+                    </label>
+                    <TextInput
+                        v-model.number="detailFetchMinScore"
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="mt-2 block w-full max-w-xs"
+                    />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.detail_fetch_min_score_help') }}
+                    </p>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        {{ t('app.job_sources.configurator.detail_engine') }}
+                    </label>
+                    <ChipSelect
+                        v-model="detailEngine"
+                        class="mt-2"
+                        :options="[
+                            { value: 'inherit', label: t('app.job_sources.configurator.detail_engine_inherit') },
+                            { value: 'http', label: t('app.job_sources.configurator.detail_engine_http') },
+                            { value: 'playwright', label: t('app.job_sources.configurator.detail_engine_playwright') },
+                        ]"
+                        :aria-label="t('app.job_sources.configurator.detail_engine')"
+                    />
+                </div>
+            </div>
+
             <div
-                v-if="suggestPlaywright && previewEngine === 'http'"
+                v-if="suggestPlaywright && activePreviewEngine === 'http'"
                 class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
             >
                 <p>{{ t('app.job_sources.configurator.suggest_playwright') }}</p>
@@ -1341,6 +1714,52 @@ onUnmounted(() => {
                 </div>
 
                 <div
+                    v-else-if="pendingSelection?.type === 'detail_field'"
+                    class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/20"
+                >
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.confirm_detail_field_title') }}
+                    </h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {{ t('app.job_sources.configurator.confirm_detail_field_help') }}
+                    </p>
+                    <p class="mt-3 break-all rounded-lg bg-white/80 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+                        {{ pendingSelection.selector }}
+                    </p>
+                    <div class="mt-4">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            {{ t('app.job_sources.configurator.field_to_map') }}
+                        </label>
+                        <ChipSelect
+                            v-model="detailSelectedField"
+                            class="mt-2"
+                            :options="detailFieldSelectOptions"
+                            :placeholder="t('app.job_sources.configurator.choose_field')"
+                            :aria-label="t('app.job_sources.configurator.field_to_map')"
+                        />
+                    </div>
+                    <div v-if="isDetailCustomFieldSelected" class="mt-4">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            {{ t('app.job_sources.configurator.custom_field_label') }}
+                        </label>
+                        <TextInput
+                            v-model="detailCustomFieldLabel"
+                            type="text"
+                            class="mt-2 block w-full"
+                            :placeholder="t('app.job_sources.configurator.custom_field_placeholder')"
+                        />
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <PrimaryButton type="button" :disabled="!canAssignDetailField" @click="assignDetailFieldSelection">
+                            {{ t('app.job_sources.configurator.add_field_mapping') }}
+                        </PrimaryButton>
+                        <SecondaryButton type="button" @click="clearPendingSelection">
+                            {{ t('app.job_sources.configurator.pick_again') }}
+                        </SecondaryButton>
+                    </div>
+                </div>
+
+                <div
                     v-else-if="pendingSelection?.type === 'field'"
                     class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/20"
                 >
@@ -1386,7 +1805,7 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div v-if="isListingTab" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div class="flex items-start justify-between gap-3">
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
                             {{ itemMode === 'group'
@@ -1433,7 +1852,7 @@ onUnmounted(() => {
                     </template>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div v-if="isListingTab" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
                         {{ t('app.job_sources.configurator.pagination_heading') }}
                     </h3>
@@ -1483,7 +1902,7 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div v-if="isListingTab" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
                         {{ t('app.job_sources.configurator.mapped_fields') }}
                     </h3>
@@ -1527,23 +1946,69 @@ onUnmounted(() => {
                     </p>
                 </div>
 
+                <div v-if="isDetailTab" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.detail_mapped_fields') }}
+                    </h3>
+
+                    <p v-if="!detailMappedFields.length" class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.detail_no_fields_mapped') }}
+                    </p>
+
+                    <ul v-else class="mt-3 space-y-3">
+                        <li
+                            v-for="[field, mapping] in detailMappedFields"
+                            :key="field"
+                            class="rounded-lg border border-gray-100 p-3 dark:border-gray-700"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ detailFieldDisplayLabel(field, mapping) }}
+                                    </p>
+                                    <p class="mt-1 break-all font-mono text-xs text-gray-600 dark:text-gray-300">
+                                        {{ mapping.selector }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="text-xs text-red-600 hover:underline"
+                                    @click="removeDetailFieldMapping(field)"
+                                >
+                                    {{ t('app.job_sources.configurator.remove') }}
+                                </button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
                 <div class="flex flex-wrap gap-3">
+                    <template v-if="isListingTab">
+                        <SecondaryButton
+                            :disabled="testingExtraction || currentStep < 3"
+                            type="button"
+                            @click="testExtraction"
+                        >
+                            {{ testingExtraction ? t('app.job_sources.configurator.testing') : t('app.job_sources.configurator.test_extraction') }}
+                        </SecondaryButton>
+                        <SecondaryButton
+                            :disabled="testingFullFlow || currentStep < 3"
+                            type="button"
+                            @click="testFullFlow"
+                        >
+                            {{ testingFullFlow ? t('app.job_sources.configurator.testing_full_flow') : t('app.job_sources.configurator.test_full_flow') }}
+                        </SecondaryButton>
+                    </template>
                     <SecondaryButton
-                        :disabled="testingExtraction || currentStep < 3"
+                        v-else
+                        :disabled="testingExtraction || currentStep < 2"
                         type="button"
-                        @click="testExtraction"
+                        @click="testDetailExtraction"
                     >
-                        {{ testingExtraction ? t('app.job_sources.configurator.testing') : t('app.job_sources.configurator.test_extraction') }}
-                    </SecondaryButton>
-                    <SecondaryButton
-                        :disabled="testingFullFlow || currentStep < 3"
-                        type="button"
-                        @click="testFullFlow"
-                    >
-                        {{ testingFullFlow ? t('app.job_sources.configurator.testing_full_flow') : t('app.job_sources.configurator.test_full_flow') }}
+                        {{ testingExtraction ? t('app.job_sources.configurator.testing') : t('app.job_sources.configurator.test_detail_extraction') }}
                     </SecondaryButton>
                     <PrimaryButton
-                        :disabled="saving || currentStep < 3"
+                        :disabled="saving || (isListingTab && currentStep < 3)"
                         type="button"
                         @click="saveConfiguration"
                     >
@@ -1560,7 +2025,7 @@ onUnmounted(() => {
 
                     <div class="relative mt-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
                         <div
-                            v-if="!previewLoaded"
+                            v-if="!activePreviewLoaded"
                             class="absolute inset-0 z-10 flex items-center justify-center bg-gray-50 px-6 text-center dark:bg-gray-900/80"
                         >
                             <div>
@@ -1585,7 +2050,7 @@ onUnmounted(() => {
         </div>
 
         <div
-            v-if="testResults.length"
+            v-if="isListingTab && testResults.length"
             class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
         >
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">

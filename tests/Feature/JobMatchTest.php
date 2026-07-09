@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\JobMatchStatus;
+use App\Jobs\EnrichJobListingDetailJob;
 use App\Jobs\EvaluateJobMatchJob;
 use App\Jobs\MatchNewListingsJob;
 use App\Models\JobListing;
@@ -11,6 +12,7 @@ use App\Models\JobSource;
 use App\Models\User;
 use App\Models\UserJobProfile;
 use App\Models\UserJobSourceSubscription;
+use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchEvaluator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -89,7 +91,10 @@ class JobMatchTest extends TestCase
             'is_active' => true,
         ]);
 
-        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(app(JobMatchEvaluator::class));
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobListingDetailEnrichmentService::class),
+        );
 
         $this->assertDatabaseHas('job_matches', [
             'user_id' => $user->id,
@@ -118,7 +123,66 @@ class JobMatchTest extends TestCase
             'job_alerts_enabled' => true,
         ]);
 
-        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(app(JobMatchEvaluator::class));
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobListingDetailEnrichmentService::class),
+        );
+
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+    }
+
+    public function test_evaluate_job_defers_match_when_detail_enrichment_pending(): void
+    {
+        Queue::fake();
+
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+            'job_match.detail_fetch_min_score' => 60,
+        ]);
+
+        $this->fakeMistralResponse(82, 'Promising title match.');
+
+        $user = User::factory()->create();
+        $source = JobSource::factory()->create([
+            'is_active' => true,
+            'extraction_config' => array_merge(JobSource::defaultExtractionConfig(), [
+                'detail' => array_merge(JobSource::defaultDetailConfig(), [
+                    'enabled' => true,
+                    'fields' => [
+                        'description' => [
+                            'selector' => 'div.body',
+                            'scope' => 'document',
+                            'extract' => 'text',
+                        ],
+                    ],
+                ]),
+            ]),
+        ]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'description' => null,
+            'detail_enriched_at' => null,
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'PHP developer',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobListingDetailEnrichmentService::class),
+        );
+
+        Queue::assertPushed(EnrichJobListingDetailJob::class, function (EnrichJobListingDetailJob $job) use ($listing): bool {
+            return $job->listingId === $listing->id;
+        });
 
         $this->assertDatabaseMissing('job_matches', [
             'user_id' => $user->id,

@@ -5,6 +5,8 @@ return [
 
     'description_max_chars' => (int) env('JOB_MATCH_DESCRIPTION_MAX_CHARS', 800),
 
+    'detail_fetch_min_score' => (int) env('JOB_MATCH_DETAIL_FETCH_MIN_SCORE', 60),
+
     'mistral' => [
         'api_key' => env('MISTRAL_API_KEY'),
         'model' => env('MISTRAL_MODEL', 'ministral-3b-latest'),

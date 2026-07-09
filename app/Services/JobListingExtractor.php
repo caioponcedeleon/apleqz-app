@@ -120,6 +120,29 @@ class JobListingExtractor
         return $listings;
     }
 
+    /**
+     * @param  array<string, mixed>  $fields
+     * @return array<string, string|null>
+     */
+    public function extractDetail(string $html, array $fields, string $baseUrl): array
+    {
+        if ($fields === []) {
+            return [];
+        }
+
+        $document = $this->loadHtml($html);
+        $root = $document->documentElement;
+
+        if (! $root instanceof DOMElement) {
+            return [];
+        }
+
+        $xpath = new DOMXPath($document);
+        $converter = new CssSelectorConverter;
+
+        return $this->extractFields($root, $fields, $xpath, $converter, $baseUrl);
+    }
+
     protected function loadHtml(string $html): DOMDocument
     {
         $document = new DOMDocument;

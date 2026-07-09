@@ -24,6 +24,7 @@ class JobListing extends Model
         'description',
         'raw_fields',
         'content_hash',
+        'detail_enriched_at',
         'first_seen_at',
         'last_seen_at',
     ];
@@ -32,6 +33,7 @@ class JobListing extends Model
     {
         return [
             'raw_fields' => 'array',
+            'detail_enriched_at' => 'datetime',
             'first_seen_at' => 'datetime',
             'last_seen_at' => 'datetime',
         ];

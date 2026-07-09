@@ -19,6 +19,18 @@ defineProps({
     interactions: { type: Array, default: () => [] },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
+    detail: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            sample_url: '',
+            fetch_min_score: 60,
+            engine: 'inherit',
+            interactions: [],
+            fields: {},
+        }),
+    },
+    detailFieldOptions: { type: Object, required: true },
 });
 
 const { t } = useI18n();
@@ -69,6 +81,8 @@ const page = usePage();
                     :interactions="interactions"
                     :field-options="fieldOptions"
                     :required-fields="requiredFields"
+                    :detail="detail"
+                    :detail-field-options="detailFieldOptions"
                 />
             </div>
         </div>

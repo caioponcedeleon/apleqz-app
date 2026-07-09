@@ -89,6 +89,36 @@ class JobExtractionConfigValidator
             }
         }
 
+        $detail = $config['detail'] ?? null;
+
+        if ($detail !== null && ! is_array($detail)) {
+            $errors['extraction_config'] ??= 'The extraction config "detail" must be an object.';
+        }
+
+        if (is_array($detail) && ($detail['enabled'] ?? false)) {
+            $fields = $detail['fields'] ?? [];
+
+            if (! is_array($fields) || $fields === []) {
+                $errors['extraction_config'] ??= 'Detail page enrichment requires at least one mapped field.';
+            }
+
+            $fetchMinScore = $detail['fetch_min_score'] ?? null;
+
+            if (! is_int($fetchMinScore) || $fetchMinScore < 0 || $fetchMinScore > 100) {
+                $errors['extraction_config'] ??= 'Detail fetch_min_score must be an integer between 0 and 100.';
+            }
+
+            $detailEngine = $detail['engine'] ?? 'inherit';
+
+            if (! is_string($detailEngine) || ! in_array($detailEngine, ['inherit', ...JobExtractionEngine::values()], true)) {
+                $errors['extraction_config'] ??= 'Detail engine must be "inherit", "http", or "playwright".';
+            }
+
+            if ($isActive && ! isset($fields['description'])) {
+                $errors['extraction_config'] ??= 'Active sources with detail enrichment require a description field mapping.';
+            }
+        }
+
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }

@@ -23,7 +23,7 @@ class JobListingUpserter
             $existing = $this->findExisting($source, $listing);
 
             if ($existing) {
-                $existing->update([
+                $updates = [
                     'external_id' => $listing['external_id'],
                     'title' => $listing['title'],
                     'url' => $listing['url'],
@@ -35,7 +35,25 @@ class JobListingUpserter
                     'raw_fields' => $listing['raw_fields'],
                     'content_hash' => $listing['content_hash'],
                     'last_seen_at' => $seenAt,
-                ]);
+                ];
+
+                if ($existing->detail_enriched_at !== null) {
+                    if ($existing->description) {
+                        $updates['description'] = $existing->description;
+                    }
+
+                    $updates['content_hash'] = hash(
+                        'sha256',
+                        $listing['title'].($updates['description'] ?? ''),
+                    );
+
+                    $updates['raw_fields'] = array_merge(
+                        is_array($listing['raw_fields']) ? $listing['raw_fields'] : [],
+                        is_array($existing->raw_fields) ? $existing->raw_fields : [],
+                    );
+                }
+
+                $existing->update($updates);
             } else {
                 $created = JobListing::query()->create([
                     'job_source_id' => $source->id,

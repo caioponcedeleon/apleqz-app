@@ -57,6 +57,8 @@ class JobSourceConfiguratorController extends Controller
                 : [],
             'fieldOptions' => $this->fieldOptions(),
             'requiredFields' => JobListingField::requiredValues(),
+            'detail' => $this->detailProps($config['detail'] ?? null),
+            'detailFieldOptions' => $this->detailFieldOptions(),
         ]);
     }
 
@@ -77,6 +79,13 @@ class JobSourceConfiguratorController extends Controller
             'pagination.max_pages' => ['nullable', 'integer', 'min:1', 'max:50'],
             'engine' => ['nullable', 'string', 'in:http,playwright'],
             'interactions' => ['nullable', 'array'],
+            'detail' => ['nullable', 'array'],
+            'detail.enabled' => ['nullable', 'boolean'],
+            'detail.sample_url' => ['nullable', 'url', 'max:2048'],
+            'detail.fetch_min_score' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'detail.engine' => ['nullable', 'string', 'in:inherit,http,playwright'],
+            'detail.interactions' => ['nullable', 'array'],
+            'detail.fields' => ['nullable', 'array'],
         ]);
 
         $itemMode = $validated['item_mode'];
@@ -112,6 +121,7 @@ class JobSourceConfiguratorController extends Controller
             'fields' => $validated['fields'] ?? [],
         ];
         $config['pagination'] = $this->normalizePagination($validated['pagination'] ?? null);
+        $config['detail'] = $this->normalizeDetail($validated['detail'] ?? null);
 
         $validator->validate($config, (bool) $jobSource->is_active);
 
@@ -179,8 +189,10 @@ class JobSourceConfiguratorController extends Controller
             'item_group' => ['nullable', 'array'],
             'item_group.parts' => ['nullable', 'array'],
             'fields' => ['nullable', 'array'],
+            'extraction_type' => ['nullable', 'string', 'in:listing,detail'],
         ]);
 
+        $extractionType = $validated['extraction_type'] ?? 'listing';
         $html = $validated['html'] ?? null;
 
         if ($html === null) {
@@ -197,6 +209,20 @@ class JobSourceConfiguratorController extends Controller
                 : $fetcher->fetch($pageUrl);
 
             $html = $sanitizer->sanitize($html, $validated['base_url']);
+        }
+
+        if ($extractionType === 'detail') {
+            $fields = is_array($validated['fields'] ?? null) ? $validated['fields'] : [];
+            $rawFields = $extractor->extractDetail($html, $fields, $validated['base_url']);
+            $fieldKeys = array_keys($fields);
+
+            return response()->json([
+                'listings' => [[
+                    'fields' => $this->detailFieldsForPreview($rawFields, $fieldKeys),
+                ]],
+                'count' => 1,
+                'item_match_count' => null,
+            ]);
         }
 
         $config = [
@@ -414,5 +440,90 @@ class JobSourceConfiguratorController extends Controller
             'max_pages' => max(1, min(50, (int) ($pagination['max_pages'] ?? 10))),
             'stop_when_empty' => true,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function detailProps(mixed $detail): array
+    {
+        $defaults = JobSource::defaultDetailConfig();
+
+        if (! is_array($detail)) {
+            return $defaults;
+        }
+
+        return [
+            'enabled' => (bool) ($detail['enabled'] ?? false),
+            'sample_url' => is_string($detail['sample_url'] ?? null) ? $detail['sample_url'] : '',
+            'fetch_min_score' => is_int($detail['fetch_min_score'] ?? null)
+                ? $detail['fetch_min_score']
+                : $defaults['fetch_min_score'],
+            'engine' => is_string($detail['engine'] ?? null) ? $detail['engine'] : 'inherit',
+            'interactions' => is_array($detail['interactions'] ?? null) ? $detail['interactions'] : [],
+            'fields' => is_array($detail['fields'] ?? null) ? $detail['fields'] : [],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $detail
+     * @return array<string, mixed>
+     */
+    protected function normalizeDetail(?array $detail): array
+    {
+        $defaults = JobSource::defaultDetailConfig();
+
+        if (! is_array($detail)) {
+            return $defaults;
+        }
+
+        $enabled = (bool) ($detail['enabled'] ?? false);
+        $sampleUrl = is_string($detail['sample_url'] ?? null) && trim($detail['sample_url']) !== ''
+            ? trim($detail['sample_url'])
+            : null;
+
+        return [
+            'enabled' => $enabled,
+            'sample_url' => $sampleUrl,
+            'fetch_min_score' => max(0, min(100, (int) ($detail['fetch_min_score'] ?? $defaults['fetch_min_score']))),
+            'engine' => is_string($detail['engine'] ?? null) && in_array($detail['engine'], ['inherit', ...JobExtractionEngine::values()], true)
+                ? $detail['engine']
+                : 'inherit',
+            'interactions' => is_array($detail['interactions'] ?? null) ? $detail['interactions'] : [],
+            'fields' => is_array($detail['fields'] ?? null) ? $detail['fields'] : [],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function detailFieldOptions(): array
+    {
+        $skip = [JobListingField::JobTitle->value, JobListingField::Url->value];
+
+        return collect(JobListingField::cases())
+            ->reject(fn (JobListingField $field): bool => in_array($field->value, $skip, true))
+            ->mapWithKeys(fn (JobListingField $field): array => [
+                $field->value => $this->fieldLabel($field->value),
+            ])
+            ->put('__custom__', __('app.job_sources.fields.custom'))
+            ->all();
+    }
+
+    /**
+     * @param  array<string, string|null>  $rawFields
+     * @param  list<string>  $fieldKeys
+     * @return array<string, string|null>
+     */
+    protected function detailFieldsForPreview(array $rawFields, array $fieldKeys): array
+    {
+        $preview = [];
+
+        foreach ($fieldKeys as $fieldKey) {
+            $value = $rawFields[$fieldKey] ?? null;
+            $preview[$fieldKey] = is_string($value) && trim($value) !== '' ? $value : null;
+        }
+
+        return $preview;
     }
 }

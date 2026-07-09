@@ -485,6 +485,18 @@
             return;
         }
 
+        if (pickerMode === 'detail_field') {
+            var detailSelector = buildPathSelector(target, document.documentElement);
+
+            postToParent({
+                mode: 'detail_field',
+                selector: detailSelector,
+                tagName: target.tagName,
+            });
+
+            return;
+        }
+
         if (pickerMode === 'item') {
             var candidates = buildItemCandidates(target);
 

@@ -63,8 +63,23 @@ class JobSource extends Model
                 'item_selector' => '',
                 'fields' => [],
             ],
-            'detail' => null,
+            'detail' => self::defaultDetailConfig(),
             'pagination' => ['type' => 'none'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function defaultDetailConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'sample_url' => null,
+            'fetch_min_score' => (int) config('job_match.detail_fetch_min_score', 60),
+            'engine' => 'inherit',
+            'interactions' => [],
+            'fields' => [],
         ];
     }
 
