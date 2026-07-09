@@ -11,7 +11,13 @@ const props = defineProps({
     jobSource: { type: Object, required: true },
     previewUrl: { type: String, required: true },
     itemSelector: { type: String, default: '' },
+    itemMode: { type: String, default: 'single' },
+    itemGroup: { type: Array, default: () => [] },
     fieldMappings: { type: Object, default: () => ({}) },
+    pagination: {
+        type: Object,
+        default: () => ({ type: 'none', param: 'page', max_pages: 10 }),
+    },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
 });
@@ -20,7 +26,20 @@ const { t } = useI18n();
 
 const previewUrl = ref(props.previewUrl);
 const itemSelector = ref(props.itemSelector);
+const itemMode = ref(props.itemMode === 'group' ? 'group' : 'single');
+const itemGroupParts = ref(
+    Array.isArray(props.itemGroup)
+        ? props.itemGroup.map((part) => ({
+            selector: part.selector || '',
+            matchCount: part.match_count ?? part.matchCount ?? null,
+        }))
+        : [],
+);
+const itemGroupBuilding = ref(false);
 const fieldMappings = ref({ ...props.fieldMappings });
+const paginationType = ref(props.pagination?.type === 'query_param' ? 'query_param' : 'none');
+const paginationParam = ref(props.pagination?.param || 'page');
+const paginationMaxPages = ref(props.pagination?.max_pages || 10);
 const cachedHtml = ref(null);
 const testResults = ref([]);
 const itemMatchCount = ref(null);
@@ -33,6 +52,69 @@ const errorMessage = ref('');
 const successMessage = ref('');
 
 const pendingSelection = ref(null);
+
+const activePendingCandidate = computed(() => {
+    if (!pendingSelection.value || pendingSelection.value.type !== 'item') {
+        return null;
+    }
+
+    const candidates = pendingSelection.value.candidates || [];
+    const index = pendingSelection.value.candidateIndex ?? 0;
+
+    if (candidates.length > 0) {
+        return candidates[Math.min(index, candidates.length - 1)];
+    }
+
+    if (pendingSelection.value.selector) {
+        return {
+            selector: pendingSelection.value.selector,
+            matchCount: pendingSelection.value.matchCount || 0,
+        };
+    }
+
+    return null;
+});
+
+const canUseParentElement = computed(() => {
+    if (!pendingSelection.value || pendingSelection.value.type !== 'item') {
+        return false;
+    }
+
+    const candidates = pendingSelection.value.candidates || [];
+    const index = pendingSelection.value.candidateIndex ?? 0;
+
+    return index < candidates.length - 1;
+});
+
+const groupPartMatchCounts = computed(() =>
+    itemGroupParts.value.map((part) => part.matchCount ?? 0),
+);
+
+const groupMatchCount = computed(() => {
+    if (itemGroupParts.value.length === 0) {
+        return 0;
+    }
+
+    return Math.min(...groupPartMatchCounts.value);
+});
+
+const groupPartCountMismatch = computed(() => {
+    const counts = groupPartMatchCounts.value;
+
+    if (counts.length <= 1) {
+        return false;
+    }
+
+    return new Set(counts).size > 1;
+});
+
+const hasListItemConfigured = computed(() => {
+    if (itemMode.value === 'group') {
+        return itemGroupParts.value.length >= 2;
+    }
+
+    return itemSelector.value.trim() !== '';
+});
 const selectedField = ref('');
 const customFieldLabel = ref('');
 
@@ -82,7 +164,7 @@ const currentStep = computed(() => {
         return 1;
     }
 
-    if (!itemSelector.value) {
+    if (!hasListItemConfigured.value) {
         return 2;
     }
 
@@ -127,6 +209,13 @@ const hasGenericItemSelector = computed(() => {
 });
 
 const configurationWarning = computed(() => {
+    if (groupPartCountMismatch.value && itemMode.value === 'group') {
+        return t('app.job_sources.configurator.item_group_count_mismatch', {
+            counts: groupPartMatchCounts.value.join(', '),
+            count: groupMatchCount.value,
+        });
+    }
+
     if (hasGenericItemSelector.value) {
         return t('app.job_sources.configurator.item_selector_generic_warning');
     }
@@ -149,7 +238,29 @@ const configurationWarning = computed(() => {
     return '';
 });
 
-const pickerMode = computed(() => (currentStep.value === 2 ? 'item' : 'field'));
+const pickerMode = computed(() => {
+    if (itemGroupBuilding.value) {
+        return 'item_group_part';
+    }
+
+    if (currentStep.value === 2) {
+        return 'item';
+    }
+
+    return 'field';
+});
+
+const pickerInteractive = computed(() => {
+    if (!previewLoaded.value) {
+        return false;
+    }
+
+    if (itemGroupBuilding.value) {
+        return true;
+    }
+
+    return !pendingSelection.value;
+});
 
 const stepPrompt = computed(() => {
     if (currentStep.value === 1) {
@@ -157,6 +268,10 @@ const stepPrompt = computed(() => {
     }
 
     if (currentStep.value === 2) {
+        if (itemGroupBuilding.value) {
+            return t('app.job_sources.configurator.step_group_build_prompt');
+        }
+
         return t('app.job_sources.configurator.step_item_prompt');
     }
 
@@ -171,8 +286,10 @@ const sendPickerConfig = () => {
     previewFrame.value?.contentWindow?.postMessage({
         type: 'job-source-picker-config',
         mode: pickerMode.value,
-        itemSelector: itemSelector.value,
-        enabled: previewLoaded.value && !pendingSelection.value,
+        itemSelector: itemMode.value === 'single' ? itemSelector.value : '',
+        itemMode: itemMode.value,
+        itemGroupParts: itemGroupParts.value.map((part) => part.selector),
+        enabled: pickerInteractive.value,
     }, '*');
 };
 
@@ -180,6 +297,24 @@ const clearPendingSelection = () => {
     pendingSelection.value = null;
     selectedField.value = '';
     customFieldLabel.value = '';
+    sendPickerConfig();
+};
+
+const cancelGroupBuilding = () => {
+    itemGroupBuilding.value = false;
+    itemGroupParts.value = [];
+    itemMode.value = 'single';
+    clearPendingSelection();
+};
+
+const removeGroupPart = (index) => {
+    itemGroupParts.value = itemGroupParts.value.filter((_, partIndex) => partIndex !== index);
+
+    if (itemGroupParts.value.length === 0) {
+        itemGroupBuilding.value = false;
+        itemMode.value = 'single';
+    }
+
     sendPickerConfig();
 };
 
@@ -198,12 +333,44 @@ const handlePickerMessage = (event) => {
         return;
     }
 
+    if (itemGroupBuilding.value && event.data.mode === 'group_part') {
+        const selector = (event.data.selector || '').trim();
+
+        if (!selector) {
+            return;
+        }
+
+        if (itemGroupParts.value.some((part) => part.selector === selector)) {
+            errorMessage.value = t('app.job_sources.configurator.item_group_duplicate_part');
+            return;
+        }
+
+        itemGroupParts.value = [
+            ...itemGroupParts.value,
+            {
+                selector,
+                matchCount: event.data.matchCount || 0,
+            },
+        ];
+        errorMessage.value = '';
+        successMessage.value = t('app.job_sources.configurator.item_group_part_added', {
+            count: itemGroupParts.value.length,
+        });
+        sendPickerConfig();
+
+        return;
+    }
+
     if (currentStep.value === 2 && event.data.mode === 'item') {
+        const candidates = Array.isArray(event.data.candidates) ? event.data.candidates : [];
+
         pendingSelection.value = {
             type: 'item',
-            selector,
+            selector: event.data.selector || '',
             tagName: event.data.tagName || '',
             matchCount: event.data.matchCount || 0,
+            candidates,
+            candidateIndex: 0,
         };
         sendPickerConfig();
         return;
@@ -226,12 +393,70 @@ const confirmItemSelection = () => {
         return;
     }
 
-    const matchCount = pendingSelection.value.matchCount || 0;
-    itemSelector.value = pendingSelection.value.selector;
+    const candidate = activePendingCandidate.value;
+
+    if (!candidate?.selector) {
+        return;
+    }
+
+    itemMode.value = 'single';
+    itemGroupParts.value = [];
+    itemGroupBuilding.value = false;
+    itemSelector.value = candidate.selector;
     pendingSelection.value = null;
-    successMessage.value = t('app.job_sources.configurator.item_selector_set', { count: matchCount });
+    successMessage.value = t('app.job_sources.configurator.item_selector_set', { count: candidate.matchCount || 0 });
     errorMessage.value = '';
     sendPickerConfig();
+};
+
+const startGroupFromPending = () => {
+    const candidate = activePendingCandidate.value;
+
+    if (!candidate?.selector) {
+        return;
+    }
+
+    itemMode.value = 'group';
+    itemGroupBuilding.value = true;
+    itemSelector.value = '';
+    itemGroupParts.value = [{
+        selector: candidate.selector,
+        matchCount: candidate.matchCount || 0,
+    }];
+    pendingSelection.value = null;
+    errorMessage.value = '';
+    successMessage.value = t('app.job_sources.configurator.item_group_started');
+    sendPickerConfig();
+};
+
+const finishGroupSelection = () => {
+    if (itemGroupParts.value.length < 2) {
+        errorMessage.value = t('app.job_sources.configurator.item_group_min_parts');
+
+        return;
+    }
+
+    itemGroupBuilding.value = false;
+    itemMode.value = 'group';
+    itemSelector.value = '';
+    pendingSelection.value = null;
+    successMessage.value = t('app.job_sources.configurator.item_group_set', {
+        count: groupMatchCount.value,
+        parts: itemGroupParts.value.length,
+    });
+    errorMessage.value = '';
+    sendPickerConfig();
+};
+
+const useParentElement = () => {
+    if (!canUseParentElement.value || !pendingSelection.value) {
+        return;
+    }
+
+    pendingSelection.value = {
+        ...pendingSelection.value,
+        candidateIndex: (pendingSelection.value.candidateIndex ?? 0) + 1,
+    };
 };
 
 const assignFieldSelection = () => {
@@ -292,6 +517,7 @@ const loadPreview = async () => {
     errorMessage.value = '';
     successMessage.value = '';
     clearPendingSelection();
+    itemGroupBuilding.value = false;
     testResults.value = [];
     itemMatchCount.value = null;
 
@@ -319,8 +545,13 @@ const loadPreview = async () => {
 };
 
 const testExtraction = async () => {
-    if (!itemSelector.value.trim()) {
+    if (!itemSelector.value.trim() && itemMode.value === 'single') {
         errorMessage.value = t('app.job_sources.configurator.item_selector_required');
+        return;
+    }
+
+    if (itemMode.value === 'group' && itemGroupParts.value.length < 2) {
+        errorMessage.value = t('app.job_sources.configurator.item_group_min_parts');
         return;
     }
 
@@ -338,7 +569,9 @@ const testExtraction = async () => {
             html: cachedHtml.value,
             base_url: previewUrl.value,
             company_name: props.jobSource.company_name,
-            item_selector: itemSelector.value,
+            item_mode: itemMode.value,
+            item_selector: itemMode.value === 'single' ? itemSelector.value : '',
+            item_group: itemMode.value === 'group' ? { parts: itemGroupParts.value } : null,
             fields: fieldMappings.value,
         });
 
@@ -364,6 +597,9 @@ const removeFieldMapping = (field) => {
 
 const resetItemSelector = () => {
     itemSelector.value = '';
+    itemMode.value = 'single';
+    itemGroupParts.value = [];
+    itemGroupBuilding.value = false;
     clearPendingSelection();
 };
 
@@ -379,8 +615,15 @@ const saveConfiguration = () => {
 
     router.patch(route('job-sources.extraction-config.update', props.jobSource.id), {
         preview_url: previewUrl.value,
-        item_selector: itemSelector.value,
+        item_mode: itemMode.value,
+        item_selector: itemMode.value === 'single' ? itemSelector.value : '',
+        item_group: itemMode.value === 'group' ? { parts: itemGroupParts.value } : null,
         fields: fieldMappings.value,
+        pagination: {
+            type: paginationType.value,
+            param: paginationParam.value,
+            max_pages: paginationMaxPages.value,
+        },
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -396,8 +639,11 @@ const saveConfiguration = () => {
 };
 
 watch(itemSelector, sendPickerConfig);
+watch(itemMode, sendPickerConfig);
+watch(itemGroupParts, sendPickerConfig, { deep: true });
 watch(currentStep, sendPickerConfig);
 watch(previewLoaded, sendPickerConfig);
+watch(itemGroupBuilding, sendPickerConfig);
 
 onMounted(() => {
     window.addEventListener('message', handlePickerMessage);
@@ -489,17 +735,92 @@ onUnmounted(() => {
                         {{ t('app.job_sources.configurator.confirm_item_title') }}
                     </h3>
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        {{ t('app.job_sources.configurator.confirm_item_help', { count: pendingSelection.matchCount || 0 }) }}
+                        {{ t('app.job_sources.configurator.confirm_item_help', { count: activePendingCandidate?.matchCount || 0 }) }}
+                    </p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.confirm_item_parent_help') }}
                     </p>
                     <p class="mt-3 break-all rounded-lg bg-white/80 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
-                        {{ pendingSelection.selector }}
+                        {{ activePendingCandidate?.selector || '—' }}
                     </p>
                     <div class="mt-4 flex flex-wrap gap-3">
                         <PrimaryButton type="button" @click="confirmItemSelection">
                             {{ t('app.job_sources.configurator.use_as_list_item') }}
                         </PrimaryButton>
+                        <SecondaryButton
+                            type="button"
+                            :disabled="!canUseParentElement"
+                            @click="useParentElement"
+                        >
+                            {{ t('app.job_sources.configurator.use_parent_element') }}
+                        </SecondaryButton>
+                        <SecondaryButton type="button" @click="startGroupFromPending">
+                            {{ t('app.job_sources.configurator.add_to_group') }}
+                        </SecondaryButton>
                         <SecondaryButton type="button" @click="clearPendingSelection">
                             {{ t('app.job_sources.configurator.pick_again') }}
+                        </SecondaryButton>
+                    </div>
+                </div>
+
+                <div
+                    v-else-if="itemGroupBuilding"
+                    class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20"
+                >
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.item_group_building_title') }}
+                    </h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {{ t('app.job_sources.configurator.item_group_building_help') }}
+                    </p>
+                    <p class="mt-2 text-sm font-medium text-gray-800 dark:text-gray-100">
+                        {{ t('app.job_sources.configurator.item_group_match_count', { count: groupMatchCount }) }}
+                    </p>
+                    <p
+                        v-if="groupPartCountMismatch"
+                        class="mt-2 text-sm text-amber-800 dark:text-amber-200"
+                    >
+                        {{ t('app.job_sources.configurator.item_group_count_mismatch', {
+                            counts: groupPartMatchCounts.join(', '),
+                            count: groupMatchCount,
+                        }) }}
+                    </p>
+                    <ul class="mt-4 space-y-2">
+                        <li
+                            v-for="(part, index) in itemGroupParts"
+                            :key="`${part.selector}-${index}`"
+                            class="rounded-lg border border-amber-100 bg-white/80 p-3 dark:border-amber-900/40 dark:bg-gray-900/40"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        {{ t('app.job_sources.configurator.item_group_part_label', { index: index + 1 }) }}
+                                        · {{ part.matchCount ?? 0 }}
+                                    </p>
+                                    <p class="mt-1 break-all font-mono text-xs text-gray-700 dark:text-gray-300">
+                                        {{ part.selector }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="text-xs text-red-600 hover:underline"
+                                    @click="removeGroupPart(index)"
+                                >
+                                    {{ t('app.job_sources.configurator.remove') }}
+                                </button>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <PrimaryButton
+                            type="button"
+                            :disabled="itemGroupParts.length < 2"
+                            @click="finishGroupSelection"
+                        >
+                            {{ t('app.job_sources.configurator.finish_group') }}
+                        </PrimaryButton>
+                        <SecondaryButton type="button" @click="cancelGroupBuilding">
+                            {{ t('app.job_sources.configurator.cancel_group') }}
                         </SecondaryButton>
                     </div>
                 </div>
@@ -553,10 +874,12 @@ onUnmounted(() => {
                 <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div class="flex items-start justify-between gap-3">
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                            {{ t('app.job_sources.configurator.item_selector') }}
+                            {{ itemMode === 'group'
+                                ? t('app.job_sources.configurator.item_group_heading')
+                                : t('app.job_sources.configurator.item_selector') }}
                         </h3>
                         <button
-                            v-if="itemSelector"
+                            v-if="hasListItemConfigured"
                             type="button"
                             class="text-xs text-gray-500 hover:underline dark:text-gray-400"
                             @click="resetItemSelector"
@@ -564,9 +887,85 @@ onUnmounted(() => {
                             {{ t('app.job_sources.configurator.change_item') }}
                         </button>
                     </div>
-                    <p class="mt-2 break-all rounded-lg bg-gray-50 p-2 font-mono text-xs text-gray-600 dark:bg-gray-900/50 dark:text-gray-300">
-                        {{ itemSelector || '—' }}
+
+                    <template v-if="itemMode === 'group'">
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                            {{ t('app.job_sources.configurator.item_group_summary', {
+                                parts: itemGroupParts.length,
+                                count: groupMatchCount,
+                            }) }}
+                        </p>
+                        <ul class="mt-3 space-y-2">
+                            <li
+                                v-for="(part, index) in itemGroupParts"
+                                :key="`${part.selector}-${index}`"
+                                class="break-all rounded-lg bg-gray-50 p-2 font-mono text-xs text-gray-600 dark:bg-gray-900/50 dark:text-gray-300"
+                            >
+                                {{ part.selector }}
+                            </li>
+                        </ul>
+                    </template>
+                    <template v-else>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_sources.configurator.item_selector_edit_help') }}
+                        </p>
+                        <TextInput
+                            v-model="itemSelector"
+                            type="text"
+                            class="mt-3 block w-full font-mono text-xs"
+                            :placeholder="t('app.job_sources.configurator.item_selector_placeholder')"
+                        />
+                    </template>
+                </div>
+
+                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t('app.job_sources.configurator.pagination_heading') }}
+                    </h3>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.pagination_help') }}
                     </p>
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                {{ t('app.job_sources.configurator.pagination_type') }}
+                            </label>
+                            <ChipSelect
+                                v-model="paginationType"
+                                class="mt-2"
+                                :options="[
+                                    { value: 'none', label: t('app.job_sources.configurator.pagination_none') },
+                                    { value: 'query_param', label: t('app.job_sources.configurator.pagination_query_param') },
+                                ]"
+                                :aria-label="t('app.job_sources.configurator.pagination_type')"
+                            />
+                        </div>
+                        <div v-if="paginationType === 'query_param'" class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    {{ t('app.job_sources.configurator.pagination_param') }}
+                                </label>
+                                <TextInput
+                                    v-model="paginationParam"
+                                    type="text"
+                                    class="mt-2 block w-full font-mono text-xs"
+                                    placeholder="page"
+                                />
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    {{ t('app.job_sources.configurator.pagination_max_pages') }}
+                                </label>
+                                <TextInput
+                                    v-model.number="paginationMaxPages"
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    class="mt-2 block w-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">

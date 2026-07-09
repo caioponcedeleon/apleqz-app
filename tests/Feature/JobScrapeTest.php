@@ -232,4 +232,60 @@ class JobScrapeTest extends TestCase
 
         $this->assertSame(2, JobListing::query()->where('job_source_id', $source->id)->count());
     }
+
+    public function test_scrape_follows_query_param_pagination_until_empty_page(): void
+    {
+        Queue::fake();
+
+        $pageOne = <<<'HTML'
+<html><body>
+<article class="job-card"><h2><a href="/jobs/one">Job One</a></h2></article>
+<article class="job-card"><h2><a href="/jobs/two">Job Two</a></h2></article>
+</body></html>
+HTML;
+
+        $pageTwo = <<<'HTML'
+<html><body>
+<article class="job-card"><h2><a href="/jobs/three">Job Three</a></h2></article>
+</body></html>
+HTML;
+
+        Http::fake([
+            'https://example.com/jobs' => Http::response($pageOne, 200),
+            'https://example.com/jobs?page=2' => Http::response($pageTwo, 200),
+            'https://example.com/jobs?page=3' => Http::response('<html><body></body></html>', 200),
+        ]);
+
+        $listingConfig = [
+            'item_selector' => 'article.job-card',
+            'fields' => [
+                'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+            ],
+        ];
+
+        $source = JobSource::factory()->create([
+            'url' => 'https://example.com/jobs',
+            'extraction_config' => [
+                'version' => 1,
+                'engine' => JobExtractionEngine::Http->value,
+                'interactions' => [],
+                'pagination' => [
+                    'type' => 'query_param',
+                    'param' => 'page',
+                    'max_pages' => 5,
+                    'stop_when_empty' => true,
+                ],
+                'listing' => $listingConfig,
+            ],
+        ]);
+
+        $run = app(JobScrapeService::class)->scrape($source);
+
+        $this->assertSame(JobScrapeStatus::Success, $run->status);
+        $this->assertSame(3, $run->listings_found);
+        $this->assertSame(3, $run->listings_new);
+        $this->assertSame(3, $run->meta['pagination']['pages_scraped'] ?? null);
+        $this->assertDatabaseCount('job_listings', 3);
+    }
 }

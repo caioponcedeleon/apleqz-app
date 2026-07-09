@@ -7,6 +7,7 @@ use App\Enums\JobScrapeStatus;
 use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
 use App\Models\JobSourceScrapeRun;
+use App\Support\JobScrapePageUrlResolver;
 use App\Support\RobotsTxtGuard;
 use Throwable;
 
@@ -44,15 +45,44 @@ class JobScrapeService
                 $this->robotsGuard->assertAllowed($source->url);
             }
 
-            $html = $usePlaywright
-                ? $this->playwrightFetcher->fetch($source->url, $interactions)
-                : $this->fetcher->fetch($source->url);
-            $listings = $this->extractor->extract(
-                $html,
-                $config,
-                $source->url,
-                $source->company_name,
-            );
+            $pagination = is_array($config['pagination'] ?? null) ? $config['pagination'] : ['type' => 'none'];
+            $pageResolver = app(JobScrapePageUrlResolver::class);
+            $allListings = [];
+            $pagesScraped = 0;
+            $pageSummaries = [];
+
+            foreach ($pageResolver->pages($source->url, $pagination) as $page) {
+                $pageUrl = $page['url'];
+
+                $html = $usePlaywright
+                    ? $this->playwrightFetcher->fetch($pageUrl, $interactions)
+                    : $this->fetcher->fetch($pageUrl);
+
+                $pageListings = $this->extractor->extract(
+                    $html,
+                    $config,
+                    $pageUrl,
+                    $source->company_name,
+                );
+
+                $pagesScraped++;
+                $pageSummaries[] = [
+                    'page' => $page['page'],
+                    'found' => count($pageListings),
+                ];
+
+                if ($pageListings === [] && $pageResolver->shouldStopAfterEmptyPage($pagination, $pagesScraped)) {
+                    break;
+                }
+
+                array_push($allListings, ...$pageListings);
+
+                if (($pagination['type'] ?? 'none') === 'none') {
+                    break;
+                }
+            }
+
+            $listings = $allListings;
 
             $counts = $this->upserter->upsertMany($source, $listings, $startedAt);
             $status = $counts['found'] === 0
@@ -60,6 +90,14 @@ class JobScrapeService
                 : JobScrapeStatus::Success;
 
             $meta = ['engine' => $resolvedEngine->value];
+
+            if ($pagesScraped > 1 || ($pagination['type'] ?? 'none') !== 'none') {
+                $meta['pagination'] = [
+                    'type' => $pagination['type'] ?? 'none',
+                    'pages_scraped' => $pagesScraped,
+                    'pages' => $pageSummaries,
+                ];
+            }
 
             if ($counts['found'] === 0) {
                 $meta['warning'] = 'zero_listings';

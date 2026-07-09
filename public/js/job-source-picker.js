@@ -3,6 +3,8 @@
 
     var pickerMode = 'item';
     var itemSelector = '';
+    var itemMode = 'single';
+    var itemGroupParts = [];
     var highlightEl = null;
     var pickerEnabled = true;
 
@@ -77,6 +79,18 @@
         return tag;
     }
 
+    function selectorMatchCount(selector) {
+        if (!selector) {
+            return 0;
+        }
+
+        try {
+            return document.querySelectorAll(selector).length;
+        } catch (error) {
+            return 0;
+        }
+    }
+
     function buildPathSelector(element, stopAt) {
         var segments = [];
         var current = element;
@@ -116,7 +130,41 @@
         }).length;
     }
 
+    function tableRowSelector(element) {
+        if (!element || !element.closest) {
+            return null;
+        }
+
+        var row = element.closest('tr');
+
+        if (!row || !row.parentElement || row.parentElement.tagName !== 'TBODY') {
+            return null;
+        }
+
+        var table = row.closest('table');
+
+        if (!table) {
+            return 'tbody > tr';
+        }
+
+        var tableSelector = classOnlySelector(table);
+        var selector = tableSelector + ' tbody tr';
+        var count = selectorMatchCount(selector);
+
+        if (count >= 2) {
+            return selector;
+        }
+
+        return 'table tbody tr';
+    }
+
     function buildItemSelector(element) {
+        var tableSelector = tableRowSelector(element);
+
+        if (tableSelector && selectorMatchCount(tableSelector) >= 2) {
+            return tableSelector;
+        }
+
         var current = element;
 
         while (current && current.nodeType === 1 && current !== document.body) {
@@ -146,7 +194,147 @@
         return classOnlySelector(element) || simpleSelector(element);
     }
 
+    function buildItemCandidate(element) {
+        var tableSelector = tableRowSelector(element);
+
+        if (tableSelector) {
+            return {
+                selector: tableSelector,
+                matchCount: selectorMatchCount(tableSelector),
+            };
+        }
+
+        var selector = buildItemSelector(element);
+
+        return {
+            selector: selector,
+            matchCount: selectorMatchCount(selector),
+        };
+    }
+
+    function buildItemCandidates(element) {
+        var seen = {};
+        var candidates = [];
+        var current = element;
+
+        while (current && current.nodeType === 1 && current !== document.body) {
+            var candidate = buildItemCandidate(current);
+
+            if (candidate.selector && !seen[candidate.selector]) {
+                seen[candidate.selector] = true;
+                candidates.push(candidate);
+            }
+
+            current = current.parentElement;
+        }
+
+        return candidates;
+    }
+
+    function buildGroupPartSelector(element) {
+        var cell = element.closest('td, th');
+
+        if (cell) {
+            var row = cell.parentElement;
+
+            if (row && row.tagName === 'TR') {
+                var tbody = row.parentElement;
+
+                if (tbody && tbody.tagName === 'TBODY') {
+                    var table = row.closest('table');
+
+                    if (table) {
+                        var tableSelector = classOnlySelector(table);
+                        var index = Array.prototype.indexOf.call(row.children, cell) + 1;
+
+                        return tableSelector + ' tbody tr > td:nth-child(' + index + ')';
+                    }
+                }
+            }
+        }
+
+        return buildItemSelector(element);
+    }
+
+    function lowestCommonAncestor(nodes) {
+        if (!nodes || nodes.length === 0) {
+            return null;
+        }
+
+        if (nodes.length === 1) {
+            return nodes[0];
+        }
+
+        var ancestors = new Map();
+        var first = nodes[0];
+
+        for (var current = first; current && current.nodeType === 1; current = current.parentElement) {
+            ancestors.set(current, true);
+        }
+
+        for (var index = 1; index < nodes.length; index += 1) {
+            for (current = nodes[index]; current && current.nodeType === 1; current = current.parentElement) {
+                if (ancestors.has(current)) {
+                    return current;
+                }
+            }
+        }
+
+        return first;
+    }
+
+    function findGroupContainer(element) {
+        if (itemMode !== 'group' || itemGroupParts.length === 0) {
+            return null;
+        }
+
+        var partNodeLists = itemGroupParts.map(function (selector) {
+            try {
+                return Array.prototype.slice.call(document.querySelectorAll(selector));
+            } catch (error) {
+                return [];
+            }
+        });
+
+        var count = Math.min.apply(
+            null,
+            partNodeLists.map(function (list) {
+                return list.length;
+            }).concat([0]),
+        );
+
+        for (var groupIndex = 0; groupIndex < count; groupIndex += 1) {
+            var containsTarget = partNodeLists.some(function (list) {
+                return list[groupIndex] && list[groupIndex].contains(element);
+            });
+
+            if (! containsTarget) {
+                continue;
+            }
+
+            var nodes = partNodeLists.map(function (list) {
+                return list[groupIndex];
+            }).filter(Boolean);
+
+            var ancestor = lowestCommonAncestor(nodes);
+
+            if (ancestor instanceof Element) {
+                return ancestor;
+            }
+        }
+
+        return null;
+    }
+
     function findItemContainer(element) {
+        if (itemMode === 'group' && itemGroupParts.length > 0) {
+            var groupContainer = findGroupContainer(element);
+
+            if (groupContainer) {
+                return groupContainer;
+            }
+        }
+
         if (!itemSelector) {
             return element;
         }
@@ -198,6 +386,8 @@
 
         pickerMode = event.data.mode || 'item';
         itemSelector = event.data.itemSelector || '';
+        itemMode = event.data.itemMode || 'single';
+        itemGroupParts = Array.isArray(event.data.itemGroupParts) ? event.data.itemGroupParts : [];
         pickerEnabled = event.data.enabled !== false;
     });
 
@@ -233,19 +423,29 @@
             return;
         }
 
+        if (pickerMode === 'item_group_part') {
+            var partSelector = buildGroupPartSelector(target);
+
+            postToParent({
+                mode: 'group_part',
+                selector: partSelector,
+                matchCount: selectorMatchCount(partSelector),
+                tagName: target.tagName,
+            });
+
+            return;
+        }
+
         if (pickerMode === 'item') {
+            var candidates = buildItemCandidates(target);
+
             postToParent({
                 mode: 'item',
-                selector: buildItemSelector(target),
-                scope: 'document',
+                selector: candidates.length > 0 ? candidates[0].selector : '',
+                matchCount: candidates.length > 0 ? candidates[0].matchCount : 0,
+                candidates: candidates,
+                candidateIndex: 0,
                 tagName: target.tagName,
-                matchCount: (function () {
-                    try {
-                        return document.querySelectorAll(buildItemSelector(target)).length;
-                    } catch (error) {
-                        return 0;
-                    }
-                })(),
             });
 
             return;

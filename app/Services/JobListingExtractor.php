@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\JobListingGroupResolver;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -21,6 +22,24 @@ class JobListingExtractor
 
         if (! is_array($listingConfig)) {
             throw new RuntimeException('Extraction config is missing a listing section.');
+        }
+
+        $itemMode = is_string($listingConfig['item_mode'] ?? null)
+            ? $listingConfig['item_mode']
+            : 'single';
+        $itemGroup = is_array($listingConfig['item_group'] ?? null)
+            ? $listingConfig['item_group']
+            : null;
+        $groupParts = is_array($itemGroup['parts'] ?? null) ? $itemGroup['parts'] : [];
+
+        if ($itemMode === 'group' && $groupParts !== []) {
+            return $this->extractGroupedListings(
+                $html,
+                $groupParts,
+                $listingConfig,
+                $baseUrl,
+                $defaultCompany,
+            );
         }
 
         $itemSelector = $listingConfig['item_selector'] ?? '';
@@ -43,6 +62,47 @@ class JobListingExtractor
         $listings = [];
 
         foreach ($items as $item) {
+            if (! $item instanceof DOMElement) {
+                continue;
+            }
+
+            $rawFields = $this->extractFields($item, $fields, $xpath, $converter, $baseUrl);
+            $normalized = $this->normalizeListing($rawFields, $defaultCompany);
+
+            if ($normalized === null) {
+                continue;
+            }
+
+            $listings[] = $normalized;
+        }
+
+        return $listings;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $groupParts
+     * @param  array<string, mixed>  $listingConfig
+     * @return list<array<string, mixed>>
+     */
+    protected function extractGroupedListings(
+        string $html,
+        array $groupParts,
+        array $listingConfig,
+        string $baseUrl,
+        ?string $defaultCompany,
+    ): array {
+        $document = $this->loadHtml($html);
+        $xpath = new DOMXPath($document);
+        $converter = new CssSelectorConverter;
+        $resolver = app(JobListingGroupResolver::class);
+        $partNodeLists = $resolver->partNodeLists($xpath, $converter, $groupParts);
+        $groupCount = $resolver->groupCount($partNodeLists);
+        $fields = is_array($listingConfig['fields'] ?? null) ? $listingConfig['fields'] : [];
+        $listings = [];
+
+        for ($index = 0; $index < $groupCount; $index++) {
+            $item = $resolver->itemContainerAt($partNodeLists, $index);
+
             if (! $item instanceof DOMElement) {
                 continue;
             }

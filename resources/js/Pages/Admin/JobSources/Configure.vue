@@ -8,7 +8,13 @@ defineProps({
     jobSource: { type: Object, required: true },
     previewUrl: { type: String, required: true },
     itemSelector: { type: String, default: '' },
+    itemMode: { type: String, default: 'single' },
+    itemGroup: { type: Array, default: () => [] },
     fieldMappings: { type: Object, default: () => ({}) },
+    pagination: {
+        type: Object,
+        default: () => ({ type: 'none', param: 'page', max_pages: 10 }),
+    },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
 });
@@ -53,7 +59,10 @@ const page = usePage();
                     :job-source="jobSource"
                     :preview-url="previewUrl"
                     :item-selector="itemSelector"
+                    :item-mode="itemMode"
+                    :item-group="itemGroup"
                     :field-mappings="fieldMappings"
+                    :pagination="pagination"
                     :field-options="fieldOptions"
                     :required-fields="requiredFields"
                 />
