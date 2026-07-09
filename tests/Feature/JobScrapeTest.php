@@ -121,25 +121,73 @@ class JobScrapeTest extends TestCase
         $this->assertNotSame('legacy-id', $existing->fresh()->external_id);
     }
 
-    public function test_playwright_sources_fail_until_phase_d(): void
+    public function test_playwright_engine_scrapes_listings_via_node_bridge(): void
     {
+        Queue::fake();
+
+        config([
+            'job_scraping.playwright.script_path' => base_path('tests/fixtures/scripts/mock-scrape-page.mjs'),
+            'job_scraping.playwright.node_binary' => 'node',
+        ]);
+
         $source = JobSource::factory()->create([
             'url' => 'https://example.com/jobs',
+            'company_name' => 'Acme GmbH',
             'extraction_config' => [
-                ...JobSource::defaultExtractionConfig(),
+                'version' => 1,
                 'engine' => JobExtractionEngine::Playwright->value,
+                'interactions' => [
+                    ['type' => 'click', 'selector' => '#accept-cookies', 'optional' => true],
+                ],
                 'listing' => [
                     'item_selector' => 'article.job-card',
-                    'fields' => [],
+                    'fields' => [
+                        'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                        'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+                    ],
                 ],
             ],
         ]);
 
         $run = app(JobScrapeService::class)->scrape($source);
 
-        $this->assertSame(JobScrapeStatus::Failed, $run->status);
-        $this->assertStringContainsString('Playwright', $run->error_message ?? '');
-        $this->assertDatabaseCount('job_listings', 0);
+        $this->assertSame(JobScrapeStatus::Success, $run->status);
+        $this->assertSame(2, $run->listings_found);
+        $this->assertSame(2, $run->listings_new);
+        $this->assertSame(JobExtractionEngine::Playwright->value, $run->meta['engine'] ?? null);
+        $this->assertDatabaseCount('job_listings', 2);
+        Queue::assertPushed(MatchNewListingsJob::class);
+    }
+
+    public function test_http_source_with_interactions_uses_playwright_bridge(): void
+    {
+        config([
+            'job_scraping.playwright.script_path' => base_path('tests/fixtures/scripts/mock-scrape-page.mjs'),
+            'job_scraping.playwright.node_binary' => 'node',
+        ]);
+
+        $source = JobSource::factory()->create([
+            'url' => 'https://example.com/jobs',
+            'extraction_config' => [
+                'version' => 1,
+                'engine' => JobExtractionEngine::Http->value,
+                'interactions' => [
+                    ['type' => 'sleep', 'ms' => 100],
+                ],
+                'listing' => [
+                    'item_selector' => 'article.job-card',
+                    'fields' => [
+                        'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                        'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+                    ],
+                ],
+            ],
+        ]);
+
+        $run = app(JobScrapeService::class)->scrape($source);
+
+        $this->assertSame(JobScrapeStatus::Success, $run->status);
+        $this->assertSame(JobExtractionEngine::Playwright->value, $run->meta['engine'] ?? null);
     }
 
     public function test_scrape_sources_command_dispatches_jobs_for_active_sources(): void

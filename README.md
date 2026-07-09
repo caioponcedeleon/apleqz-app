@@ -18,7 +18,7 @@ Multi-user Laravel application to track job applications, statistics, and interv
 
 - PHP 8.2+
 - Composer
-- Node.js 20+ (build assets only)
+- Node.js 20+ (build assets; Playwright scraping when using job interactions)
 - PostgreSQL 14+
 
 ## Local setup
@@ -50,6 +50,16 @@ php artisan serve
 ```
 
 Visit `http://localhost:8000`.
+
+### Playwright job scraping (optional)
+
+Sources that need cookies, JavaScript rendering, or “load more” clicks use a Node + Playwright bridge (`scripts/scrape-page.mjs`). After `npm install`, install Chromium once:
+
+```bash
+npx playwright install chromium
+```
+
+Set `engine` to `playwright` or add `interactions` in a job source’s extraction config. Tune timeouts via `JOB_SCRAPE_PLAYWRIGHT_TIMEOUT` in `.env`.
 
 ### Default accounts (after seeding)
 

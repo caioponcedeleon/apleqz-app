@@ -8,13 +8,13 @@ use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
 use App\Models\JobSourceScrapeRun;
 use App\Support\RobotsTxtGuard;
-use RuntimeException;
 use Throwable;
 
 class JobScrapeService
 {
     public function __construct(
         protected JobSourceFetcher $fetcher,
+        protected PlaywrightPageFetcher $playwrightFetcher,
         protected JobListingExtractor $extractor,
         protected JobListingUpserter $upserter,
         protected RobotsTxtGuard $robotsGuard,
@@ -31,22 +31,22 @@ class JobScrapeService
             'listings_new' => 0,
         ]);
 
+        $config = $source->extraction_config ?? [];
+        $engine = $config['engine'] ?? JobExtractionEngine::Http->value;
+        $interactions = is_array($config['interactions'] ?? null) ? $config['interactions'] : [];
+        $usePlaywright = $engine === JobExtractionEngine::Playwright->value || $interactions !== [];
+        $resolvedEngine = $usePlaywright
+            ? JobExtractionEngine::Playwright
+            : JobExtractionEngine::Http;
+
         try {
-            $config = $source->extraction_config ?? [];
-            $engine = $config['engine'] ?? JobExtractionEngine::Http->value;
-            $interactions = $config['interactions'] ?? [];
-
-            if ($engine === JobExtractionEngine::Playwright->value || $interactions !== []) {
-                throw new RuntimeException(
-                    'Playwright scraping is not available yet. Use engine "http" with no interactions for Phase B.',
-                );
-            }
-
             if ($config['respect_robots'] ?? false) {
                 $this->robotsGuard->assertAllowed($source->url);
             }
 
-            $html = $this->fetcher->fetch($source->url);
+            $html = $usePlaywright
+                ? $this->playwrightFetcher->fetch($source->url, $interactions)
+                : $this->fetcher->fetch($source->url);
             $listings = $this->extractor->extract(
                 $html,
                 $config,
@@ -59,7 +59,7 @@ class JobScrapeService
                 ? JobScrapeStatus::Partial
                 : JobScrapeStatus::Success;
 
-            $meta = ['engine' => JobExtractionEngine::Http->value];
+            $meta = ['engine' => $resolvedEngine->value];
 
             if ($counts['found'] === 0) {
                 $meta['warning'] = 'zero_listings';
@@ -86,7 +86,7 @@ class JobScrapeService
                 'finished_at' => now(),
                 'status' => JobScrapeStatus::Failed,
                 'error_message' => $exception->getMessage(),
-                'meta' => ['engine' => JobExtractionEngine::Http->value],
+                'meta' => ['engine' => $resolvedEngine->value],
             ]);
 
             $source->update([

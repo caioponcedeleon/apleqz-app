@@ -4,4 +4,9 @@ return [
     'http_timeout' => (int) env('JOB_SCRAPE_HTTP_TIMEOUT', 15),
     'max_bytes' => (int) env('JOB_SCRAPE_MAX_BYTES', 2_097_152),
     'user_agent' => env('JOB_SCRAPE_USER_AGENT', 'ApleqzJobBot/1.0 (+https://apleqz.camk.net)'),
+    'playwright' => [
+        'node_binary' => env('JOB_SCRAPE_NODE_BINARY', 'node'),
+        'script_path' => env('JOB_SCRAPE_PLAYWRIGHT_SCRIPT', base_path('scripts/scrape-page.mjs')),
+        'timeout_ms' => (int) env('JOB_SCRAPE_PLAYWRIGHT_TIMEOUT', 60_000),
+    ],
 ];
