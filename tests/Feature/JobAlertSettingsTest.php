@@ -131,6 +131,21 @@ class JobAlertSettingsTest extends TestCase
         ]);
     }
 
+    public function test_profile_text_is_limited_to_200_characters(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->from(route('job-alerts.settings'))
+            ->patch(route('job-alerts.settings.update'), [
+                'profile_text' => str_repeat('a', 201),
+                'min_fit_score' => 70,
+                'job_alerts_enabled' => false,
+                'subscribed_source_ids' => [],
+            ])
+            ->assertSessionHasErrors('profile_text');
+    }
+
     public function test_job_alerts_index_redirects_to_settings(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);

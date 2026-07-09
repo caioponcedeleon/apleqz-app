@@ -10,13 +10,14 @@ class JobListingUpserter
 {
     /**
      * @param  list<array<string, mixed>>  $listings
-     * @return array{found: int, new: int}
+     * @return array{found: int, new: int, new_listing_ids: list<string>}
      */
     public function upsertMany(JobSource $source, array $listings, ?Carbon $seenAt = null): array
     {
         $seenAt ??= now();
         $found = 0;
         $new = 0;
+        $newListingIds = [];
 
         foreach ($listings as $listing) {
             $existing = $this->findExisting($source, $listing);
@@ -36,7 +37,7 @@ class JobListingUpserter
                     'last_seen_at' => $seenAt,
                 ]);
             } else {
-                JobListing::query()->create([
+                $created = JobListing::query()->create([
                     'job_source_id' => $source->id,
                     'external_id' => $listing['external_id'],
                     'title' => $listing['title'],
@@ -51,6 +52,7 @@ class JobListingUpserter
                     'first_seen_at' => $seenAt,
                     'last_seen_at' => $seenAt,
                 ]);
+                $newListingIds[] = $created->id;
                 $new++;
             }
 
@@ -60,6 +62,7 @@ class JobListingUpserter
         return [
             'found' => $found,
             'new' => $new,
+            'new_listing_ids' => $newListingIds,
         ];
     }
 

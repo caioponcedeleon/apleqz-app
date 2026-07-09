@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\UserJobProfile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,7 @@ class JobAlertSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'profile_text' => ['nullable', 'string', 'max:5000'],
+            'profile_text' => ['nullable', 'string', 'max:'.UserJobProfile::PROFILE_TEXT_MAX_LENGTH],
             'min_fit_score' => ['required', 'integer', 'min:0', 'max:100'],
             'job_alerts_enabled' => ['sometimes', 'boolean'],
             'subscribed_source_ids' => ['nullable', 'array'],

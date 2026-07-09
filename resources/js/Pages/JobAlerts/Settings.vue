@@ -29,6 +29,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    profileTextMaxLength: {
+        type: Number,
+        default: 200,
+    },
 });
 
 const { t } = useI18n();
@@ -65,6 +69,8 @@ const toggleSource = (sourceId) => {
 };
 
 const isSourceSubscribed = (sourceId) => form.subscribed_source_ids.includes(sourceId);
+
+const profileTextLength = computed(() => form.profile_text.length);
 
 const submit = () => {
     form.patch(route('job-alerts.settings.update'));
@@ -106,10 +112,17 @@ const submit = () => {
 
                             <textarea
                                 v-model="form.profile_text"
-                                rows="6"
+                                rows="4"
+                                :maxlength="profileTextMaxLength"
                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                 :placeholder="t('app.job_alerts.profile_placeholder')"
                             />
+                            <p class="text-right text-xs text-gray-500 dark:text-gray-400">
+                                {{ t('app.job_alerts.profile_char_count', {
+                                    count: profileTextLength,
+                                    max: profileTextMaxLength,
+                                }) }}
+                            </p>
                             <InputError :message="form.errors.profile_text" />
                         </section>
 

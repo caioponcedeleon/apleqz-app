@@ -37,6 +37,7 @@ class JobAlertSettingsController extends Controller
             'subscribedSourceIds' => $subscribedSourceIds,
             'emailVerified' => $user->hasVerifiedEmail(),
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            'profileTextMaxLength' => UserJobProfile::PROFILE_TEXT_MAX_LENGTH,
         ]);
     }
 

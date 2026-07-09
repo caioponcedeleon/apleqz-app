@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\JobExtractionEngine;
 use App\Enums\JobScrapeStatus;
+use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
 use App\Models\JobSourceScrapeRun;
 use RuntimeException;
@@ -61,6 +62,10 @@ class JobScrapeService
                 'last_scraped_at' => $startedAt,
                 'last_scrape_status' => JobScrapeStatus::Success,
             ]);
+
+            if ($counts['new_listing_ids'] !== []) {
+                MatchNewListingsJob::dispatch($counts['new_listing_ids']);
+            }
         } catch (Throwable $exception) {
             $run->update([
                 'finished_at' => now(),

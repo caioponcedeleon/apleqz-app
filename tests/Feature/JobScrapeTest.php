@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\JobExtractionEngine;
 use App\Enums\JobScrapeStatus;
+use App\Jobs\MatchNewListingsJob;
 use App\Jobs\ScrapeJobSourceJob;
 use App\Models\JobListing;
 use App\Models\JobSource;
@@ -19,6 +20,8 @@ class JobScrapeTest extends TestCase
 
     public function test_scrape_service_persists_listings_from_http_source(): void
     {
+        Queue::fake();
+
         $html = file_get_contents(base_path('tests/fixtures/job-sources/basic-listing.html'));
 
         Http::fake([
@@ -50,6 +53,7 @@ class JobScrapeTest extends TestCase
         $this->assertSame(2, $run->listings_new);
         $this->assertDatabaseCount('job_listings', 2);
         $this->assertSame(JobScrapeStatus::Success, $source->fresh()->last_scrape_status);
+        Queue::assertPushed(MatchNewListingsJob::class);
     }
 
     public function test_second_scrape_does_not_create_duplicate_listings(): void

@@ -95,4 +95,9 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference
     {
         return $this->hasMany(UserJobSourceSubscription::class);
     }
+
+    public function jobMatches(): HasMany
+    {
+        return $this->hasMany(JobMatch::class);
+    }
 }
