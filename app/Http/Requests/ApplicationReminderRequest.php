@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\ApplicationReminderFrequency;
 use App\Enums\ApplicationReminderType;
 use App\Models\Application;
+use App\Support\ReminderSchedule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,12 +23,29 @@ class ApplicationReminderRequest extends FormRequest
     public function rules(): array
     {
         $application = $this->route('application');
-        $momentId = $this->input('application_moment_id');
+        $frequency = $this->input('frequency');
 
         return [
             'type' => ['required', Rule::in(ApplicationReminderType::values())],
             'frequency' => ['required', Rule::in(ApplicationReminderFrequency::values())],
-            'remind_at' => ['required', 'date'],
+            'remind_at' => [
+                Rule::requiredIf($frequency === ApplicationReminderFrequency::Once->value),
+                'nullable',
+                'date',
+            ],
+            'remind_weekday' => [
+                Rule::requiredIf($frequency === ApplicationReminderFrequency::Weekly->value),
+                'nullable',
+                'integer',
+                Rule::in(ReminderSchedule::weekdayOptions()),
+            ],
+            'remind_day_of_month' => [
+                Rule::requiredIf($frequency === ApplicationReminderFrequency::Monthly->value),
+                'nullable',
+                'integer',
+                Rule::in(ReminderSchedule::dayOfMonthOptions()),
+            ],
+            'remind_time' => ['required', 'date_format:H:i', Rule::in(ReminderSchedule::timeSlotOptions())],
             'custom_message' => [
                 Rule::requiredIf($this->input('type') === ApplicationReminderType::Custom->value),
                 'nullable',
@@ -54,7 +72,7 @@ class ApplicationReminderRequest extends FormRequest
         return [
             'type' => $data['type'],
             'frequency' => $data['frequency'],
-            'remind_at' => $data['remind_at'],
+            'remind_at' => ReminderSchedule::combineFromRequest($data),
             'custom_message' => $data['custom_message'] ?? null,
             'application_moment_id' => $data['application_moment_id'] ?? null,
             'is_active' => $data['is_active'] ?? true,

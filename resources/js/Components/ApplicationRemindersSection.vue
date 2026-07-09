@@ -1,12 +1,17 @@
 <script setup>
-import ChipSelect from '@/Components/ChipSelect.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
+import ApplicationReminderModal from '@/Components/ApplicationReminderModal.vue';
+import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import {
+    defaultReminderDraft,
+    formatReminderDateTime,
+    formatReminderSchedule,
+    reminderPayloadFromDraft,
+    splitReminderSchedule,
+} from '@/utils/reminderTimeSlots';
+import { useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -18,94 +23,149 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const VISIBLE_LIMIT = 5;
 
-const typeOptions = computed(() =>
-    props.reminderTypes.map((type) => ({
-        value: type,
-        label: t(`app.notifications.types.${type}`),
-    })),
+const showAllModal = ref(false);
+const editModalOpen = ref(false);
+const addModalOpen = ref(false);
+const editingReminderId = ref(null);
+const reminderDraft = ref(null);
+
+const sortedReminders = computed(() =>
+    [...props.reminders].sort((a, b) => {
+        const dateCompare = (b.remind_at ?? '').localeCompare(a.remind_at ?? '');
+
+        if (dateCompare !== 0) {
+            return dateCompare;
+        }
+
+        return (b.id ?? 0) - (a.id ?? 0);
+    }),
 );
 
-const frequencyOptions = computed(() =>
-    props.reminderFrequencies.map((frequency) => ({
-        value: frequency,
-        label: t(`app.notifications.frequencies.${frequency}`),
-    })),
-);
+const visibleReminders = computed(() => sortedReminders.value.slice(0, VISIBLE_LIMIT));
+const hasMoreReminders = computed(() => sortedReminders.value.length > VISIBLE_LIMIT);
 
 const momentOptions = computed(() =>
     props.moments
         .filter((moment) => moment.id && moment.type && moment.occurred_at)
         .map((moment) => ({
             value: String(moment.id),
-            label: `${t(`app.moment_types.${moment.type}`)} — ${formatDate(moment.occurred_at)}`,
+            label: `${t(`app.moment_types.${moment.type}`)} — ${formatReminderDateTime(moment.occurred_at)}`,
         })),
 );
 
-const form = useForm({
-    type: props.reminderTypes[0] ?? 'check_in',
-    frequency: props.reminderFrequencies[0] ?? 'once',
-    remind_at: '',
-    custom_message: '',
-    application_moment_id: '',
+const addForm = useForm({});
+const editForm = useForm({});
+
+const isNewReminder = computed(() => editingReminderId.value === null);
+
+const modalErrors = computed(() => {
+    const form = isNewReminder.value ? addForm : editForm;
+
+    return {
+        type: form.errors.type,
+        frequency: form.errors.frequency,
+        remind_at: form.errors.remind_at,
+        remind_weekday: form.errors.remind_weekday,
+        remind_day_of_month: form.errors.remind_day_of_month,
+        remind_time: form.errors.remind_time,
+        custom_message: form.errors.custom_message,
+        application_moment_id: form.errors.application_moment_id,
+        is_active: form.errors.is_active,
+    };
 });
-
-const showCustomMessage = computed(() => form.type === 'custom');
-const showMomentSelect = computed(() => form.type === 'moment');
-
-const formatDate = (value) => {
-    if (!value) {
-        return '—';
-    }
-
-    return new Date(value).toLocaleDateString();
-};
 
 const formatFrequency = (frequency) => t(`app.notifications.frequencies.${frequency}`);
 const formatType = (type) => t(`app.notifications.types.${type}`);
+const formatSchedule = (reminder) => formatReminderSchedule(reminder.remind_at, reminder.frequency, t);
 
-const submit = () => {
-    form
-        .transform((data) => ({
-            ...data,
-            application_moment_id: data.application_moment_id || null,
-            custom_message: data.custom_message || null,
-        }))
-        .post(route('applications.reminders.store', props.application.id), {
-            preserveScroll: true,
-            onSuccess: () => form.reset('remind_at', 'custom_message', 'application_moment_id'),
-        });
+const reminderToDraft = (reminder) => {
+    const schedule = splitReminderSchedule(reminder.remind_at, reminder.frequency);
+
+    return {
+        type: reminder.type,
+        frequency: reminder.frequency,
+        remind_at: schedule.remind_at,
+        remind_time: schedule.remind_time,
+        remind_weekday: schedule.remind_weekday,
+        remind_day_of_month: schedule.remind_day_of_month,
+        custom_message: reminder.custom_message ?? '',
+        application_moment_id: reminder.application_moment_id
+            ? String(reminder.application_moment_id)
+            : '',
+        is_active: reminder.is_active ?? true,
+    };
 };
 
-const toggleActive = (reminder) => {
-    router.patch(
-        route('applications.reminders.update', [props.application.id, reminder.id]),
-        {
-            type: reminder.type,
-            frequency: reminder.frequency,
-            remind_at: reminder.remind_at?.slice?.(0, 10) ?? reminder.remind_at,
-            custom_message: reminder.custom_message,
-            application_moment_id: reminder.application_moment_id,
-            is_active: !reminder.is_active,
-        },
-        { preserveScroll: true },
-    );
+const openAddModal = () => {
+    editingReminderId.value = null;
+    reminderDraft.value = defaultReminderDraft(props.reminderTypes, props.reminderFrequencies);
+    addModalOpen.value = true;
+    showAllModal.value = false;
 };
 
-const remove = (reminder) => {
-    if (!window.confirm(t('app.notifications.delete_confirm'))) {
+const openEditModal = (reminder) => {
+    editingReminderId.value = reminder.id;
+    reminderDraft.value = reminderToDraft(reminder);
+    editModalOpen.value = true;
+    addModalOpen.value = false;
+    showAllModal.value = false;
+};
+
+const closeReminderModal = () => {
+    editModalOpen.value = false;
+    addModalOpen.value = false;
+    editingReminderId.value = null;
+    reminderDraft.value = null;
+    addForm.clearErrors();
+    editForm.clearErrors();
+};
+
+const submitDraft = (draft) => {
+    const payload = reminderPayloadFromDraft(draft);
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => closeReminderModal(),
+    };
+
+    if (isNewReminder.value) {
+        addForm
+            .transform(() => payload)
+            .post(route('applications.reminders.store', props.application.id), options);
+
         return;
     }
 
-    router.delete(
-        route('applications.reminders.destroy', [props.application.id, reminder.id]),
-        { preserveScroll: true },
+    editForm
+        .transform(() => payload)
+        .patch(
+            route('applications.reminders.update', [props.application.id, editingReminderId.value]),
+            options,
+        );
+};
+
+const deleteEditDraft = () => {
+    if (!editingReminderId.value) {
+        closeReminderModal();
+
+        return;
+    }
+
+    editForm.delete(
+        route('applications.reminders.destroy', [props.application.id, editingReminderId.value]),
+        {
+            preserveScroll: true,
+            onSuccess: () => closeReminderModal(),
+        },
     );
 };
+
+const reminderModalOpen = computed(() => editModalOpen.value || addModalOpen.value);
 </script>
 
 <template>
-    <div class="border-t border-gray-200 pt-6 dark:border-gray-700">
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">
             {{ t('app.notifications.title') }}
         </h3>
@@ -114,58 +174,52 @@ const remove = (reminder) => {
         </p>
 
         <ul
-            v-if="reminders.length"
+            v-if="sortedReminders.length"
             class="mt-4 space-y-3"
         >
             <li
-                v-for="reminder in reminders"
+                v-for="reminder in visibleReminders"
                 :key="reminder.id"
-                class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-600 dark:bg-gray-900/40"
             >
-                <div class="min-w-0 space-y-1">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">
-                        {{ formatType(reminder.type) }}
-                        <span class="font-normal text-gray-500 dark:text-gray-400">
-                            · {{ formatFrequency(reminder.frequency) }}
-                        </span>
-                    </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                        {{ t('app.notifications.remind_on') }}: {{ formatDate(reminder.remind_at) }}
-                    </p>
-                    <p
-                        v-if="reminder.custom_message"
-                        class="text-sm text-gray-600 dark:text-gray-300"
-                    >
-                        {{ reminder.custom_message }}
-                    </p>
-                    <p
-                        v-if="reminder.sent_at"
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                    >
-                        {{ t('app.notifications.sent_at', { date: formatDate(reminder.sent_at) }) }}
-                    </p>
-                </div>
-                <div class="flex shrink-0 items-center gap-2">
-                    <button
-                        type="button"
-                        class="rounded-md px-2 py-1 text-xs font-medium transition"
+                <button
+                    type="button"
+                    class="flex w-full flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-gray-600 dark:bg-gray-900/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+                    @click="openEditModal(reminder)"
+                >
+                    <div class="min-w-0 space-y-1">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ formatType(reminder.type) }}
+                            <span class="font-normal text-gray-500 dark:text-gray-400">
+                                · {{ formatFrequency(reminder.frequency) }}
+                            </span>
+                        </p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                            {{ formatSchedule(reminder) }}
+                        </p>
+                        <p
+                            v-if="reminder.custom_message"
+                            class="text-sm text-gray-600 dark:text-gray-300"
+                        >
+                            {{ reminder.custom_message }}
+                        </p>
+                        <p
+                            v-if="reminder.sent_at"
+                            class="text-xs text-gray-500 dark:text-gray-400"
+                        >
+                            {{ t('app.notifications.sent_at', { date: formatReminderDateTime(reminder.sent_at) }) }}
+                        </p>
+                    </div>
+                    <span
+                        class="shrink-0 rounded-md px-2 py-1 text-xs font-medium"
                         :class="reminder.is_active
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
                             : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
-                        @click="toggleActive(reminder)"
                     >
                         {{ reminder.is_active
                             ? t('app.notifications.active')
                             : t('app.notifications.paused') }}
-                    </button>
-                    <SecondaryButton
-                        type="button"
-                        class="!px-2 !py-1 !text-xs"
-                        @click="remove(reminder)"
-                    >
-                        {{ t('app.actions.delete') }}
-                    </SecondaryButton>
-                </div>
+                    </span>
+                </button>
             </li>
         </ul>
 
@@ -176,73 +230,99 @@ const remove = (reminder) => {
             {{ t('app.notifications.empty') }}
         </p>
 
-        <form
-            class="mt-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-800/50"
-            @submit.prevent="submit"
-        >
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t('app.notifications.add') }}
-            </p>
-
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <InputLabel :value="t('app.notifications.reason')" />
-                    <ChipSelect
-                        v-model="form.type"
-                        class="mt-1"
-                        :options="typeOptions"
-                    />
-                    <InputError class="mt-1" :message="form.errors.type" />
-                </div>
-
-                <div>
-                    <InputLabel :value="t('app.notifications.frequency_label')" />
-                    <ChipSelect
-                        v-model="form.frequency"
-                        class="mt-1"
-                        :options="frequencyOptions"
-                    />
-                    <InputError class="mt-1" :message="form.errors.frequency" />
-                </div>
-
-                <div>
-                    <InputLabel :value="t('app.notifications.remind_on')" />
-                    <TextInput
-                        v-model="form.remind_at"
-                        type="date"
-                        class="mt-1 block w-full"
-                    />
-                    <InputError class="mt-1" :message="form.errors.remind_at" />
-                </div>
-
-                <div v-if="showMomentSelect">
-                    <InputLabel :value="t('app.notifications.linked_moment')" />
-                    <ChipSelect
-                        v-model="form.application_moment_id"
-                        class="mt-1"
-                        :placeholder="t('app.notifications.linked_moment_placeholder')"
-                        :options="momentOptions"
-                    />
-                    <InputError class="mt-1" :message="form.errors.application_moment_id" />
-                </div>
-            </div>
-
-            <div v-if="showCustomMessage">
-                <InputLabel :value="t('app.notifications.custom_message')" />
-                <textarea
-                    v-model="form.custom_message"
-                    rows="3"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                />
-                <InputError class="mt-1" :message="form.errors.custom_message" />
-            </div>
-
+        <div class="mt-4 flex flex-wrap items-center gap-3">
             <PrimaryButton
-                type="submit"
-                :disabled="form.processing"
+                type="button"
+                @click="openAddModal"
             >
                 {{ t('app.notifications.add_button') }}
             </PrimaryButton>
-        </form>
+
+            <SecondaryButton
+                v-if="hasMoreReminders"
+                type="button"
+                @click="showAllModal = true"
+            >
+                {{ t('app.notifications.show_all', { count: sortedReminders.length }) }}
+            </SecondaryButton>
+        </div>
+
+        <Modal
+            :show="showAllModal"
+            max-width="lg"
+            @close="showAllModal = false"
+        >
+            <div class="flex max-h-[calc(100vh-3rem)] flex-col px-6 py-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ t('app.notifications.all_reminders_title') }}
+                </h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('app.notifications.all_reminders_hint') }}
+                </p>
+
+                <ul class="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pe-1">
+                    <li
+                        v-for="reminder in sortedReminders"
+                        :key="`all-${reminder.id}`"
+                    >
+                        <button
+                            type="button"
+                            class="flex w-full flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-gray-600 dark:bg-gray-900/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+                            @click="openEditModal(reminder)"
+                        >
+                            <div class="min-w-0 space-y-1">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ formatType(reminder.type) }}
+                                    <span class="font-normal text-gray-500 dark:text-gray-400">
+                                        · {{ formatFrequency(reminder.frequency) }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">
+                                    {{ formatSchedule(reminder) }}
+                                </p>
+                                <p
+                                    v-if="reminder.custom_message"
+                                    class="text-sm text-gray-600 dark:text-gray-300"
+                                >
+                                    {{ reminder.custom_message }}
+                                </p>
+                            </div>
+                            <span
+                                class="shrink-0 rounded-md px-2 py-1 text-xs font-medium"
+                                :class="reminder.is_active
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+                                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+                            >
+                                {{ reminder.is_active
+                                    ? t('app.notifications.active')
+                                    : t('app.notifications.paused') }}
+                            </span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="mt-4 shrink-0 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <SecondaryButton
+                        type="button"
+                        @click="showAllModal = false"
+                    >
+                        {{ t('app.actions.close') }}
+                    </SecondaryButton>
+                </div>
+            </div>
+        </Modal>
+
+        <ApplicationReminderModal
+            :show="reminderModalOpen"
+            :reminder="reminderDraft"
+            :reminder-types="reminderTypes"
+            :reminder-frequencies="reminderFrequencies"
+            :moment-options="momentOptions"
+            :errors="modalErrors"
+            :is-new="isNewReminder"
+            @close="closeReminderModal"
+            @save="submitDraft"
+            @delete="deleteEditDraft"
+        />
     </div>
 </template>

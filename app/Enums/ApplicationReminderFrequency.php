@@ -7,6 +7,7 @@ enum ApplicationReminderFrequency: string
     case Once = 'once';
     case Daily = 'daily';
     case Weekly = 'weekly';
+    case Monthly = 'monthly';
 
     public static function values(): array
     {

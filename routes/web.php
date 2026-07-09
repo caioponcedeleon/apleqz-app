@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationMomentController;
 use App\Http\Controllers\ApplicationReminderController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ApplicationExportController;
@@ -59,8 +60,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('applications.reminders.store');
         Route::patch('/applications/{application}/reminders/{reminder}', [ApplicationReminderController::class, 'update'])
             ->name('applications.reminders.update');
+        Route::patch('/applications/{application}/reminders/{reminder}/toggle-active', [ApplicationReminderController::class, 'toggleActive'])
+            ->name('applications.reminders.toggle-active');
         Route::delete('/applications/{application}/reminders/{reminder}', [ApplicationReminderController::class, 'destroy'])
             ->name('applications.reminders.destroy');
+
+        Route::post('/applications/{application}/moments', [ApplicationMomentController::class, 'store'])
+            ->name('applications.moments.store');
+        Route::patch('/applications/{application}/moments/{moment}', [ApplicationMomentController::class, 'update'])
+            ->name('applications.moments.update');
+        Route::delete('/applications/{application}/moments/{moment}', [ApplicationMomentController::class, 'destroy'])
+            ->name('applications.moments.destroy');
     });
 
     Route::post('applications', [ApplicationController::class, 'store'])

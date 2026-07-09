@@ -38,6 +38,16 @@ class ApplicationReminderController extends Controller
         return back()->with('success', __('app.flash.reminder_updated'));
     }
 
+    public function toggleActive(Application $application, ApplicationReminder $reminder): RedirectResponse
+    {
+        $this->authorize('update', $application);
+        abort_unless($reminder->application_id === $application->id, 404);
+
+        $reminder->update(['is_active' => ! $reminder->is_active]);
+
+        return back();
+    }
+
     public function destroy(Application $application, ApplicationReminder $reminder): RedirectResponse
     {
         $this->authorize('update', $application);

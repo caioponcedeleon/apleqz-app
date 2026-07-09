@@ -82,7 +82,7 @@ class ApplicationStatusHistoryTest extends TestCase
         $this->assertSame(ApplicationStatus::Rejected->value, $statusEvents->last()->notes);
     }
 
-    public function test_system_status_events_are_not_removed_when_moments_are_synced(): void
+    public function test_system_status_events_are_not_removed_when_application_is_updated(): void
     {
         $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
@@ -111,14 +111,13 @@ class ApplicationStatusHistoryTest extends TestCase
             'company' => $application->company,
             'applied_at' => '2026-05-01',
             'status' => ApplicationStatus::Waiting->value,
-            'moments' => [
-                [
-                    'type' => ApplicationMomentType::Interview->value,
-                    'occurred_at' => '2026-05-10',
-                    'notes' => 'Technical round',
-                ],
-            ],
         ])->assertRedirect(route('applications.edit', $application));
+
+        $this->actingAs($user)->post(route('applications.moments.store', $application), [
+            'type' => ApplicationMomentType::Interview->value,
+            'occurred_at' => '2026-05-10',
+            'notes' => 'Technical round',
+        ])->assertRedirect();
 
         $application->refresh();
 

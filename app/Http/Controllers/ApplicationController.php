@@ -7,7 +7,6 @@ use App\Enums\ApplicationStatus;
 use App\Http\Requests\ApplicationRequest;
 use App\Models\Application;
 use App\Queries\FilteredApplicationsQuery;
-use App\Services\ApplicationMomentSyncService;
 use App\Services\ApplicationStatusHistoryService;
 use App\Services\SelectedWaveService;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +17,6 @@ use Inertia\Response;
 class ApplicationController extends Controller
 {
     public function __construct(
-        protected ApplicationMomentSyncService $momentSync,
         protected ApplicationStatusHistoryService $statusHistory,
     ) {}
 
@@ -59,7 +57,6 @@ class ApplicationController extends Controller
     {
         $application = $request->user()->applications()->create($request->applicationAttributes());
         $this->statusHistory->recordInitial($application);
-        $this->momentSync->sync($application, $request->momentsPayload());
 
         if ($request->boolean('create_another')) {
             return redirect()->route('applications.create')
@@ -87,7 +84,6 @@ class ApplicationController extends Controller
 
         $application->update($request->applicationAttributes());
         $this->statusHistory->recordIfChanged($application, $previousStatus);
-        $this->momentSync->sync($application, $request->momentsPayload());
 
         return redirect()->route('applications.edit', $application)
             ->with('success', __('app.flash.application_updated'));

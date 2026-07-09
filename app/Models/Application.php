@@ -65,7 +65,7 @@ class Application extends Model
 
     public function reminders(): HasMany
     {
-        return $this->hasMany(ApplicationReminder::class)->orderBy('remind_at');
+        return $this->hasMany(ApplicationReminder::class)->orderByDesc('remind_at');
     }
 
     protected static function booted(): void

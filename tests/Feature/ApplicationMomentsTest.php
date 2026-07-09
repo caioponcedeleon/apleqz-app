@@ -3,74 +3,63 @@
 namespace Tests\Feature;
 
 use App\Enums\ApplicationMomentType;
+use App\Enums\ApplicationReminderFrequency;
+use App\Enums\ApplicationReminderType;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\ApplicationReminder;
 use App\Models\ApplicationWave;
 use App\Models\Area;
 use App\Models\User;
+use App\Services\ApplicationReminderDispatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\ApplicationReminderNotification;
 use Tests\TestCase;
 
 class ApplicationMomentsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_save_application_with_moments(): void
+    protected function applicationFor(User $user): Application
     {
-        $user = User::factory()->create();
         $area = Area::factory()->create(['user_id' => $user->id]);
         $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
 
-        $response = $this->actingAs($user)->post(route('applications.store'), [
-            'area_id' => $area->id,
-            'application_wave_id' => $wave->id,
-            'position' => 'Engineer',
-            'company' => 'Acme',
-            'applied_at' => '2026-05-01',
-            'status' => ApplicationStatus::Waiting->value,
-            'moments' => [
-                [
-                    'type' => ApplicationMomentType::Interview->value,
-                    'occurred_at' => '2026-05-10',
-                    'notes' => 'Technical round',
-                ],
-                [
-                    'type' => ApplicationMomentType::Rejection->value,
-                    'occurred_at' => '2026-05-15',
-                    'notes' => null,
-                ],
-            ],
-        ]);
-
-        $response->assertRedirect(route('applications.edit', Application::query()->first()));
-
-        $application = Application::query()->first();
-        $this->assertCount(3, $application->moments);
-        $this->assertTrue(
-            $application->moments->contains(
-                fn ($moment) => $moment->type === ApplicationMomentType::Rejection
-            )
-        );
-        $this->assertTrue(
-            $application->moments->contains(
-                fn ($moment) => $moment->type === ApplicationMomentType::StatusChange
-                    && $moment->is_system
-            )
-        );
-    }
-
-    public function test_updating_application_replaces_moments(): void
-    {
-        $user = User::factory()->create();
-        $area = Area::factory()->create(['user_id' => $user->id]);
-        $wave = ApplicationWave::factory()->create(['user_id' => $user->id]);
-        $application = Application::factory()->create([
+        return Application::factory()->create([
             'user_id' => $user->id,
             'area_id' => $area->id,
             'application_wave_id' => $wave->id,
             'status' => ApplicationStatus::Waiting,
             'applied_at' => '2026-05-01',
         ]);
+    }
+
+    public function test_user_can_create_moment_on_application(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->applicationFor($user);
+
+        $this->actingAs($user)
+            ->post(route('applications.moments.store', $application), [
+                'type' => ApplicationMomentType::Interview->value,
+                'occurred_at' => '2026-05-10',
+                'notes' => 'Technical round',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue(
+            $application->fresh()->moments->contains(
+                fn ($moment) => $moment->type === ApplicationMomentType::Interview
+                    && ! $moment->is_system
+            )
+        );
+    }
+
+    public function test_user_can_update_moment_on_application(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->applicationFor($user);
         $application->moments()->delete();
         $moment = $application->moments()->create([
             'type' => ApplicationMomentType::Interview,
@@ -78,25 +67,16 @@ class ApplicationMomentsTest extends TestCase
             'sort_order' => 0,
         ]);
 
-        $this->actingAs($user)->put(route('applications.update', $application), [
-            'area_id' => $area->id,
-            'application_wave_id' => $wave->id,
-            'position' => $application->position,
-            'company' => $application->company,
-            'applied_at' => '2026-05-01',
-            'status' => ApplicationStatus::Waiting->value,
-            'moments' => [
-                [
-                    'id' => $moment->id,
-                    'type' => ApplicationMomentType::Offer->value,
-                    'occurred_at' => '2026-05-20',
-                    'notes' => 'Signed',
-                ],
-            ],
-        ])->assertRedirect(route('applications.edit', $application));
+        $this->actingAs($user)
+            ->patch(route('applications.moments.update', [$application, $moment]), [
+                'type' => ApplicationMomentType::Offer->value,
+                'occurred_at' => '2026-05-20',
+                'notes' => 'Signed',
+            ])
+            ->assertRedirect();
 
-        $application->refresh();
-        $this->assertCount(1, $application->moments);
-        $this->assertSame(ApplicationMomentType::Offer, $application->moments->first()->type);
+        $moment->refresh();
+        $this->assertSame(ApplicationMomentType::Offer, $moment->type);
+        $this->assertSame('Signed', $moment->notes);
     }
 }

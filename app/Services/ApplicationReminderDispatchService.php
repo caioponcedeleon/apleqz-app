@@ -55,22 +55,39 @@ class ApplicationReminderDispatchService
                 && $reminder->remind_at->lte($now);
         }
 
-        if ($reminder->frequency === ApplicationReminderFrequency::Daily) {
-            if ($reminder->remind_at->gt($now)) {
-                return false;
-            }
+        if ($reminder->remind_at->gt($now)) {
+            return false;
+        }
 
+        $slot = $now->copy()->setTimeFromTimeString($reminder->remind_at->format('H:i:s'));
+
+        if ($now->lt($slot)) {
+            return false;
+        }
+
+        if ($reminder->frequency === ApplicationReminderFrequency::Daily) {
             return $reminder->last_sent_at === null
-                || $reminder->last_sent_at->toDateString() < $now->toDateString();
+                || $reminder->last_sent_at->lt($slot);
         }
 
         if ($reminder->frequency === ApplicationReminderFrequency::Weekly) {
-            if ($reminder->remind_at->gt($now)) {
+            if ($now->dayOfWeek !== $reminder->remind_at->dayOfWeek) {
                 return false;
             }
 
             return $reminder->last_sent_at === null
-                || $reminder->last_sent_at->lte($now->copy()->subDays(7));
+                || $reminder->last_sent_at->lt($slot);
+        }
+
+        if ($reminder->frequency === ApplicationReminderFrequency::Monthly) {
+            $scheduledDay = min($reminder->remind_at->day, $now->daysInMonth);
+
+            if ($now->day !== $scheduledDay) {
+                return false;
+            }
+
+            return $reminder->last_sent_at === null
+                || $reminder->last_sent_at->lt($slot);
         }
 
         return false;

@@ -42,6 +42,7 @@ class ApplicationReminderTest extends TestCase
                 'type' => ApplicationReminderType::CheckIn->value,
                 'frequency' => ApplicationReminderFrequency::Once->value,
                 'remind_at' => now()->addDay()->toDateString(),
+                'remind_time' => '09:00',
             ])
             ->assertRedirect();
 
@@ -122,5 +123,75 @@ class ApplicationReminderTest extends TestCase
 
         $this->assertSame([], $sent);
         Notification::assertNothingSent();
+    }
+
+    public function test_user_can_create_weekly_reminder(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->applicationFor($user);
+
+        $this->actingAs($user)
+            ->post(route('applications.reminders.store', $application), [
+                'type' => ApplicationReminderType::CheckIn->value,
+                'frequency' => ApplicationReminderFrequency::Weekly->value,
+                'remind_weekday' => 1,
+                'remind_time' => '09:00',
+            ])
+            ->assertRedirect();
+
+        $reminder = ApplicationReminder::query()->first();
+        $this->assertSame(ApplicationReminderFrequency::Weekly, $reminder->frequency);
+        $this->assertSame(1, $reminder->remind_at->dayOfWeek);
+        $this->assertSame('09:00', $reminder->remind_at->format('H:i'));
+    }
+
+    public function test_user_can_create_monthly_reminder(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->applicationFor($user);
+
+        $this->actingAs($user)
+            ->post(route('applications.reminders.store', $application), [
+                'type' => ApplicationReminderType::CheckIn->value,
+                'frequency' => ApplicationReminderFrequency::Monthly->value,
+                'remind_day_of_month' => 15,
+                'remind_time' => '10:30',
+            ])
+            ->assertRedirect();
+
+        $reminder = ApplicationReminder::query()->first();
+        $this->assertSame(ApplicationReminderFrequency::Monthly, $reminder->frequency);
+        $this->assertSame(15, $reminder->remind_at->day);
+        $this->assertSame('10:30', $reminder->remind_at->format('H:i'));
+    }
+
+    public function test_toggle_active_does_not_change_remind_at(): void
+    {
+        $user = User::factory()->create();
+        $application = $this->applicationFor($user);
+
+        $remindAt = now()->addDays(2)->startOfMinute();
+        $reminder = ApplicationReminder::query()->create([
+            'user_id' => $user->id,
+            'application_id' => $application->id,
+            'type' => ApplicationReminderType::Custom,
+            'frequency' => ApplicationReminderFrequency::Once,
+            'remind_at' => $remindAt,
+            'custom_message' => 'Follow up',
+            'is_active' => true,
+            'channel' => 'mail',
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('applications.reminders.toggle-active', [$application, $reminder]))
+            ->assertRedirect();
+
+        $reminder->refresh();
+
+        $this->assertFalse($reminder->is_active);
+        $this->assertSame(
+            $remindAt->toDateTimeString(),
+            $reminder->remind_at->toDateTimeString(),
+        );
     }
 }

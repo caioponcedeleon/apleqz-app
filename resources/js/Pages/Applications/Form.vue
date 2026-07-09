@@ -41,16 +41,6 @@ const showOnboardingPreview = computed(
     () => Boolean(page.props.onboarding?.show) && !isEdit.value && !canUseForm.value,
 );
 
-const mapMoments = (moments) =>
-    (moments ?? [])
-        .filter((moment) => !moment.is_system && moment.type !== 'status_change')
-        .map((moment) => ({
-            id: moment.id ?? null,
-            type: moment.type,
-            occurred_at: moment.occurred_at?.slice?.(0, 10) ?? '',
-            notes: moment.notes ?? '',
-        }));
-
 const statusColors = {
     a_candidatar: 'sky',
     esperando: 'amber',
@@ -68,6 +58,12 @@ const momentTypeColors = {
     rejection: 'red',
     other: 'slate',
 };
+
+const editableMoments = computed(() =>
+    (props.application?.moments ?? []).filter(
+        (moment) => !moment.is_system && moment.type !== 'status_change',
+    ),
+);
 
 const statusHistory = computed(() =>
     [...(props.application?.moments ?? [])]
@@ -91,15 +87,11 @@ const timelineItems = computed(() => {
         status: event.notes,
     }));
 
-    form.moments.forEach((moment, index) => {
-        if (!moment.type || !moment.occurred_at) {
-            return;
-        }
-
+    editableMoments.value.forEach((moment) => {
         items.push({
-            key: moment.id ?? `moment-${index}`,
+            key: `moment-${moment.id}`,
             kind: 'moment',
-            index,
+            moment,
             occurred_at: moment.occurred_at,
             type: moment.type,
             notes: moment.notes,
@@ -129,70 +121,84 @@ const formatDate = (value) => {
 };
 
 const momentModalOpen = ref(false);
-const editingMomentIndex = ref(null);
+const editingMomentId = ref(null);
 const momentDraft = ref({ type: 'feedback', occurred_at: '', notes: '' });
-
-const isNewMoment = computed(() => editingMomentIndex.value === null);
-
-const momentModalErrors = computed(() => {
-    if (editingMomentIndex.value === null) {
-        return {};
-    }
-
-    const index = editingMomentIndex.value;
-
-    return {
-        type: form.errors[`moments.${index}.type`],
-        occurred_at: form.errors[`moments.${index}.occurred_at`],
-        notes: form.errors[`moments.${index}.notes`],
-    };
+const momentForm = useForm({
+    type: '',
+    occurred_at: '',
+    notes: '',
 });
 
-const openMomentModal = (index = null) => {
-    editingMomentIndex.value = index;
+const isNewMoment = computed(() => editingMomentId.value === null);
 
-    if (index !== null) {
-        momentDraft.value = { ...form.moments[index] };
-    } else {
-        momentDraft.value = {
+const momentModalErrors = computed(() => ({
+    type: momentForm.errors.type,
+    occurred_at: momentForm.errors.occurred_at,
+    notes: momentForm.errors.notes,
+}));
+
+const openMomentModal = (moment = null) => {
+    editingMomentId.value = moment?.id ?? null;
+
+    momentDraft.value = moment
+        ? {
+            id: moment.id,
+            type: moment.type,
+            occurred_at: moment.occurred_at?.slice?.(0, 10) ?? '',
+            notes: moment.notes ?? '',
+        }
+        : {
             id: null,
             type: props.momentTypes[0] ?? 'feedback',
             occurred_at: '',
             notes: '',
         };
-    }
 
     momentModalOpen.value = true;
 };
 
 const closeMomentModal = () => {
     momentModalOpen.value = false;
-    editingMomentIndex.value = null;
+    editingMomentId.value = null;
+    momentForm.clearErrors();
 };
 
 const saveMomentDraft = (draft) => {
-    const payload = {
-        id: editingMomentIndex.value !== null ? form.moments[editingMomentIndex.value]?.id ?? null : null,
-        type: draft.type,
-        occurred_at: draft.occurred_at,
-        notes: draft.notes ?? '',
+    momentForm.type = draft.type;
+    momentForm.occurred_at = draft.occurred_at;
+    momentForm.notes = draft.notes ?? '';
+
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => closeMomentModal(),
     };
 
-    if (editingMomentIndex.value !== null) {
-        form.moments[editingMomentIndex.value] = payload;
-    } else {
-        form.moments.push(payload);
+    if (editingMomentId.value) {
+        momentForm.patch(
+            route('applications.moments.update', [props.application.id, editingMomentId.value]),
+            options,
+        );
+
+        return;
     }
 
-    closeMomentModal();
+    momentForm.post(route('applications.moments.store', props.application.id), options);
 };
 
 const deleteMomentDraft = () => {
-    if (editingMomentIndex.value !== null) {
-        form.moments.splice(editingMomentIndex.value, 1);
+    if (!editingMomentId.value) {
+        closeMomentModal();
+
+        return;
     }
 
-    closeMomentModal();
+    router.delete(
+        route('applications.moments.destroy', [props.application.id, editingMomentId.value]),
+        {
+            preserveScroll: true,
+            onSuccess: () => closeMomentModal(),
+        },
+    );
 };
 
 const form = useForm({
@@ -209,7 +215,6 @@ const form = useForm({
     channel: props.application?.channel ?? '',
     notes: props.application?.notes ?? '',
     job_url: props.application?.job_url ?? '',
-    moments: mapMoments(props.application?.moments),
     create_another: false,
 });
 
@@ -235,18 +240,12 @@ const areaOptions = computed(() =>
     })),
 );
 
-const submit = (createAnother = false) => {
+const submitDetails = (createAnother = false) => {
     if (!canUseForm.value) {
         return;
     }
 
     form.create_another = createAnother;
-
-    form
-        .transform((data) => ({
-            ...data,
-            moments: data.moments.filter((moment) => moment.type && moment.occurred_at),
-        }));
 
     const options = { preserveScroll: true };
 
@@ -258,14 +257,7 @@ const submit = (createAnother = false) => {
 };
 
 const applicationFiles = computed(() => props.application?.files ?? []);
-
 const applicationReminders = computed(() => props.application?.reminders ?? []);
-
-const editableMoments = computed(() =>
-    (props.application?.moments ?? []).filter(
-        (moment) => !moment.is_system && moment.type !== 'status_change',
-    ),
-);
 
 const downloadApplicationFileUrl = (file) =>
     route('applications.files.download', [props.application.id, file.id]);
@@ -293,7 +285,7 @@ const renameApplicationFileUrl = (file) =>
         <div class="py-8">
             <div
                 data-onboarding="application-form"
-                class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8"
+                class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8"
             >
                 <ApplicationFormPreview
                     v-if="showOnboardingPreview"
@@ -356,93 +348,148 @@ const renameApplicationFileUrl = (file) =>
                     </div>
                 </div>
 
-                <form
-                    v-else
-                    :data-onboarding="isEdit ? 'application-manage' : undefined"
-                    class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-                    @submit.prevent="submit(false)"
-                >
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <InputLabel :value="t('app.applications.wave')" />
-                            <ChipSelect
-                                v-model="form.application_wave_id"
-                                class="mt-1"
-                                :options="waveOptions"
-                            />
-                            <InputError class="mt-1" :message="form.errors.application_wave_id" />
+                <template v-else>
+                    <form
+                        :data-onboarding="isEdit ? 'application-manage' : undefined"
+                        class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                        @submit.prevent="submitDetails(false)"
+                    >
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <InputLabel :value="t('app.applications.wave')" />
+                                <ChipSelect
+                                    v-model="form.application_wave_id"
+                                    class="mt-1"
+                                    :options="waveOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.application_wave_id" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="t('app.applications.area')" />
+                                <ChipSelect
+                                    v-model="form.area_id"
+                                    class="mt-1"
+                                    :options="areaOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.area_id" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="t('app.applications.position')" />
+                                <TextInput v-model="form.position" class="mt-1 block w-full" required />
+                                <InputError class="mt-1" :message="form.errors.position" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="t('app.applications.company')" />
+                                <TextInput v-model="form.company" class="mt-1 block w-full" required />
+                                <InputError class="mt-1" :message="form.errors.company" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="t('app.applications.location')" />
+                                <TextInput v-model="form.location" class="mt-1 block w-full" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="appliedAtLabel" />
+                                <TextInput
+                                    v-model="form.applied_at"
+                                    type="date"
+                                    class="mt-1 block w-full"
+                                    :required="requiresAppliedDate"
+                                />
+                                <InputError class="mt-1" :message="form.errors.applied_at" />
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <InputLabel :value="t('app.applications.status')" />
+                                <StatusSelector
+                                    v-model="form.status"
+                                    :statuses="statuses"
+                                    class="mt-2"
+                                />
+                                <InputError class="mt-1" :message="form.errors.status" />
+                            </div>
+
+                            <div>
+                                <InputLabel :value="t('app.applications.channel')" />
+                                <TextInput v-model="form.channel" class="mt-1 block w-full" />
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <InputLabel :value="t('app.applications.job_url')" />
+                                <TextInput v-model="form.job_url" type="url" class="mt-1 block w-full" />
+                                <InputError class="mt-1" :message="form.errors.job_url" />
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <InputLabel :value="t('app.applications.notes')" />
+                                <textarea
+                                    v-model="form.notes"
+                                    rows="3"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                                />
+                            </div>
                         </div>
 
-                        <div>
-                            <InputLabel :value="t('app.applications.area')" />
-                            <ChipSelect
-                                v-model="form.area_id"
-                                class="mt-1"
-                                :options="areaOptions"
-                            />
-                            <InputError class="mt-1" :message="form.errors.area_id" />
+                        <div
+                            v-if="canUploadApplicationFiles"
+                            class="border-t border-gray-200 pt-6 dark:border-gray-700"
+                        >
+                            <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                                {{ t('app.applications.files_title') }}
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {{ t('app.applications.files_hint') }}
+                            </p>
+
+                            <div class="mt-4">
+                                <FileManager
+                                    v-if="isEdit"
+                                    :files="applicationFiles"
+                                    :upload-url="route('applications.files.store', application.id)"
+                                    :download-url="downloadApplicationFileUrl"
+                                    :preview-url="previewApplicationFileUrl"
+                                    :delete-url="deleteApplicationFileUrl"
+                                    :rename-url="renameApplicationFileUrl"
+                                    multiple
+                                />
+                                <p
+                                    v-else
+                                    class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-600"
+                                >
+                                    {{ t('app.applications.files_save_first') }}
+                                </p>
+                            </div>
                         </div>
 
-                        <div>
-                            <InputLabel :value="t('app.applications.position')" />
-                            <TextInput v-model="form.position" class="mt-1 block w-full" required />
-                            <InputError class="mt-1" :message="form.errors.position" />
+                        <div class="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+                            <PrimaryButton :disabled="form.processing" type="submit">
+                                {{ t('app.actions.save') }}
+                            </PrimaryButton>
+                            <SecondaryButton
+                                v-if="!isEdit"
+                                :disabled="form.processing"
+                                type="button"
+                                @click="submitDetails(true)"
+                            >
+                                {{ t('app.actions.save_and_create_another') }}
+                            </SecondaryButton>
+                            <Link
+                                :href="route('applications.index')"
+                                class="text-sm text-gray-600 hover:underline dark:text-gray-400"
+                            >
+                                {{ t('app.actions.cancel') }}
+                            </Link>
                         </div>
+                    </form>
 
-                        <div>
-                            <InputLabel :value="t('app.applications.company')" />
-                            <TextInput v-model="form.company" class="mt-1 block w-full" required />
-                            <InputError class="mt-1" :message="form.errors.company" />
-                        </div>
-
-                        <div>
-                            <InputLabel :value="t('app.applications.location')" />
-                            <TextInput v-model="form.location" class="mt-1 block w-full" />
-                        </div>
-
-                        <div>
-                            <InputLabel :value="appliedAtLabel" />
-                            <TextInput
-                                v-model="form.applied_at"
-                                type="date"
-                                class="mt-1 block w-full"
-                                :required="requiresAppliedDate"
-                            />
-                            <InputError class="mt-1" :message="form.errors.applied_at" />
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <InputLabel :value="t('app.applications.status')" />
-                            <StatusSelector
-                                v-model="form.status"
-                                :statuses="statuses"
-                                class="mt-2"
-                            />
-                            <InputError class="mt-1" :message="form.errors.status" />
-                        </div>
-
-                        <div>
-                            <InputLabel :value="t('app.applications.channel')" />
-                            <TextInput v-model="form.channel" class="mt-1 block w-full" />
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <InputLabel :value="t('app.applications.job_url')" />
-                            <TextInput v-model="form.job_url" type="url" class="mt-1 block w-full" />
-                            <InputError class="mt-1" :message="form.errors.job_url" />
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <InputLabel :value="t('app.applications.notes')" />
-                            <textarea
-                                v-model="form.notes"
-                                rows="3"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <div
+                        v-if="isEdit"
+                        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                    >
                         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">
@@ -471,57 +518,57 @@ const renameApplicationFileUrl = (file) =>
                             />
 
                             <ol class="relative space-y-4">
-                            <li
-                                v-for="item in timelineItems"
-                                :key="item.key"
-                                class="relative ps-8"
-                            >
-                                <span
-                                    class="absolute left-3 top-4 z-10 size-2.5 -translate-x-1/2 rounded-full bg-indigo-400 ring-4 ring-white dark:bg-indigo-500 dark:ring-gray-800"
-                                />
-
-                                <div
-                                    v-if="item.kind === 'status'"
-                                    :class="timelineCardClass"
+                                <li
+                                    v-for="item in timelineItems"
+                                    :key="item.key"
+                                    class="relative ps-8"
                                 >
-                                    <div class="flex flex-wrap items-center gap-3">
-                                        <StatusBadge
-                                            inline
-                                            :status="item.status"
-                                            :color="statusColors[item.status] ?? 'slate'"
-                                        />
-                                        <time class="text-sm text-gray-500 dark:text-gray-400">
-                                            {{ formatDate(item.occurred_at) }}
-                                        </time>
-                                    </div>
-                                </div>
+                                    <span
+                                        class="absolute left-3 top-4 z-10 size-2.5 -translate-x-1/2 rounded-full bg-indigo-400 ring-4 ring-white dark:bg-indigo-500 dark:ring-gray-800"
+                                    />
 
-                                <button
-                                    v-else
-                                    type="button"
-                                    :class="[
-                                        timelineCardClass,
-                                        'transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20',
-                                    ]"
-                                    @click="openMomentModal(item.index)"
-                                >
-                                    <div class="flex flex-wrap items-center gap-3">
-                                        <MomentBadge
-                                            :type="item.type"
-                                            :color="momentTypeColors[item.type] ?? 'slate'"
-                                        />
-                                        <time class="text-sm text-gray-500 dark:text-gray-400">
-                                            {{ formatDate(item.occurred_at) }}
-                                        </time>
-                                    </div>
-                                    <p
-                                        v-if="item.notes"
-                                        class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300"
+                                    <div
+                                        v-if="item.kind === 'status'"
+                                        :class="timelineCardClass"
                                     >
-                                        {{ item.notes }}
-                                    </p>
-                                </button>
-                            </li>
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <StatusBadge
+                                                inline
+                                                :status="item.status"
+                                                :color="statusColors[item.status] ?? 'slate'"
+                                            />
+                                            <time class="text-sm text-gray-500 dark:text-gray-400">
+                                                {{ formatDate(item.occurred_at) }}
+                                            </time>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        v-else
+                                        type="button"
+                                        :class="[
+                                            timelineCardClass,
+                                            'transition hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20',
+                                        ]"
+                                        @click="openMomentModal(item.moment)"
+                                    >
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <MomentBadge
+                                                :type="item.type"
+                                                :color="momentTypeColors[item.type] ?? 'slate'"
+                                            />
+                                            <time class="text-sm text-gray-500 dark:text-gray-400">
+                                                {{ formatDate(item.occurred_at) }}
+                                            </time>
+                                        </div>
+                                        <p
+                                            v-if="item.notes"
+                                            class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300"
+                                        >
+                                            {{ item.notes }}
+                                        </p>
+                                    </button>
+                                </li>
                             </ol>
                         </div>
 
@@ -537,37 +584,6 @@ const renameApplicationFileUrl = (file) =>
                         />
                     </div>
 
-                    <div
-                        v-if="canUploadApplicationFiles"
-                        class="border-t border-gray-200 pt-6 dark:border-gray-700"
-                    >
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                            {{ t('app.applications.files_title') }}
-                        </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            {{ t('app.applications.files_hint') }}
-                        </p>
-
-                        <div class="mt-4">
-                            <FileManager
-                                v-if="isEdit"
-                                :files="applicationFiles"
-                                :upload-url="route('applications.files.store', application.id)"
-                                :download-url="downloadApplicationFileUrl"
-                                :preview-url="previewApplicationFileUrl"
-                                :delete-url="deleteApplicationFileUrl"
-                                :rename-url="renameApplicationFileUrl"
-                                multiple
-                            />
-                            <p
-                                v-else
-                                class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-600"
-                            >
-                                {{ t('app.applications.files_save_first') }}
-                            </p>
-                        </div>
-                    </div>
-
                     <ApplicationRemindersSection
                         v-if="isEdit"
                         :application="application"
@@ -576,27 +592,7 @@ const renameApplicationFileUrl = (file) =>
                         :reminder-frequencies="reminderFrequencies"
                         :moments="editableMoments"
                     />
-
-                    <div class="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-                        <PrimaryButton :disabled="form.processing" type="submit">
-                            {{ t('app.actions.save') }}
-                        </PrimaryButton>
-                        <SecondaryButton
-                            v-if="!isEdit"
-                            :disabled="form.processing"
-                            type="button"
-                            @click="submit(true)"
-                        >
-                            {{ t('app.actions.save_and_create_another') }}
-                        </SecondaryButton>
-                        <Link
-                            :href="route('applications.index')"
-                            class="text-sm text-gray-600 hover:underline dark:text-gray-400"
-                        >
-                            {{ t('app.actions.cancel') }}
-                        </Link>
-                    </div>
-                </form>
+                </template>
             </div>
         </div>
     </AuthenticatedLayout>
