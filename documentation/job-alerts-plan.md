@@ -167,7 +167,7 @@ Tests use a **fake client** returning fixed JSON — no API key or GPU in CI.
 
 | Done | Phase | Scope | Exit criteria |
 |:----:|-------|-------|---------------|
-| [ ] | **A** | Schema & admin CRUD | `job_sources` table, Filament resource, manual JSON config (no visual picker yet) |
+| [x] | **A** | Schema & admin CRUD | `job_sources` table, Filament resource, manual JSON config (no visual picker yet) |
 | [ ] | **B** | HTTP scraper + extractor | `JobListingExtractor`, `jobs:scrape-sources`, `job_listings` dedupe, scrape run logs |
 | [ ] | **C** | Visual field configurator | Proxied preview, click-to-map fields, test extraction table in admin |
 | [ ] | **D** | Playwright interactions | Node bridge, `interactions` in config, cookie/load-more support |
