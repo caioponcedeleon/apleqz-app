@@ -172,10 +172,10 @@ Tests use a **fake client** returning fixed JSON — no API key or GPU in CI.
 | [x] | **C** | Visual field configurator | Proxied preview, click-to-map fields, test extraction table in admin |
 | [ ] | **D** | Playwright interactions | Node bridge, `interactions` in config, cookie/load-more support |
 | [ ] | **E** | Visual interaction recorder | Admin clicks cookie button etc.; steps saved to config |
-| [ ] | **F** | User subscriptions & profile | Profile text, source checkboxes, `job_alerts_enabled` toggle |
-| [ ] | **G** | AI matching | `JobMatchEvaluator`, `AiChatClient`, `job_matches` table, in-app matches list |
-| [ ] | **H** | Digest emails | `JobMatchesDigestNotification`, `jobs:send-digests`, localized templates |
-| [ ] | **I** | Hardening & polish | SSRF guards, config versioning, failure alerts, “create application” from match |
+| [x] | **F** | User subscriptions & profile | Profile text, source checkboxes, `job_alerts_enabled` toggle |
+| [x] | **G** | AI matching | `JobMatchEvaluator`, `AiChatClient`, `job_matches` table, in-app matches list |
+| [x] | **H** | Digest emails | `JobMatchesDigestNotification`, `jobs:send-digests`, localized templates |
+| [x] | **I** | Hardening & polish | SSRF (done in B), robots.txt, config revisions, zero-listing alerts, create application from match, AI privacy copy |
 
 ---
 

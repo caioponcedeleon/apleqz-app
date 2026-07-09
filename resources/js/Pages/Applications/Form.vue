@@ -27,6 +27,7 @@ const props = defineProps({
     reminderFrequencies: { type: Array, default: () => [] },
     canUploadApplicationFiles: { type: Boolean, default: false },
     canCreateApplication: { type: Boolean, default: true },
+    prefill: { type: Object, default: null },
 });
 
 const { t } = useI18n();
@@ -207,14 +208,15 @@ const form = useForm({
         ?? page.props.selectedWave?.id
         ?? props.waves[0]?.id
         ?? '',
-    position: props.application?.position ?? '',
-    company: props.application?.company ?? '',
-    location: props.application?.location ?? '',
+    position: props.application?.position ?? props.prefill?.position ?? '',
+    company: props.application?.company ?? props.prefill?.company ?? '',
+    location: props.application?.location ?? props.prefill?.location ?? '',
     applied_at: props.application?.applied_at?.slice?.(0, 10) ?? '',
     status: props.application?.status ?? 'esperando',
     channel: props.application?.channel ?? '',
     notes: props.application?.notes ?? '',
-    job_url: props.application?.job_url ?? '',
+    job_url: props.application?.job_url ?? props.prefill?.job_url ?? '',
+    job_match_id: props.prefill?.job_match_id ?? '',
     create_another: false,
 });
 

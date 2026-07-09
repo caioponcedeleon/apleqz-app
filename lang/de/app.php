@@ -253,6 +253,8 @@ return [
         'duration_session' => 'Sitzung',
         'your_rights_title' => 'Ihre Auswahl',
         'your_rights_text' => 'Sie können Ihre Einwilligung jederzeit ändern oder widerrufen. Das Ablehnen nicht essenzieller Cookies beeinträchtigt nicht Ihre Nutzung des Dienstes.',
+        'job_alerts_ai_title' => 'Job-Benachrichtigungen und KI',
+        'job_alerts_ai_text' => 'Wenn Sie Job-Benachrichtigungen aktivieren, wird Ihr kurzer Profiltext an den konfigurierten KI-Dienst gesendet, um Stellen zu bewerten. Mit dem Standard-Treiber Mistral API erfolgt die Verarbeitung bei Mistral. Mit Ollama bleibt sie auf Ihrem Server.',
         'back_home' => 'Zur Startseite',
     ],
     'onboarding' => [
@@ -403,6 +405,7 @@ return [
             'deleted' => 'Jobquelle gelöscht.',
             'config_saved' => 'Extraktionskonfiguration gespeichert.',
             'scrape_success' => 'Scrape abgeschlossen. :found Stelle(n) gefunden, :new neu.',
+            'scrape_zero_listings' => 'Scrape abgeschlossen, aber 0 Stellen gefunden. Prüfen Sie die Extraktionskonfiguration oder ob sich die Karriereseite geändert hat.',
             'scrape_failed' => 'Scrape fehlgeschlagen: :error',
             'scrape_failed_unknown' => 'Unbekannter Fehler',
         ],
@@ -493,6 +496,7 @@ return [
         'nav_matches' => 'Treffer',
         'profile_heading' => 'Jobsuchprofil',
         'profile_help' => 'Beschreiben Sie Zielrolle, Fähigkeiten und Wünsche in maximal 200 Zeichen. Dieser Text wird zur Bewertung neuer Stellen verwendet.',
+        'profile_ai_privacy' => 'Ihr Profiltext wird nur zur Bewertung von Stellen an den konfigurierten KI-Anbieter gesendet (standardmäßig Mistral API oder Ihr eigener Ollama-Server). Er wird nicht zum Training verwendet.',
         'profile_placeholder' => 'z. B. Junior Laravel-Dev in NRW, hybrid möglich',
         'profile_char_count' => '{count}/{max} Zeichen',
         'min_fit_score' => 'Mindest-Passungswert',
@@ -512,5 +516,6 @@ return [
         'view_job' => 'Stelle ansehen',
         'dismiss' => 'Ausblenden',
         'match_dismissed' => 'Treffer ausgeblendet.',
+        'track_application' => 'Bewerbung erfassen',
     ],
 ];

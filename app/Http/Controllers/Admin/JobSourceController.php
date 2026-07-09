@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\JobSourceRequest;
 use App\Models\JobSource;
 use App\Services\JobScrapeService;
+use App\Services\JobSourceConfigRevisionService;
 use App\Support\JobExtractionConfigValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -121,6 +122,14 @@ class JobSourceController extends Controller
                 ->with('success', __('app.job_sources.flash.scrape_success', [
                     'found' => $run->listings_found,
                     'new' => $run->listings_new,
+                ]));
+        }
+
+        if ($run->status === JobScrapeStatus::Partial) {
+            return redirect()
+                ->route('job-sources.index')
+                ->with('warning', __('app.job_sources.flash.scrape_zero_listings', [
+                    'found' => $run->listings_found,
                 ]));
         }
 

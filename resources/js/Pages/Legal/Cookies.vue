@@ -75,6 +75,13 @@ const cookieRows = [
                 </div>
 
                 <h2 class="mt-8 text-lg font-semibold text-slate-900 dark:text-white">
+                    {{ t('app.cookies.job_alerts_ai_title') }}
+                </h2>
+                <p class="text-slate-600 dark:text-slate-300">
+                    {{ t('app.cookies.job_alerts_ai_text') }}
+                </p>
+
+                <h2 class="mt-8 text-lg font-semibold text-slate-900 dark:text-white">
                     {{ t('app.cookies.your_rights_title') }}
                 </h2>
                 <p class="text-slate-600 dark:text-slate-300">

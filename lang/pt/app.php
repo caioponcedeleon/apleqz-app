@@ -253,6 +253,8 @@ return [
         'duration_session' => 'Sessão',
         'your_rights_title' => 'Suas escolhas',
         'your_rights_text' => 'Você pode alterar ou retirar seu consentimento a qualquer momento. Rejeitar cookies não essenciais não afeta o uso do serviço.',
+        'job_alerts_ai_title' => 'Alertas de vagas e IA',
+        'job_alerts_ai_text' => 'Se você ativar alertas de vagas, o texto curto do seu perfil é enviado ao serviço de IA configurado para pontuar vagas. Com o driver padrão Mistral API, o processamento ocorre na infraestrutura da Mistral. Com Ollama, permanece no seu servidor.',
         'back_home' => 'Voltar ao início',
     ],
     'onboarding' => [
@@ -403,6 +405,7 @@ return [
             'deleted' => 'Fonte excluída.',
             'config_saved' => 'Configuração de extração salva.',
             'scrape_success' => 'Extração concluída. :found vaga(s) encontrada(s), :new nova(s).',
+            'scrape_zero_listings' => 'Extração concluída, mas 0 vagas encontradas. Verifique a configuração de extração ou se a página de carreiras mudou.',
             'scrape_failed' => 'Extração falhou: :error',
             'scrape_failed_unknown' => 'Erro desconhecido',
         ],
@@ -493,6 +496,7 @@ return [
         'nav_matches' => 'Correspondências',
         'profile_heading' => 'Perfil de busca',
         'profile_help' => 'Descreva o cargo desejado, habilidades e preferências em até 200 caracteres. Este texto avalia o encaixe das novas vagas.',
+        'profile_ai_privacy' => 'O texto do seu perfil é enviado ao provedor de IA configurado (Mistral API por padrão, ou seu servidor Ollama) apenas para pontuar vagas. Não é usado para treinamento.',
         'profile_placeholder' => 'ex.: Dev Laravel júnior em NRW, híbrido OK',
         'profile_char_count' => '{count}/{max} caracteres',
         'min_fit_score' => 'Pontuação mínima de encaixe',
@@ -512,5 +516,6 @@ return [
         'view_job' => 'Ver vaga',
         'dismiss' => 'Dispensar',
         'match_dismissed' => 'Correspondência dispensada.',
+        'track_application' => 'Registrar candidatura',
     ],
 ];

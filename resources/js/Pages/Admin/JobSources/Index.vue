@@ -82,6 +82,13 @@ const confirmDelete = () => {
                     {{ page.props.flash.error }}
                 </div>
 
+                <div
+                    v-if="page.props.flash?.warning"
+                    class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                    {{ page.props.flash.warning }}
+                </div>
+
                 <p
                     class="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400"
                 >

@@ -10,6 +10,7 @@ use App\Services\JobListingExtractor;
 use App\Services\JobPreviewHtmlSanitizer;
 use App\Services\JobSourceFetcher;
 use App\Services\JobSourcePreviewService;
+use App\Services\JobSourceConfigRevisionService;
 use App\Support\JobExtractionConfigValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,7 @@ class JobSourceConfiguratorController extends Controller
         ]);
     }
 
-    public function update(Request $request, JobSource $jobSource, JobExtractionConfigValidator $validator): RedirectResponse
+    public function update(Request $request, JobSource $jobSource, JobExtractionConfigValidator $validator, JobSourceConfigRevisionService $revisions): RedirectResponse
     {
         $this->authorize('update', $jobSource);
 
@@ -65,6 +66,8 @@ class JobSourceConfiguratorController extends Controller
         ];
 
         $validator->validate($config, (bool) $jobSource->is_active);
+
+        $revisions->snapshotBeforeUpdate($jobSource, $config);
 
         $jobSource->update([
             'extraction_config' => $config,

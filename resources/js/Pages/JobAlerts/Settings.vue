@@ -124,6 +124,9 @@ const submit = () => {
                                 }) }}
                             </p>
                             <InputError :message="form.errors.profile_text" />
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ t('app.job_alerts.profile_ai_privacy') }}
+                            </p>
                         </section>
 
                         <section class="space-y-3">

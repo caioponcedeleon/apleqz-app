@@ -1,14 +1,19 @@
 <script setup>
 import JobAlertsNav from '@/Components/JobAlertsNav.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 defineProps({
     matches: {
         type: Array,
         default: () => [],
+    },
+    canCreateApplication: {
+        type: Boolean,
+        default: false,
     },
 });
 
@@ -116,6 +121,14 @@ const scoreClass = (score) => {
                             </div>
 
                             <div class="flex shrink-0 flex-wrap gap-2">
+                                <Link
+                                    v-if="canCreateApplication"
+                                    :href="route('job-alerts.matches.apply', match.id)"
+                                >
+                                    <PrimaryButton type="button">
+                                        {{ t('app.job_alerts.track_application') }}
+                                    </PrimaryButton>
+                                </Link>
                                 <a
                                     v-if="match.listing?.url"
                                     :href="match.listing.url"

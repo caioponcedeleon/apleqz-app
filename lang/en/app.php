@@ -253,6 +253,8 @@ return [
         'duration_session' => 'Session',
         'your_rights_title' => 'Your choices',
         'your_rights_text' => 'You can change or withdraw your consent at any time. Rejecting non-essential cookies will not affect your ability to use the service.',
+        'job_alerts_ai_title' => 'Job alerts and AI',
+        'job_alerts_ai_text' => 'If you enable job alerts, the short profile text you provide is sent to the configured AI service to score listings against your preferences. With the default Mistral API driver, this processing happens on Mistral’s infrastructure. With Ollama, it stays on your server.',
         'back_home' => 'Back to home',
     ],
     'onboarding' => [
@@ -403,6 +405,7 @@ return [
             'deleted' => 'Job source deleted.',
             'config_saved' => 'Extraction configuration saved.',
             'scrape_success' => 'Scrape finished. Found :found listing(s), :new new.',
+            'scrape_zero_listings' => 'Scrape completed but found 0 listings. Check the extraction config or whether the careers page changed.',
             'scrape_failed' => 'Scrape failed: :error',
             'scrape_failed_unknown' => 'Unknown error',
         ],
@@ -493,6 +496,7 @@ return [
         'nav_matches' => 'Matches',
         'profile_heading' => 'Job search profile',
         'profile_help' => 'Describe your target role, skills, and preferences in up to 200 characters. This text is used to score how well new listings fit you.',
+        'profile_ai_privacy' => 'Your profile text is sent to the configured AI provider (Mistral API by default, or your own Ollama server) only to score job listings. It is not used for training.',
         'profile_placeholder' => 'e.g. Junior Laravel dev in NRW, hybrid OK',
         'profile_char_count' => '{count}/{max} characters',
         'min_fit_score' => 'Minimum fit score',
@@ -512,5 +516,6 @@ return [
         'view_job' => 'View job',
         'dismiss' => 'Dismiss',
         'match_dismissed' => 'Match dismissed.',
+        'track_application' => 'Track application',
     ],
 ];

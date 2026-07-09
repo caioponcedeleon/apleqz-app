@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\ApplicationMomentType;
 use App\Enums\ApplicationStatus;
+use App\Enums\JobMatchStatus;
 use App\Http\Requests\ApplicationRequest;
 use App\Models\Application;
+use App\Models\JobMatch;
 use App\Queries\FilteredApplicationsQuery;
 use App\Services\ApplicationStatusHistoryService;
 use App\Services\SelectedWaveService;
@@ -50,13 +52,17 @@ class ApplicationController extends Controller
 
     public function create(Request $request): Response
     {
-        return Inertia::render('Applications/Form', $this->formProps($request, null));
+        return Inertia::render('Applications/Form', array_merge(
+            $this->formProps($request, null),
+            ['prefill' => $this->prefillFromQuery($request)],
+        ));
     }
 
     public function store(ApplicationRequest $request): RedirectResponse
     {
         $application = $request->user()->applications()->create($request->applicationAttributes());
         $this->statusHistory->recordInitial($application);
+        $this->markJobMatchApplied($request);
 
         if ($request->boolean('create_another')) {
             return redirect()->route('applications.create')
@@ -127,5 +133,47 @@ class ApplicationController extends Controller
             'canCreateApplication' => $user->areas()->exists()
                 && $user->applicationWaves()->exists(),
         ];
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    protected function prefillFromQuery(Request $request): ?array
+    {
+        $prefill = array_filter(
+            $request->only(['position', 'company', 'location', 'job_url', 'job_match_id']),
+            fn (mixed $value): bool => is_string($value) && $value !== '',
+        );
+
+        if ($prefill === []) {
+            return null;
+        }
+
+        if (isset($prefill['job_match_id'])) {
+            $ownsMatch = JobMatch::query()
+                ->whereKey($prefill['job_match_id'])
+                ->where('user_id', $request->user()->id)
+                ->exists();
+
+            if (! $ownsMatch) {
+                unset($prefill['job_match_id']);
+            }
+        }
+
+        return $prefill === [] ? null : $prefill;
+    }
+
+    protected function markJobMatchApplied(ApplicationRequest $request): void
+    {
+        $jobMatchId = $request->validated('job_match_id');
+
+        if ($jobMatchId === null) {
+            return;
+        }
+
+        JobMatch::query()
+            ->whereKey($jobMatchId)
+            ->where('user_id', $request->user()->id)
+            ->update(['status' => JobMatchStatus::Applied]);
     }
 }

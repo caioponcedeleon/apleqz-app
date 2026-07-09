@@ -61,6 +61,11 @@ class ApplicationRequest extends FormRequest
             'channel' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'job_url' => ['nullable', 'url', 'max:2048'],
+            'job_match_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('job_matches', 'id')->where('user_id', $this->user()->id),
+            ],
             'create_another' => ['sometimes', 'boolean'],
             'moments' => ['nullable', 'array'],
             'moments.*.id' => ['nullable', 'integer'],
@@ -72,7 +77,7 @@ class ApplicationRequest extends FormRequest
 
     public function applicationAttributes(): array
     {
-        return $this->safe()->except(['moments', 'create_another']);
+        return $this->safe()->except(['moments', 'create_another', 'job_match_id']);
     }
 
     public function momentsPayload(): array

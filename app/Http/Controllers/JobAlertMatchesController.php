@@ -37,6 +37,8 @@ class JobAlertMatchesController extends Controller
 
         return Inertia::render('JobAlerts/Matches', [
             'matches' => $matches,
+            'canCreateApplication' => $request->user()->areas()->exists()
+                && $request->user()->applicationWaves()->exists(),
         ]);
     }
 
@@ -51,5 +53,21 @@ class JobAlertMatchesController extends Controller
         return redirect()
             ->route('job-alerts.matches')
             ->with('success', __('app.job_alerts.match_dismissed'));
+    }
+
+    public function apply(Request $request, JobMatch $jobMatch): RedirectResponse
+    {
+        abort_unless($jobMatch->user_id === $request->user()->id, 403);
+
+        $jobMatch->load('jobListing:id,title,url,company,location');
+        $listing = $jobMatch->jobListing;
+
+        return redirect()->route('applications.create', array_filter([
+            'position' => $listing?->title,
+            'company' => $listing?->company,
+            'location' => $listing?->location,
+            'job_url' => $listing?->url,
+            'job_match_id' => $jobMatch->id,
+        ], fn (?string $value): bool => is_string($value) && $value !== ''));
     }
 }

@@ -57,6 +57,7 @@ class JobSource extends Model
             'version' => 1,
             'engine' => JobExtractionEngine::Http->value,
             'sample_url' => null,
+            'respect_robots' => false,
             'interactions' => [],
             'listing' => [
                 'item_selector' => '',
@@ -80,5 +81,10 @@ class JobSource extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(UserJobSourceSubscription::class);
+    }
+
+    public function configRevisions(): HasMany
+    {
+        return $this->hasMany(JobSourceConfigRevision::class);
     }
 }

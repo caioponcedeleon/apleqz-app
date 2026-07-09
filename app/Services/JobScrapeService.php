@@ -7,6 +7,7 @@ use App\Enums\JobScrapeStatus;
 use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
 use App\Models\JobSourceScrapeRun;
+use App\Support\RobotsTxtGuard;
 use RuntimeException;
 use Throwable;
 
@@ -16,6 +17,7 @@ class JobScrapeService
         protected JobSourceFetcher $fetcher,
         protected JobListingExtractor $extractor,
         protected JobListingUpserter $upserter,
+        protected RobotsTxtGuard $robotsGuard,
     ) {}
 
     public function scrape(JobSource $source): JobSourceScrapeRun
@@ -40,6 +42,10 @@ class JobScrapeService
                 );
             }
 
+            if ($config['respect_robots'] ?? false) {
+                $this->robotsGuard->assertAllowed($source->url);
+            }
+
             $html = $this->fetcher->fetch($source->url);
             $listings = $this->extractor->extract(
                 $html,
@@ -49,18 +55,27 @@ class JobScrapeService
             );
 
             $counts = $this->upserter->upsertMany($source, $listings, $startedAt);
+            $status = $counts['found'] === 0
+                ? JobScrapeStatus::Partial
+                : JobScrapeStatus::Success;
+
+            $meta = ['engine' => JobExtractionEngine::Http->value];
+
+            if ($counts['found'] === 0) {
+                $meta['warning'] = 'zero_listings';
+            }
 
             $run->update([
                 'finished_at' => now(),
-                'status' => JobScrapeStatus::Success,
+                'status' => $status,
                 'listings_found' => $counts['found'],
                 'listings_new' => $counts['new'],
-                'meta' => ['engine' => JobExtractionEngine::Http->value],
+                'meta' => $meta,
             ]);
 
             $source->update([
                 'last_scraped_at' => $startedAt,
-                'last_scrape_status' => JobScrapeStatus::Success,
+                'last_scrape_status' => $status,
             ]);
 
             if ($counts['new_listing_ids'] !== []) {
