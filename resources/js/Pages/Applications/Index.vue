@@ -2,6 +2,7 @@
 import ApplicationExport from '@/Components/ApplicationExport.vue';
 import ApplicationImport from '@/Components/ApplicationImport.vue';
 import ApplicationsListPreview from '@/Components/ApplicationsListPreview.vue';
+import ChipSelect from '@/Components/ChipSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
@@ -85,6 +86,20 @@ const setupBlockedRoute = computed(() => {
 
 const canImportExcel = computed(() => Boolean(page.props.auth.user?.excel_import_enabled));
 const showOnboardingPreview = computed(() => shouldShowApplicationsPreview(page, props.applications));
+
+const statusOptions = computed(() =>
+    props.statuses.map((value) => ({
+        value,
+        label: t(`app.status.${value}`),
+    })),
+);
+
+const areaOptions = computed(() =>
+    props.areas.map((area) => ({
+        value: String(area.id),
+        label: area.name,
+    })),
+);
 
 const clearFilters = () => {
     clearTimeout(searchDebounce);
@@ -206,20 +221,18 @@ const formatDate = (value) => {
                         class="min-w-[200px] flex-1"
                         :placeholder="t('app.applications.search')"
                     />
-                    <select
+                    <ChipSelect
                         v-model="status"
-                        class="rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                    >
-                        <option value="">{{ t('app.applications.filter_status') }}</option>
-                        <option v-for="s in statuses" :key="s" :value="s">{{ t(`app.status.${s}`) }}</option>
-                    </select>
-                    <select
+                        class="min-w-[10rem]"
+                        :placeholder="t('app.applications.filter_status')"
+                        :options="statusOptions"
+                    />
+                    <ChipSelect
                         v-model="areaId"
-                        class="rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                    >
-                        <option value="">{{ t('app.applications.filter_area') }}</option>
-                        <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-                    </select>
+                        class="min-w-[10rem]"
+                        :placeholder="t('app.applications.filter_area')"
+                        :options="areaOptions"
+                    />
                     <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                         <input
                             v-model="favouritesOnly"

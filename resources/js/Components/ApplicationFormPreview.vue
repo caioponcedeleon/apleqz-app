@@ -34,18 +34,14 @@ const previewStatus = 'esperando';
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
                 <InputLabel :value="t('app.applications.wave')" />
-                <div
-                    class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900/60 dark:text-gray-200"
-                >
+                <div class="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
                     {{ t('app.onboarding.preview.wave') }}
                 </div>
             </div>
 
             <div>
                 <InputLabel :value="t('app.applications.area')" />
-                <div
-                    class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900/60 dark:text-gray-200"
-                >
+                <div class="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
                     {{ t('app.onboarding.preview.area') }}
                 </div>
             </div>

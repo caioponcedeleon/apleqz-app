@@ -1,6 +1,7 @@
 <script setup>
 import ApplicationFormPreview from '@/Components/ApplicationFormPreview.vue';
 import ApplicationMomentModal from '@/Components/ApplicationMomentModal.vue';
+import ChipSelect from '@/Components/ChipSelect.vue';
 import FileManager from '@/Components/FileManager.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -217,6 +218,20 @@ const appliedAtLabel = computed(() =>
         : t('app.applications.planned_apply_at'),
 );
 
+const waveOptions = computed(() =>
+    props.waves.map((wave) => ({
+        value: wave.id,
+        label: wave.name,
+    })),
+);
+
+const areaOptions = computed(() =>
+    props.areas.map((area) => ({
+        value: area.id,
+        label: area.name,
+    })),
+);
+
 const submit = (createAnother = false) => {
     if (!canUseForm.value) {
         return;
@@ -339,29 +354,21 @@ const renameApplicationFileUrl = (file) =>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <InputLabel :value="t('app.applications.wave')" />
-                            <select
+                            <ChipSelect
                                 v-model="form.application_wave_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                                required
-                            >
-                                <option v-for="w in waves" :key="w.id" :value="w.id">
-                                    {{ w.name }}
-                                </option>
-                            </select>
+                                class="mt-1"
+                                :options="waveOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.application_wave_id" />
                         </div>
 
                         <div>
                             <InputLabel :value="t('app.applications.area')" />
-                            <select
+                            <ChipSelect
                                 v-model="form.area_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                                required
-                            >
-                                <option v-for="a in areas" :key="a.id" :value="a.id">
-                                    {{ a.name }}
-                                </option>
-                            </select>
+                                class="mt-1"
+                                :options="areaOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.area_id" />
                         </div>
 

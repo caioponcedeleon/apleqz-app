@@ -1,4 +1,5 @@
 <script setup>
+import ChipSelect from '@/Components/ChipSelect.vue';
 import WaveCreateModal from '@/Components/WaveCreateModal.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -11,9 +12,14 @@ const showCreateModal = ref(false);
 const waves = computed(() => page.props.waves ?? []);
 const selectedWaveId = computed(() => page.props.selectedWave?.id ?? '');
 
-const selectWave = (event) => {
-    const waveId = event.target.value;
+const waveOptions = computed(() =>
+    waves.value.map((wave) => ({
+        value: wave.id,
+        label: wave.name,
+    })),
+);
 
+const selectWave = (waveId) => {
     if (!waveId || waveId === selectedWaveId.value) {
         return;
     }
@@ -28,22 +34,16 @@ const selectWave = (event) => {
 
 <template>
     <div class="flex items-center gap-1">
-        <div
+        <ChipSelect
             v-if="waves.length"
-            class="flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-sm dark:border-gray-700 dark:bg-gray-800"
-        >
-            <label class="sr-only" for="wave-switcher">{{ t('app.waves.select') }}</label>
-            <select
-                id="wave-switcher"
-                :value="selectedWaveId"
-                class="max-w-[9rem] cursor-pointer truncate rounded-md border-0 bg-transparent py-1 pe-7 ps-2 text-sm font-medium text-gray-700 focus:ring-indigo-500 sm:max-w-[11rem] dark:text-gray-200"
-                @change="selectWave"
-            >
-                <option v-for="wave in waves" :key="wave.id" :value="wave.id">
-                    {{ wave.name }}
-                </option>
-            </select>
-        </div>
+            id="wave-switcher"
+            compact
+            class="max-w-[9rem] sm:max-w-[11rem]"
+            :model-value="selectedWaveId"
+            :options="waveOptions"
+            :aria-label="t('app.waves.select')"
+            @change="selectWave"
+        />
 
         <Link
             v-else

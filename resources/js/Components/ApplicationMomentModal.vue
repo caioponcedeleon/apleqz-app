@@ -1,4 +1,5 @@
 <script setup>
+import ChipSelect from '@/Components/ChipSelect.vue';
 import ConfirmDeleteModal from '@/Components/ConfirmDeleteModal.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import InputError from '@/Components/InputError.vue';
@@ -7,7 +8,7 @@ import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -23,6 +24,13 @@ const emit = defineEmits(['close', 'save', 'delete']);
 const { t } = useI18n();
 const draft = ref({ type: '', occurred_at: '', notes: '' });
 const showDeleteConfirm = ref(false);
+
+const momentTypeOptions = computed(() =>
+    props.momentTypes.map((type) => ({
+        value: type,
+        label: t(`app.moment_types.${type}`),
+    })),
+);
 
 watch(
     () => [props.show, props.moment],
@@ -62,15 +70,11 @@ const confirmDelete = () => {
             <div class="mt-6 grid gap-4 sm:grid-cols-2">
                 <div>
                     <InputLabel :value="t('app.applications.moment_type')" />
-                    <select
+                    <ChipSelect
                         v-model="draft.type"
-                        class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                        required
-                    >
-                        <option v-for="type in momentTypes" :key="type" :value="type">
-                            {{ t(`app.moment_types.${type}`) }}
-                        </option>
-                    </select>
+                        class="mt-1"
+                        :options="momentTypeOptions"
+                    />
                     <InputError class="mt-1" :message="errors.type" />
                 </div>
 
