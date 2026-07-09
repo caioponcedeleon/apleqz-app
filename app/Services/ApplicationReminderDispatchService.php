@@ -69,7 +69,9 @@ class ApplicationReminderDispatchService
             ->get();
 
         foreach ($reminders as $reminder) {
-            $onSending?->call($this, $reminder);
+            if ($onSending !== null) {
+                $onSending($reminder);
+            }
 
             $reminder->user->notify(new \App\Notifications\ApplicationReminderNotification($reminder));
 
