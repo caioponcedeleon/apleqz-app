@@ -328,8 +328,13 @@ const formatDate = (value) => {
                                         </svg>
                                     </button>
                                 </td>
-                                <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
-                                    {{ app.position }}
+                                <td class="px-4 py-3 font-medium">
+                                    <Link
+                                        :href="route('applications.edit', app.uuid)"
+                                        class="text-gray-900 transition hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
+                                    >
+                                        {{ app.position }}
+                                    </Link>
                                 </td>
                                 <td class="px-4 py-3">{{ app.company }}</td>
                                 <td class="px-4 py-3">{{ app.wave?.name ?? '—' }}</td>
