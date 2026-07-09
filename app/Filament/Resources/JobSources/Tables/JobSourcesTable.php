@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\JobSources\Tables;
 
+use App\Filament\Resources\JobSources\JobSourceResource;
 use App\Models\JobSource;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -48,6 +50,9 @@ class JobSourcesTable
             ])
             ->defaultSort('name')
             ->recordActions([
+                Action::make('configure')
+                    ->label('Configure')
+                    ->url(fn (JobSource $record): string => route('job-sources.configure', $record)),
                 EditAction::make(),
             ])
             ->toolbarActions([

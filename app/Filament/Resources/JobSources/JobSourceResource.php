@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\JobSources;
 
+use App\Filament\Resources\JobSources\Pages\ConfigureScrape;
 use App\Filament\Resources\JobSources\Pages\CreateJobSource;
 use App\Filament\Resources\JobSources\Pages\EditJobSource;
 use App\Filament\Resources\JobSources\Pages\ListJobSources;
@@ -30,6 +31,8 @@ class JobSourceResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Schema $schema): Schema
     {
         return JobSourceForm::configure($schema);
@@ -51,6 +54,7 @@ class JobSourceResource extends Resource
             'index' => ListJobSources::route('/'),
             'create' => CreateJobSource::route('/create'),
             'edit' => EditJobSource::route('/{record}/edit'),
+            'configure' => ConfigureScrape::route('/{record}/configure'),
         ];
     }
 }

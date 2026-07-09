@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\JobSourceConfiguratorController;
+use App\Http\Controllers\Admin\JobSourceController;
 use App\Http\Controllers\ApplicationMomentController;
 use App\Http\Controllers\ApplicationReminderController;
 use App\Http\Controllers\ApplicationController;
@@ -100,6 +102,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::middleware(['admin'])->prefix('job-sources')->name('job-sources.')->group(function () {
+        Route::get('/', [JobSourceController::class, 'index'])->name('index');
+        Route::get('/create', [JobSourceController::class, 'create'])->name('create');
+        Route::post('/', [JobSourceController::class, 'store'])->name('store');
+        Route::post('/preview', [JobSourceConfiguratorController::class, 'preview'])->name('preview');
+        Route::post('/test-extraction', [JobSourceConfiguratorController::class, 'testExtraction'])->name('test-extraction');
+        Route::get('/{jobSource}/configure', [JobSourceConfiguratorController::class, 'edit'])->name('configure');
+        Route::patch('/{jobSource}/extraction-config', [JobSourceConfiguratorController::class, 'update'])->name('extraction-config.update');
+        Route::get('/{jobSource}/edit', [JobSourceController::class, 'edit'])->name('edit');
+        Route::put('/{jobSource}', [JobSourceController::class, 'update'])->name('update');
+        Route::delete('/{jobSource}', [JobSourceController::class, 'destroy'])->name('destroy');
+    });
 });
 
 require __DIR__.'/auth.php';

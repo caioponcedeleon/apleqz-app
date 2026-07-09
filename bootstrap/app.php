@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasAreas;
 use App\Http\Middleware\EnsureUserHasWaves;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Console\Scheduling\Schedule;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'user.has.areas' => EnsureUserHasAreas::class,
             'user.has.waves' => EnsureUserHasWaves::class,
+            'admin' => EnsureUserIsAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

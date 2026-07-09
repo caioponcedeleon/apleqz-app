@@ -5,6 +5,7 @@ namespace App\Filament\Resources\JobSources\Pages;
 use App\Filament\Resources\JobSources\JobSourceResource;
 use App\Models\JobSource;
 use App\Support\JobExtractionConfigValidator;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -15,6 +16,9 @@ class EditJobSource extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('configure')
+                ->label('Configure extraction')
+                ->url(fn (): string => route('job-sources.configure', $this->getRecord())),
             DeleteAction::make(),
         ];
     }

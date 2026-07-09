@@ -53,6 +53,13 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                 >
                                     {{ t('app.nav.files') }}
                                 </NavLink>
+                                <NavLink
+                                    v-if="isAdmin"
+                                    :href="route('job-sources.index')"
+                                    :active="route().current('job-sources.*')"
+                                >
+                                    {{ t('app.nav.job_sources') }}
+                                </NavLink>
                             </div>
                         </div>
 
@@ -193,6 +200,13 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                             :active="route().current('files.*')"
                         >
                             {{ t('app.nav.files') }}
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="isAdmin"
+                            :href="route('job-sources.index')"
+                            :active="route().current('job-sources.*')"
+                        >
+                            {{ t('app.nav.job_sources') }}
                         </ResponsiveNavLink>
                     </div>
                     <div class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
