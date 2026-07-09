@@ -54,7 +54,7 @@ class ApplicationReminderDispatchService
      *
      * @return list<int>
      */
-    public function sendAllRemindersForTesting(bool $markSent = true, ?Carbon $now = null): array
+    public function sendAllRemindersForTesting(bool $markSent = true, ?Carbon $now = null, ?callable $onSending = null): array
     {
         $now = $now ?? now();
         $sentIds = [];
@@ -69,6 +69,8 @@ class ApplicationReminderDispatchService
             ->get();
 
         foreach ($reminders as $reminder) {
+            $onSending?->call($this, $reminder);
+
             $reminder->user->notify(new \App\Notifications\ApplicationReminderNotification($reminder));
 
             if ($markSent) {

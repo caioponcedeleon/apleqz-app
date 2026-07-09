@@ -21,7 +21,15 @@ class ForceSendApplicationRemindersCommand extends Command
         }
 
         $markSent = ! $this->option('without-marking');
-        $sentIds = $dispatch->sendAllRemindersForTesting($markSent);
+
+        $this->info('Looking for active reminders...');
+
+        $sentIds = $dispatch->sendAllRemindersForTesting(
+            $markSent,
+            onSending: function ($reminder) {
+                $this->line("Sending reminder #{$reminder->id} to {$reminder->user->email}...");
+            },
+        );
 
         $count = count($sentIds);
         $this->warn('Force-sent reminders ignore date, time, and frequency rules.');
