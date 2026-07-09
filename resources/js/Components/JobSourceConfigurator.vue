@@ -18,6 +18,8 @@ const props = defineProps({
         type: Object,
         default: () => ({ type: 'none', param: 'page', max_pages: 10 }),
     },
+    engine: { type: String, default: 'http' },
+    interactions: { type: Array, default: () => [] },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
 });
@@ -40,6 +42,16 @@ const fieldMappings = ref({ ...props.fieldMappings });
 const paginationType = ref(props.pagination?.type === 'query_param' ? 'query_param' : 'none');
 const paginationParam = ref(props.pagination?.param || 'page');
 const paginationMaxPages = ref(props.pagination?.max_pages || 10);
+const previewEngine = ref(props.engine === 'playwright' ? 'playwright' : 'http');
+const interactionsJson = ref(
+    Array.isArray(props.interactions) && props.interactions.length > 0
+        ? JSON.stringify(props.interactions, null, 2)
+        : '',
+);
+const showInteractionsEditor = ref(
+    Array.isArray(props.interactions) && props.interactions.length > 0,
+);
+const suggestPlaywright = ref(false);
 const cachedHtml = ref(null);
 const testResults = ref([]);
 const itemMatchCount = ref(null);
@@ -516,24 +528,52 @@ const loadPreview = async () => {
     loadingPreview.value = true;
     errorMessage.value = '';
     successMessage.value = '';
+    suggestPlaywright.value = false;
     clearPendingSelection();
     itemGroupBuilding.value = false;
     testResults.value = [];
     itemMatchCount.value = null;
 
+    let interactions = [];
+
+    if (interactionsJson.value.trim() !== '') {
+        try {
+            const parsed = JSON.parse(interactionsJson.value);
+
+            if (!Array.isArray(parsed)) {
+                throw new Error('Interactions must be a JSON array.');
+            }
+
+            interactions = parsed;
+        } catch {
+            previewLoaded.value = false;
+            errorMessage.value = t('app.job_sources.configurator.interactions_invalid');
+            loadingPreview.value = false;
+
+            return;
+        }
+    }
+
     try {
         const { data } = await window.axios.post(route('job-sources.preview'), {
             url: previewUrl.value,
+            engine: previewEngine.value,
+            interactions,
         });
 
         cachedHtml.value = data.cached_html;
         previewLoaded.value = true;
+        suggestPlaywright.value = Boolean(data.suggest_playwright);
 
         if (previewFrame.value) {
             previewFrame.value.srcdoc = data.html;
         }
 
-        successMessage.value = t('app.job_sources.configurator.preview_loaded');
+        if (data.rendered_with === 'playwright') {
+            successMessage.value = t('app.job_sources.configurator.preview_loaded_playwright');
+        } else {
+            successMessage.value = t('app.job_sources.configurator.preview_loaded');
+        }
     } catch (error) {
         previewLoaded.value = false;
         errorMessage.value = error.response?.data?.message
@@ -542,6 +582,11 @@ const loadPreview = async () => {
     } finally {
         loadingPreview.value = false;
     }
+};
+
+const enablePlaywrightAndReload = () => {
+    previewEngine.value = 'playwright';
+    loadPreview();
 };
 
 const testExtraction = async () => {
@@ -613,12 +658,33 @@ const saveConfiguration = () => {
     errorMessage.value = '';
     successMessage.value = '';
 
+    let interactions = [];
+
+    if (interactionsJson.value.trim() !== '') {
+        try {
+            const parsed = JSON.parse(interactionsJson.value);
+
+            if (!Array.isArray(parsed)) {
+                throw new Error('Interactions must be a JSON array.');
+            }
+
+            interactions = parsed;
+        } catch {
+            errorMessage.value = t('app.job_sources.configurator.interactions_invalid');
+            saving.value = false;
+
+            return;
+        }
+    }
+
     router.patch(route('job-sources.extraction-config.update', props.jobSource.id), {
         preview_url: previewUrl.value,
         item_mode: itemMode.value,
         item_selector: itemMode.value === 'single' ? itemSelector.value : '',
         item_group: itemMode.value === 'group' ? { parts: itemGroupParts.value } : null,
         fields: fieldMappings.value,
+        engine: previewEngine.value,
+        interactions,
         pagination: {
             type: paginationType.value,
             param: paginationParam.value,
@@ -722,6 +788,61 @@ onUnmounted(() => {
                 <PrimaryButton :disabled="loadingPreview" type="button" @click="loadPreview">
                     {{ loadingPreview ? t('app.job_sources.configurator.loading_preview') : t('app.job_sources.configurator.load_preview') }}
                 </PrimaryButton>
+            </div>
+
+            <div class="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-700">
+                <label class="flex cursor-pointer items-start gap-3">
+                    <input
+                        v-model="previewEngine"
+                        type="checkbox"
+                        class="mt-1 rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900"
+                        true-value="playwright"
+                        false-value="http"
+                    >
+                    <span class="text-sm text-gray-700 dark:text-gray-300">
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            {{ t('app.job_sources.configurator.use_playwright') }}
+                        </span>
+                        <span class="mt-1 block text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_sources.configurator.use_playwright_help') }}
+                        </span>
+                    </span>
+                </label>
+
+                <button
+                    type="button"
+                    class="text-sm font-medium text-primary-600 underline dark:text-primary-400"
+                    @click="showInteractionsEditor = !showInteractionsEditor"
+                >
+                    {{ showInteractionsEditor
+                        ? t('app.job_sources.configurator.hide_interactions')
+                        : t('app.job_sources.configurator.show_interactions') }}
+                </button>
+
+                <div v-if="showInteractionsEditor">
+                    <label class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.interactions_json') }}
+                    </label>
+                    <textarea
+                        v-model="interactionsJson"
+                        rows="6"
+                        class="mt-2 block w-full rounded-lg border-gray-300 font-mono text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                        :placeholder="t('app.job_sources.configurator.interactions_placeholder')"
+                    />
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_sources.configurator.interactions_help') }}
+                    </p>
+                </div>
+            </div>
+
+            <div
+                v-if="suggestPlaywright && previewEngine === 'http'"
+                class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+            >
+                <p>{{ t('app.job_sources.configurator.suggest_playwright') }}</p>
+                <SecondaryButton class="mt-3" type="button" @click="enablePlaywrightAndReload">
+                    {{ t('app.job_sources.configurator.load_with_playwright') }}
+                </SecondaryButton>
             </div>
         </div>
 

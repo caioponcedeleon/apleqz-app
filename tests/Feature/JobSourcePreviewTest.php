@@ -18,7 +18,7 @@ class JobSourcePreviewTest extends TestCase
     {
         $this->expectException(ValidationException::class);
 
-        app(JobSourcePreviewService::class)->prepare('http://localhost/jobs');
+        app(JobSourcePreviewService::class)->prepare('http://localhost/jobs')['html'];
     }
 
     public function test_preview_service_fetches_and_sanitizes_html(): void
@@ -30,8 +30,11 @@ class JobSourcePreviewTest extends TestCase
             ),
         ]);
 
-        $html = app(JobSourcePreviewService::class)->prepare('https://example.com/jobs');
+        $result = app(JobSourcePreviewService::class)->prepare('https://example.com/jobs');
+        $html = $result['html'];
 
+        $this->assertSame('http', $result['rendered_with']);
+        $this->assertFalse($result['suggest_playwright']);
         $this->assertStringContainsString('job-card', $html);
         $this->assertStringContainsString('https://example.com/jobs/1', $html);
         $this->assertStringNotContainsString('onclick', strtolower($html));
@@ -134,5 +137,49 @@ class JobSourcePreviewTest extends TestCase
             ->assertJsonPath('count', 2)
             ->assertJsonPath('listings.0.fields.job_title', 'Senior Engineer')
             ->assertJsonPath('listings.0.fields.url', 'https://example.com/jobs/senior-engineer');
+    }
+
+    public function test_preview_endpoint_suggests_playwright_for_dynamic_jobboard_placeholder(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        Http::fake([
+            'https://example.com/jobs' => Http::response(
+                '<html><body><div class="jobboard-datatable" data-widget="jobboardDatatable"><div>Bitte warten...</div></div></body></html>',
+                200,
+            ),
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('job-sources.preview'), [
+                'url' => 'https://example.com/jobs',
+                'engine' => 'http',
+            ])
+            ->assertOk()
+            ->assertJsonPath('rendered_with', 'http')
+            ->assertJsonPath('suggest_playwright', true);
+    }
+
+    public function test_preview_endpoint_uses_playwright_bridge_when_requested(): void
+    {
+        config([
+            'job_scraping.playwright.script_path' => base_path('tests/fixtures/scripts/mock-scrape-page.mjs'),
+            'job_scraping.playwright.node_binary' => 'node',
+        ]);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)
+            ->postJson(route('job-sources.preview'), [
+                'url' => 'https://example.com/jobs',
+                'engine' => 'playwright',
+            ])
+            ->assertOk()
+            ->assertJsonPath('rendered_with', 'playwright')
+            ->assertJsonPath('suggest_playwright', false)
+            ->assertJson(fn ($json) => $json
+                ->whereType('html', 'string')
+                ->whereType('cached_html', 'string')
+                ->etc());
     }
 }

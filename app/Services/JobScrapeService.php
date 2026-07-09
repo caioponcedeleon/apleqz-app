@@ -8,6 +8,7 @@ use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
 use App\Models\JobSourceScrapeRun;
 use App\Support\JobScrapePageUrlResolver;
+use App\Support\PlaywrightInteractionPresets;
 use App\Support\RobotsTxtGuard;
 use Throwable;
 
@@ -36,6 +37,7 @@ class JobScrapeService
         $engine = $config['engine'] ?? JobExtractionEngine::Http->value;
         $interactions = is_array($config['interactions'] ?? null) ? $config['interactions'] : [];
         $usePlaywright = $engine === JobExtractionEngine::Playwright->value || $interactions !== [];
+        $interactions = PlaywrightInteractionPresets::resolve($interactions, $usePlaywright);
         $resolvedEngine = $usePlaywright
             ? JobExtractionEngine::Playwright
             : JobExtractionEngine::Http;

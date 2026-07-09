@@ -15,6 +15,8 @@ defineProps({
         type: Object,
         default: () => ({ type: 'none', param: 'page', max_pages: 10 }),
     },
+    engine: { type: String, default: 'http' },
+    interactions: { type: Array, default: () => [] },
     fieldOptions: { type: Object, required: true },
     requiredFields: { type: Array, default: () => [] },
 });
@@ -63,6 +65,8 @@ const page = usePage();
                     :item-group="itemGroup"
                     :field-mappings="fieldMappings"
                     :pagination="pagination"
+                    :engine="engine"
+                    :interactions="interactions"
                     :field-options="fieldOptions"
                     :required-fields="requiredFields"
                 />

@@ -47,6 +47,12 @@ class JobSourceConfiguratorController extends Controller
                 ? $config['listing']['fields']
                 : [],
             'pagination' => $this->paginationProps($config['pagination'] ?? null),
+            'engine' => is_string($config['engine'] ?? null)
+                ? $config['engine']
+                : JobExtractionEngine::Http->value,
+            'interactions' => is_array($config['interactions'] ?? null)
+                ? $config['interactions']
+                : [],
             'fieldOptions' => $this->fieldOptions(),
             'requiredFields' => JobListingField::requiredValues(),
         ]);
@@ -67,6 +73,8 @@ class JobSourceConfiguratorController extends Controller
             'pagination.type' => ['nullable', 'string', 'in:none,query_param'],
             'pagination.param' => ['nullable', 'string', 'max:50'],
             'pagination.max_pages' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'engine' => ['nullable', 'string', 'in:http,playwright'],
+            'interactions' => ['nullable', 'array'],
         ]);
 
         $itemMode = $validated['item_mode'];
@@ -86,9 +94,14 @@ class JobSourceConfiguratorController extends Controller
 
         $config = $jobSource->extraction_config ?? JobSource::defaultExtractionConfig();
         $config['version'] = is_int($config['version'] ?? null) ? $config['version'] : 1;
-        $config['engine'] = is_string($config['engine'] ?? null)
-            ? $config['engine']
-            : JobExtractionEngine::Http->value;
+        $config['engine'] = is_string($validated['engine'] ?? null)
+            ? $validated['engine']
+            : (is_string($config['engine'] ?? null)
+                ? $config['engine']
+                : JobExtractionEngine::Http->value);
+        $config['interactions'] = is_array($validated['interactions'] ?? null)
+            ? $validated['interactions']
+            : (is_array($config['interactions'] ?? null) ? $config['interactions'] : []);
         $config['sample_url'] = $validated['preview_url'];
         $config['listing'] = [
             'item_mode' => $itemMode,
@@ -118,9 +131,17 @@ class JobSourceConfiguratorController extends Controller
 
         $validated = $request->validate([
             'url' => ['required', 'url', 'max:2048'],
+            'engine' => ['nullable', 'string', 'in:http,playwright'],
+            'interactions' => ['nullable', 'array'],
         ]);
 
-        $displayHtml = $preview->prepare($validated['url']);
+        $result = $preview->prepare($validated['url'], [
+            'engine' => $validated['engine'] ?? JobExtractionEngine::Http->value,
+            'interactions' => is_array($validated['interactions'] ?? null)
+                ? $validated['interactions']
+                : [],
+        ]);
+        $displayHtml = $result['html'];
         $cachedHtml = preg_replace(
             '/<script\b[^>]*job-source-picker\.js[^>]*><\/script>/i',
             '',
@@ -130,6 +151,8 @@ class JobSourceConfiguratorController extends Controller
         return response()->json([
             'html' => $displayHtml,
             'cached_html' => $cachedHtml,
+            'rendered_with' => $result['rendered_with'],
+            'suggest_playwright' => $result['suggest_playwright'],
         ]);
     }
 
