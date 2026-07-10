@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobMatchStatus;
 use App\Models\JobMatch;
+use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchRematchService;
+use App\Services\JobSourcePreviewService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,6 +62,45 @@ class JobAlertMatchesController extends Controller
         return redirect()
             ->route('job-alerts.matches')
             ->with('success', __('app.job_alerts.run_matches_dispatched', ['count' => $dispatched]));
+    }
+
+    public function preview(
+        Request $request,
+        JobMatch $jobMatch,
+        JobSourcePreviewService $preview,
+        JobListingDetailEnrichmentService $detailEnrichment,
+    ): JsonResponse {
+        abort_unless($jobMatch->user_id === $request->user()->id, 403);
+
+        $jobMatch->load('jobListing.jobSource');
+        $listing = $jobMatch->jobListing;
+
+        if (! $listing || ! is_string($listing->url) || trim($listing->url) === '') {
+            return response()->json([
+                'message' => __('app.job_alerts.preview_unavailable'),
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'engine' => ['nullable', 'string', 'in:http,playwright'],
+        ]);
+
+        $options = $detailEnrichment->previewOptionsFor($listing);
+        $engine = $validated['engine'] ?? $options['engine'];
+
+        $result = $preview->prepare($listing->url, [
+            'engine' => $engine,
+            'interactions' => $options['interactions'],
+            'inject_picker' => false,
+        ]);
+
+        return response()->json([
+            'html' => $result['html'],
+            'rendered_with' => $result['rendered_with'],
+            'suggest_playwright' => $result['suggest_playwright'],
+            'url' => $listing->url,
+            'title' => $listing->title,
+        ]);
     }
 
     public function dismiss(Request $request, JobMatch $jobMatch): RedirectResponse

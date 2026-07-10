@@ -1,5 +1,6 @@
 <script setup>
 import JobAlertsNav from '@/Components/JobAlertsNav.vue';
+import JobListingPreviewModal from '@/Components/JobListingPreviewModal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -25,6 +26,19 @@ defineProps({
 const { t } = useI18n();
 const page = usePage();
 const runningMatches = ref(false);
+const previewMatch = ref(null);
+
+const openPreview = (match) => {
+    if (!match.listing?.url) {
+        return;
+    }
+
+    previewMatch.value = match;
+};
+
+const closePreview = () => {
+    previewMatch.value = null;
+};
 
 const runMatches = () => {
     runningMatches.value = true;
@@ -169,17 +183,14 @@ const scoreClass = (score) => {
                                     {{ t('app.job_alerts.track_application') }}
                                 </PrimaryButton>
                             </Link>
-                            <a
+                            <SecondaryButton
                                 v-if="match.listing?.url"
-                                :href="match.listing.url"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="sm:order-2"
+                                type="button"
+                                class="w-full justify-center sm:order-2 sm:w-auto"
+                                @click="openPreview(match)"
                             >
-                                <SecondaryButton type="button" class="w-full justify-center sm:w-auto">
-                                    {{ t('app.job_alerts.view_job') }}
-                                </SecondaryButton>
-                            </a>
+                                {{ t('app.job_alerts.view_job') }}
+                            </SecondaryButton>
                             <SecondaryButton
                                 type="button"
                                 class="w-full justify-center sm:order-3 sm:w-auto"
@@ -192,5 +203,13 @@ const scoreClass = (score) => {
                 </ul>
             </div>
         </div>
+
+        <JobListingPreviewModal
+            :show="previewMatch !== null"
+            :match-id="previewMatch?.id ?? null"
+            :title="previewMatch?.listing?.title ?? ''"
+            :external-url="previewMatch?.listing?.url ?? ''"
+            @close="closePreview"
+        />
     </AuthenticatedLayout>
 </template>

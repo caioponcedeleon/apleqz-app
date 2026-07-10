@@ -596,4 +596,49 @@ class JobMatchTest extends TestCase
             'job_listing_id' => $listing->id,
         ]);
     }
+
+    public function test_user_can_preview_own_job_match_listing(): void
+    {
+        Http::fake([
+            'https://example.com/jobs/1' => Http::response(
+                '<html><body><h1>Research Assistant</h1><script>alert(1)</script></body></html>',
+                200,
+            ),
+        ]);
+
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Research Assistant',
+            'url' => 'https://example.com/jobs/1',
+        ]);
+        $match = JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('job-alerts.matches.preview', $match))
+            ->assertOk()
+            ->assertJsonPath('title', 'Research Assistant')
+            ->assertJsonPath('url', 'https://example.com/jobs/1');
+
+        $html = (string) $response->json('html');
+
+        $this->assertStringContainsString('Research Assistant', $html);
+        $this->assertStringNotContainsString('<script', strtolower($html));
+        $this->assertStringNotContainsString('job-source-picker.js', $html);
+    }
+
+    public function test_user_cannot_preview_another_users_job_match(): void
+    {
+        $owner = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $other = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $match = JobMatch::factory()->create(['user_id' => $owner->id]);
+
+        $this->actingAs($other)
+            ->postJson(route('job-alerts.matches.preview', $match))
+            ->assertForbidden();
+    }
 }

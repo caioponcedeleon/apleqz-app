@@ -41,6 +41,22 @@ class JobSourcePreviewTest extends TestCase
         $this->assertStringContainsString('job-source-picker.js', $html);
     }
 
+    public function test_preview_service_can_omit_picker_script(): void
+    {
+        Http::fake([
+            'https://example.com/jobs' => Http::response(
+                '<html><body><article class="job-card">Engineer</article></body></html>',
+                200,
+            ),
+        ]);
+
+        $result = app(JobSourcePreviewService::class)->prepare('https://example.com/jobs', [
+            'inject_picker' => false,
+        ]);
+
+        $this->assertStringNotContainsString('job-source-picker.js', $result['html']);
+    }
+
     public function test_admin_can_access_configure_page(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);

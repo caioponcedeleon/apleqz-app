@@ -38,6 +38,46 @@ class JobListingDetailEnrichmentService
         return $detail;
     }
 
+    /**
+     * @return array{engine: string, interactions: list<array<string, mixed>>}
+     */
+    public function previewOptionsFor(JobListing $listing): array
+    {
+        $listing->loadMissing('jobSource');
+
+        $source = $listing->jobSource;
+        $sourceConfig = $source?->extraction_config ?? JobSource::defaultExtractionConfig();
+        $engine = is_string($sourceConfig['engine'] ?? null)
+            ? $sourceConfig['engine']
+            : JobExtractionEngine::Http->value;
+        $interactions = is_array($sourceConfig['interactions'] ?? null)
+            ? $sourceConfig['interactions']
+            : [];
+
+        if ($source) {
+            $detail = $this->detailConfigFor($source);
+
+            if (is_array($detail)) {
+                $detailEngine = is_string($detail['engine'] ?? null) ? $detail['engine'] : 'inherit';
+
+                if ($detailEngine !== 'inherit') {
+                    $engine = $detailEngine;
+                }
+
+                $detailInteractions = is_array($detail['interactions'] ?? null) ? $detail['interactions'] : [];
+
+                if ($detailInteractions !== []) {
+                    $interactions = $detailInteractions;
+                }
+            }
+        }
+
+        return [
+            'engine' => $engine,
+            'interactions' => $interactions,
+        ];
+    }
+
     public function enrich(JobListing $listing): bool
     {
         $listing->loadMissing('jobSource');

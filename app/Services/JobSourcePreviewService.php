@@ -18,7 +18,7 @@ class JobSourcePreviewService
     ) {}
 
     /**
-     * @param  array{engine?: string, interactions?: list<array<string, mixed>>}  $options
+     * @param  array{engine?: string, interactions?: list<array<string, mixed>>, inject_picker?: bool}  $options
      * @return array{html: string, rendered_with: string, suggest_playwright: bool}
      */
     public function prepare(string $url, array $options = []): array
@@ -31,6 +31,7 @@ class JobSourcePreviewService
         $interactions = is_array($options['interactions'] ?? null)
             ? $options['interactions']
             : [];
+        $injectPicker = (bool) ($options['inject_picker'] ?? true);
         $usePlaywright = $engine === JobExtractionEngine::Playwright->value || $interactions !== [];
         $suggestPlaywright = false;
 
@@ -46,14 +47,18 @@ class JobSourcePreviewService
 
         $sanitized = $this->sanitizer->sanitize($html, $url);
 
-        $pickerUrl = asset('js/job-source-picker.js');
+        if ($injectPicker) {
+            $pickerUrl = asset('js/job-source-picker.js');
 
-        if (! is_string($pickerUrl) || $pickerUrl === '') {
-            throw new RuntimeException('Could not resolve the picker script URL.');
+            if (! is_string($pickerUrl) || $pickerUrl === '') {
+                throw new RuntimeException('Could not resolve the picker script URL.');
+            }
+
+            $sanitized = $this->sanitizer->injectPickerScript($sanitized, $pickerUrl);
         }
 
         return [
-            'html' => $this->sanitizer->injectPickerScript($sanitized, $pickerUrl),
+            'html' => $sanitized,
             'rendered_with' => $renderedWith,
             'suggest_playwright' => $suggestPlaywright,
         ];
