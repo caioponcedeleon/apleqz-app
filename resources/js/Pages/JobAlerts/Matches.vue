@@ -5,10 +5,10 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-defineProps({
+const props = defineProps({
     matches: {
         type: Array,
         default: () => [],
@@ -27,6 +27,22 @@ const { t } = useI18n();
 const page = usePage();
 const runningMatches = ref(false);
 const previewMatch = ref(null);
+const localMatches = ref([...props.matches]);
+
+watch(
+    () => props.matches,
+    (matches) => {
+        localMatches.value = [...matches];
+    },
+);
+
+const previewableMatches = computed(() =>
+    localMatches.value.filter((match) => Boolean(match.listing?.url)),
+);
+
+const removeMatch = (matchId) => {
+    localMatches.value = localMatches.value.filter((match) => match.id !== matchId);
+};
 
 const openPreview = (match) => {
     if (!match.listing?.url) {
@@ -38,6 +54,30 @@ const openPreview = (match) => {
 
 const closePreview = () => {
     previewMatch.value = null;
+};
+
+const openNextPreview = (currentMatchId) => {
+    const remaining = previewableMatches.value.filter((match) => match.id !== currentMatchId);
+    previewMatch.value = remaining[0] ?? null;
+};
+
+const handlePreviewDismiss = ({ matchId, advance }) => {
+    removeMatch(matchId);
+
+    if (advance) {
+        openNextPreview(matchId);
+        return;
+    }
+
+    closePreview();
+};
+
+const handleSavedForLater = ({ matchId }) => {
+    removeMatch(matchId);
+};
+
+const handleSeeNext = () => {
+    previewMatch.value = previewableMatches.value[0] ?? null;
 };
 
 const runMatches = () => {
@@ -115,7 +155,7 @@ const scoreClass = (score) => {
                 </div>
 
                 <div
-                    v-if="!matches.length"
+                    v-if="!localMatches.length"
                     class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 >
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -128,7 +168,7 @@ const scoreClass = (score) => {
 
                 <ul v-else class="space-y-4">
                     <li
-                        v-for="match in matches"
+                        v-for="match in localMatches"
                         :key="match.id"
                         class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     >
@@ -209,7 +249,11 @@ const scoreClass = (score) => {
             :match-id="previewMatch?.id ?? null"
             :title="previewMatch?.listing?.title ?? ''"
             :external-url="previewMatch?.listing?.url ?? ''"
+            :can-create-application="canCreateApplication"
             @close="closePreview"
+            @dismiss="handlePreviewDismiss"
+            @saved-for-later="handleSavedForLater"
+            @see-next="handleSeeNext"
         />
     </AuthenticatedLayout>
 </template>

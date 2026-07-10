@@ -8,6 +8,8 @@ use App\Jobs\EnrichJobListingDetailJob;
 use App\Jobs\EvaluateJobMatchJob;
 use App\Jobs\MatchNewListingsJob;
 use App\Models\Application;
+use App\Models\Area;
+use App\Models\ApplicationWave;
 use App\Models\JobListing;
 use App\Models\JobMatch;
 use App\Models\JobSource;
@@ -640,5 +642,92 @@ class JobMatchTest extends TestCase
         $this->actingAs($other)
             ->postJson(route('job-alerts.matches.preview', $match))
             ->assertForbidden();
+    }
+
+    public function test_user_can_save_job_match_for_later_as_application(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        ApplicationWave::factory()->create(['user_id' => $user->id, 'is_default' => true]);
+        $area = Area::factory()->create(['user_id' => $user->id]);
+        $listing = JobListing::factory()->create([
+            'title' => 'Research Assistant',
+            'company' => 'RWTH Aachen',
+            'url' => 'https://example.com/jobs/research-assistant',
+            'location' => 'Aachen',
+        ]);
+        $match = JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'reason' => 'Title matches include keyword.',
+            'status' => JobMatchStatus::PendingNotify,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('job-alerts.matches.save-for-later', $match))
+            ->assertOk()
+            ->assertJsonPath('application_id', fn ($id) => is_int($id));
+
+        $application = Application::query()->find($response->json('application_id'));
+
+        $this->assertNotNull($application);
+        $this->assertSame($user->id, $application->user_id);
+        $this->assertSame($area->id, $application->area_id);
+        $this->assertSame(ApplicationStatus::WaitingToApply, $application->status);
+        $this->assertSame('Research Assistant', $application->position);
+        $this->assertSame('RWTH Aachen', $application->company);
+        $this->assertSame('Aachen', $application->location);
+        $this->assertSame('https://example.com/jobs/research-assistant', $application->job_url);
+        $this->assertSame('Title matches include keyword.', $application->notes);
+        $this->assertNull($application->applied_at);
+        $this->assertSame(JobMatchStatus::Applied, $match->fresh()->status);
+    }
+
+    public function test_save_for_later_requires_area_and_wave(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $match = JobMatch::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->postJson(route('job-alerts.matches.save-for-later', $match))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['application']);
+    }
+
+    public function test_user_can_dismiss_match_via_json(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $match = JobMatch::factory()->create(['user_id' => $user->id]);
+
+        $this->actingAs($user)
+            ->patchJson(route('job-alerts.matches.dismiss', $match))
+            ->assertOk()
+            ->assertJsonPath('message', __('app.job_alerts.match_dismissed'));
+
+        $this->assertSame(JobMatchStatus::Dismissed, $match->fresh()->status);
+    }
+
+    public function test_applied_and_dismissed_matches_are_hidden_from_matches_index(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $pending = JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'status' => JobMatchStatus::PendingNotify,
+        ]);
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'status' => JobMatchStatus::Applied,
+        ]);
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'status' => JobMatchStatus::Dismissed,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('job-alerts.matches'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('JobAlerts/Matches')
+                ->has('matches', 1)
+                ->where('matches.0.id', $pending->id));
     }
 }

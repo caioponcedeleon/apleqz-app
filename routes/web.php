@@ -116,6 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/job-alerts/matches', [JobAlertMatchesController::class, 'index'])->name('job-alerts.matches');
         Route::post('/job-alerts/matches/run', [JobAlertMatchesController::class, 'runMatches'])->name('job-alerts.matches.run');
         Route::post('/job-alerts/matches/{jobMatch}/preview', [JobAlertMatchesController::class, 'preview'])->name('job-alerts.matches.preview');
+        Route::post('/job-alerts/matches/{jobMatch}/save-for-later', [JobAlertMatchesController::class, 'saveForLater'])->name('job-alerts.matches.save-for-later');
         Route::patch('/job-alerts/matches/{jobMatch}/dismiss', [JobAlertMatchesController::class, 'dismiss'])->name('job-alerts.matches.dismiss');
         Route::get('/job-alerts/matches/{jobMatch}/apply', [JobAlertMatchesController::class, 'apply'])->name('job-alerts.matches.apply');
     });

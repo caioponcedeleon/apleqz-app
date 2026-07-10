@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\JobMatchStatus;
 use App\Models\JobMatch;
 use App\Services\JobListingDetailEnrichmentService;
+use App\Services\JobMatchApplicationService;
 use App\Services\JobMatchRematchService;
 use App\Services\JobSourcePreviewService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ class JobAlertMatchesController extends Controller
     {
         $matches = JobMatch::query()
             ->where('user_id', $request->user()->id)
-            ->whereNot('status', JobMatchStatus::Dismissed)
+            ->whereIn('status', [JobMatchStatus::PendingNotify, JobMatchStatus::Notified])
             ->with(['jobListing:id,title,url,company,location'])
             ->orderByDesc('fit_score')
             ->orderByDesc('created_at')
@@ -103,7 +104,7 @@ class JobAlertMatchesController extends Controller
         ]);
     }
 
-    public function dismiss(Request $request, JobMatch $jobMatch): RedirectResponse
+    public function dismiss(Request $request, JobMatch $jobMatch): RedirectResponse|JsonResponse
     {
         abort_unless($jobMatch->user_id === $request->user()->id, 403);
 
@@ -111,9 +112,27 @@ class JobAlertMatchesController extends Controller
             'status' => JobMatchStatus::Dismissed,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('app.job_alerts.match_dismissed'),
+            ]);
+        }
+
         return redirect()
             ->route('job-alerts.matches')
             ->with('success', __('app.job_alerts.match_dismissed'));
+    }
+
+    public function saveForLater(Request $request, JobMatch $jobMatch, JobMatchApplicationService $applications): JsonResponse
+    {
+        $application = $applications->saveForLater($request->user(), $jobMatch);
+
+        return response()->json([
+            'message' => __('app.job_alerts.save_for_later_success'),
+            'application_id' => $application->id,
+            'application_uuid' => $application->uuid,
+            'edit_url' => route('applications.edit', $application),
+        ]);
     }
 
     public function apply(Request $request, JobMatch $jobMatch): RedirectResponse
