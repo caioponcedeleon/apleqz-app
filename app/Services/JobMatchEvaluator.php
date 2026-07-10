@@ -14,9 +14,9 @@ class JobMatchEvaluator
         protected AiChatClient $client,
     ) {}
 
-    public function evaluationCacheKey(string $profileText, ?string $contentHash): string
+    public function evaluationCacheKey(string $profileText, ?string $contentHash, ?string $excludeKeywords = null): string
     {
-        return hash('sha256', trim($profileText).'|'.($contentHash ?? ''));
+        return hash('sha256', trim($profileText).'|'.trim((string) $excludeKeywords).'|'.($contentHash ?? ''));
     }
 
     /**

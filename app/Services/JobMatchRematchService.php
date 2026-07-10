@@ -134,6 +134,7 @@ class JobMatchRematchService
             JobAlertsTier::Ai => $this->evaluator->evaluationCacheKey(
                 (string) $profile->profile_text,
                 $listing->content_hash,
+                $profile->exclude_keywords,
             ),
             JobAlertsTier::None => '',
         };

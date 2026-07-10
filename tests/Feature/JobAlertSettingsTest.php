@@ -270,4 +270,35 @@ class JobAlertSettingsTest extends TestCase
             'status' => JobMatchStatus::PendingNotify->value,
         ]);
     }
+
+    public function test_ai_tier_user_can_autosave_exclude_keywords(): void
+    {
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Laravel developer',
+            'exclude_keywords' => '',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('job-alerts.settings'))
+            ->patch(route('job-alerts.settings.update'), [
+                'profile_text' => 'Laravel developer',
+                'exclude_keywords' => "post doc\nintern*",
+                'min_fit_score' => 70,
+                'job_alerts_enabled' => false,
+                'subscribed_source_ids' => [],
+                'autosave' => true,
+            ])
+            ->assertRedirect(route('job-alerts.settings'))
+            ->assertSessionMissing('success');
+
+        $this->assertDatabaseHas('user_job_profiles', [
+            'user_id' => $user->id,
+            'exclude_keywords' => "post doc\nintern*",
+        ]);
+    }
 }

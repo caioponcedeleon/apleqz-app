@@ -62,7 +62,7 @@ class EvaluateJobMatchJob implements ShouldQueue
 
         $result = match ($user->jobAlertsTier()) {
             JobAlertsTier::Regex => $this->evaluateRegexMatch($profile, $listing, $patternMatcher),
-            JobAlertsTier::Ai => $this->evaluateAiMatch($profile, $listing, $evaluator, $detailEnrichment, $existing),
+            JobAlertsTier::Ai => $this->evaluateAiMatch($profile, $listing, $evaluator, $patternMatcher, $detailEnrichment, $existing),
             JobAlertsTier::None => null,
         };
 
@@ -141,6 +141,7 @@ class EvaluateJobMatchJob implements ShouldQueue
         UserJobProfile $profile,
         JobListing $listing,
         JobMatchEvaluator $evaluator,
+        JobTitlePatternMatcher $patternMatcher,
         JobListingDetailEnrichmentService $detailEnrichment,
         ?JobMatch $existing,
     ): ?array {
@@ -148,10 +149,27 @@ class EvaluateJobMatchJob implements ShouldQueue
             return null;
         }
 
-        $cacheKey = $evaluator->evaluationCacheKey($profile->profile_text, $listing->content_hash);
+        $cacheKey = $evaluator->evaluationCacheKey(
+            $profile->profile_text,
+            $listing->content_hash,
+            $profile->exclude_keywords,
+        );
 
         if (! $this->forceReevaluate && $existing && $existing->evaluation_cache_key === $cacheKey) {
             return null;
+        }
+
+        $excludeResult = $patternMatcher->evaluateTitleExcludes(
+            (string) $listing->title,
+            $profile->exclude_keywords,
+        );
+
+        if ($excludeResult !== null) {
+            return [
+                'fit_score' => $excludeResult['fit_score'],
+                'reason' => $excludeResult['reason'],
+                'evaluation_cache_key' => $cacheKey,
+            ];
         }
 
         $result = AiUsageContext::run(

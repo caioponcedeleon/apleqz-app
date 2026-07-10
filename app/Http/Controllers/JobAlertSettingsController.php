@@ -58,10 +58,14 @@ class JobAlertSettingsController extends Controller
         $tier = $user->jobAlertsTier();
         $profile = $user->jobProfile;
 
-        $keywordsChanged = $tier === JobAlertsTier::Regex && (
-            ($validated['include_keywords'] ?? '') !== (string) ($profile?->include_keywords ?? '')
-            || ($validated['exclude_keywords'] ?? '') !== (string) ($profile?->exclude_keywords ?? '')
-        );
+        $excludeChanged = ($validated['exclude_keywords'] ?? '') !== (string) ($profile?->exclude_keywords ?? '');
+        $includeChanged = ($validated['include_keywords'] ?? '') !== (string) ($profile?->include_keywords ?? '');
+
+        $keywordsChanged = match ($tier) {
+            JobAlertsTier::Regex => $includeChanged || $excludeChanged,
+            JobAlertsTier::Ai => $excludeChanged,
+            JobAlertsTier::None => false,
+        };
 
         $profileData = [
             'min_fit_score' => $validated['min_fit_score'],
@@ -70,6 +74,7 @@ class JobAlertSettingsController extends Controller
 
         if ($tier === JobAlertsTier::Ai) {
             $profileData['profile_text'] = $validated['profile_text'] ?? '';
+            $profileData['exclude_keywords'] = $validated['exclude_keywords'] ?? '';
         }
 
         if ($tier === JobAlertsTier::Regex) {

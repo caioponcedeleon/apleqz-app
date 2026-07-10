@@ -176,7 +176,7 @@ const profileTextLength = computed(() => form.profile_text.length);
 let keywordSaveTimer = null;
 
 const saveKeywords = () => {
-    if (!props.isRegexTier) {
+    if (!props.isRegexTier && !props.isAiTier) {
         return;
     }
 
@@ -297,13 +297,13 @@ const submit = () => {
                             <InputError :message="form.errors.include_keywords" />
                         </section>
 
-                        <section v-if="isRegexTier" class="space-y-3">
+                        <section v-if="isRegexTier || isAiTier" class="space-y-3">
                             <div>
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                                     {{ t('app.job_alerts.regex_exclude_heading') }}
                                 </h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    {{ t('app.job_alerts.regex_exclude_help') }}
+                                    {{ isAiTier ? t('app.job_alerts.ai_exclude_help') : t('app.job_alerts.regex_exclude_help') }}
                                 </p>
                             </div>
 

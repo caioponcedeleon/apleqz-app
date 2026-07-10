@@ -33,6 +33,7 @@ class JobAlertSettingsRequest extends FormRequest
 
         if ($tier === JobAlertsTier::Ai) {
             $rules['profile_text'] = ['nullable', 'string', 'max:'.UserJobProfile::PROFILE_TEXT_MAX_LENGTH];
+            $rules['exclude_keywords'] = ['nullable', 'string', 'max:5000'];
         }
 
         if ($tier === JobAlertsTier::Regex) {

@@ -98,4 +98,35 @@ class JobTitlePatternMatcherTest extends TestCase
 
         $this->assertSame(0, $result['fit_score']);
     }
+
+    public function test_evaluate_title_excludes_returns_null_when_no_rules(): void
+    {
+        $matcher = app(JobTitlePatternMatcher::class);
+
+        $this->assertNull($matcher->evaluateTitleExcludes('Any Title', ''));
+        $this->assertNull($matcher->evaluateTitleExcludes('Any Title', null));
+    }
+
+    public function test_evaluate_title_excludes_returns_zero_when_title_matches(): void
+    {
+        $matcher = app(JobTitlePatternMatcher::class);
+
+        $result = $matcher->evaluateTitleExcludes(
+            'Post Doc Position (f/m/d)',
+            "post doc\nintern",
+        );
+
+        $this->assertNotNull($result);
+        $this->assertSame(0, $result['fit_score']);
+    }
+
+    public function test_evaluate_title_excludes_returns_null_when_title_passes(): void
+    {
+        $matcher = app(JobTitlePatternMatcher::class);
+
+        $this->assertNull($matcher->evaluateTitleExcludes(
+            'Research Assistant (m/w/d)',
+            'post doc',
+        ));
+    }
 }

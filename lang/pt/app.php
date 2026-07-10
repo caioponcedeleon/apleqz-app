@@ -674,6 +674,7 @@ return [
         'regex_include_placeholder' => "developer\nengenheiro*\n/data engineer/i",
         'regex_exclude_heading' => 'O título não deve conter',
         'regex_exclude_help' => 'Uma palavra-chave ou padrão por linha. Se alguma linha corresponder ao título, a vaga é ignorada. Texto simples ignora maiúsculas. Use * como curinga (ex.: estag*). Use /padrão/ para expressões regulares completas.',
+        'ai_exclude_help' => 'Uma palavra-chave ou padrão por linha. Títulos correspondentes são rejeitados antes da pontuação por IA e nunca aparecem como correspondências. Texto simples ignora maiúsculas. Use * como curinga (ex.: post doc, estag*). Use /padrão/ para expressões regulares completas.',
         'regex_exclude_placeholder' => "intern\nestag*\n/praktikum/i",
         'regex_clear_all' => 'Remover todos',
         'regex_matched_include' => 'Título correspondeu à regra de inclusão: :pattern',

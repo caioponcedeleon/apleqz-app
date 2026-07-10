@@ -674,6 +674,7 @@ return [
         'regex_include_placeholder' => "developer\nwissenschaftlich*\n/data engineer/i",
         'regex_exclude_heading' => 'Title must not contain',
         'regex_exclude_help' => 'One keyword or pattern per line. If any line matches the title, the job is ignored. Plain text is case-insensitive. Use * as a wildcard (e.g. praktik*). Use /pattern/ for full regular expressions.',
+        'ai_exclude_help' => 'One keyword or pattern per line. Matching titles are rejected before AI scoring and never appear as matches. Plain text is case-insensitive. Use * as a wildcard (e.g. post doc, praktik*). Use /pattern/ for full regular expressions.',
         'regex_exclude_placeholder' => "intern\npraktik*\n/praktikum/i",
         'regex_clear_all' => 'Remove all',
         'regex_matched_include' => 'Title matched include rule: :pattern',

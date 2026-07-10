@@ -128,7 +128,11 @@ class JobMatchBackfillService
                     continue;
                 }
 
-                $cacheKey = $this->evaluator->evaluationCacheKey($profile->profile_text, $listing->content_hash);
+                $cacheKey = $this->evaluator->evaluationCacheKey(
+                    $profile->profile_text,
+                    $listing->content_hash,
+                    $profile->exclude_keywords,
+                );
                 $existing = $existingMatches->get($userId.'|'.$listing->id);
 
                 if ($existing && $existing->evaluation_cache_key === $cacheKey) {

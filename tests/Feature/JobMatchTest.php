@@ -144,6 +144,81 @@ class JobMatchTest extends TestCase
         ]);
     }
 
+    public function test_ai_tier_skips_mistral_when_title_matches_exclude_keyword(): void
+    {
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        $this->fakeMistralResponse(95, 'Would have matched.');
+
+        $user = User::factory()->withJobAlertsAi()->create();
+        $listing = JobListing::factory()->create([
+            'title' => 'Post Doc Position (f/m/d, No. 320-26)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Research assistant in Germany',
+            'exclude_keywords' => 'post doc',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
+            app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
+        );
+
+        Http::assertNothingSent();
+
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+    }
+
+    public function test_ai_tier_still_calls_mistral_when_title_passes_exclude_rules(): void
+    {
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        $this->fakeMistralResponse(84, 'Strong research fit.');
+
+        $user = User::factory()->withJobAlertsAi()->create();
+        $listing = JobListing::factory()->create([
+            'title' => 'Research Assistant (m/w/d)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Research assistant in Germany',
+            'exclude_keywords' => 'post doc',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
+            app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
+        );
+
+        Http::assertSentCount(1);
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'fit_score' => 84,
+        ]);
+    }
+
     public function test_evaluate_job_defers_match_when_detail_enrichment_pending(): void
     {
         Queue::fake();

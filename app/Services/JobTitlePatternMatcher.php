@@ -53,6 +53,28 @@ class JobTitlePatternMatcher
         return $this->parseLines($includeKeywords) !== [] || $this->parseLines($excludeKeywords) !== [];
     }
 
+    public function hasExcludeRules(?string $excludeKeywords): bool
+    {
+        return $this->parseLines($excludeKeywords) !== [];
+    }
+
+    /**
+     * @return array{fit_score: int, reason: string}|null
+     */
+    public function evaluateTitleExcludes(string $title, ?string $excludeKeywords): ?array
+    {
+        foreach ($this->parseLines($excludeKeywords) as $pattern) {
+            if ($this->matches($title, $pattern)) {
+                return [
+                    'fit_score' => 0,
+                    'reason' => __('app.job_alerts.regex_excluded_by', ['pattern' => $pattern]),
+                ];
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return list<string>
      */

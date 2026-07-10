@@ -674,6 +674,7 @@ return [
         'regex_include_placeholder' => "developer\nwissenschaftlich*\n/data engineer/i",
         'regex_exclude_heading' => 'Titel darf nicht enthalten',
         'regex_exclude_help' => 'Ein Stichwort oder Muster pro Zeile. Entspricht eine Zeile dem Titel, wird die Stelle ignoriert. Klartext ist ohne Groß-/Kleinschreibung. * ist ein Platzhalter (z. B. praktik*). /muster/ für vollständige reguläre Ausdrücke.',
+        'ai_exclude_help' => 'Ein Stichwort oder Muster pro Zeile. Passende Titel werden vor der KI-Bewertung ausgeschlossen und erscheinen nicht als Treffer. Klartext ist ohne Groß-/Kleinschreibung. * ist ein Platzhalter (z. B. post doc, praktik*). /muster/ für vollständige reguläre Ausdrücke.',
         'regex_exclude_placeholder' => "intern\npraktik*\n/praktikum/i",
         'regex_clear_all' => 'Alle entfernen',
         'regex_matched_include' => 'Titel entsprach Einschlussregel: :pattern',
