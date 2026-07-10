@@ -1,4 +1,5 @@
 <script setup>
+import AppCredits from '@/Components/AppCredits.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import CookieSettingsLink from '@/Components/CookieSettingsLink.vue';
 import { Link } from '@inertiajs/vue3';
@@ -32,5 +33,7 @@ const { t } = useI18n();
             </Link>
             <CookieSettingsLink class="!text-xs" />
         </div>
+
+        <AppCredits class="mt-8 px-4 pb-8" />
     </div>
 </template>

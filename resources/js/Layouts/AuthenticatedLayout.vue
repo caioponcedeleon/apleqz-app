@@ -1,5 +1,6 @@
 <script setup>
 import OnboardingTour from '@/Components/OnboardingTour.vue';
+import AppCredits from '@/Components/AppCredits.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -250,6 +251,10 @@ const canUseJobAlerts = computed(() => {
             <main>
                 <slot />
             </main>
+
+            <footer class="border-t border-gray-200 bg-white py-6 dark:border-gray-700 dark:bg-gray-900">
+                <AppCredits />
+            </footer>
         </div>
 
         <OnboardingTour />

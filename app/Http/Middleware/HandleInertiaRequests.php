@@ -59,6 +59,7 @@ class HandleInertiaRequests extends Middleware
                     'manageApplicationUuid' => $user->applications()->orderByDesc('updated_at')->value('uuid'),
                 ]
                 : null,
+            'appVersion' => config('app.version'),
         ];
     }
 }

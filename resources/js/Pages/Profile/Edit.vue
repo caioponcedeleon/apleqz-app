@@ -1,5 +1,4 @@
 <script setup>
-import AppCredits from '@/Components/AppCredits.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useI18n } from 'vue-i18n';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
@@ -55,8 +54,6 @@ const { t } = useI18n();
                     <DeleteUserForm class="max-w-xl" />
                 </div>
             </div>
-
-            <AppCredits class="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8" />
         </div>
     </AuthenticatedLayout>
 </template>

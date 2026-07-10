@@ -316,7 +316,7 @@ return [
         ],
     ],
     'footer' => [
-        'version' => 'Version 2.0',
+        'version' => 'Version {version}',
         'created_by' => 'Created by {author}',
         'author_name' => 'Caio Ponce de Leon',
     ],
