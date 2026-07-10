@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\JobAlertsTier;
 use App\Enums\JobMatchStatus;
 use App\Models\JobListing;
 use App\Models\JobMatch;
@@ -10,6 +11,7 @@ use App\Models\UserJobProfile;
 use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchApplicationOverlapChecker;
 use App\Services\JobMatchEvaluator;
+use App\Services\JobTitlePatternMatcher;
 use App\Support\AiUsageContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -25,13 +27,13 @@ class EvaluateJobMatchJob implements ShouldQueue
 
     public function handle(
         JobMatchEvaluator $evaluator,
+        JobTitlePatternMatcher $patternMatcher,
         JobListingDetailEnrichmentService $detailEnrichment,
         JobMatchApplicationOverlapChecker $applicationOverlap,
-    ): void
-    {
+    ): void {
         $user = User::query()->find($this->userId);
 
-        if (! $user) {
+        if (! $user || $user->jobAlertsTier() === JobAlertsTier::None) {
             return;
         }
 
@@ -48,42 +50,23 @@ class EvaluateJobMatchJob implements ShouldQueue
         /** @var UserJobProfile|null $profile */
         $profile = $user->jobProfile;
 
-        if (! $profile || trim($profile->profile_text) === '') {
+        if (! $profile) {
             return;
         }
-
-        $cacheKey = $evaluator->evaluationCacheKey($profile->profile_text, $listing->content_hash);
 
         $existing = JobMatch::query()
             ->where('user_id', $user->id)
             ->where('job_listing_id', $listing->id)
             ->first();
 
-        if ($existing && $existing->evaluation_cache_key === $cacheKey) {
+        $result = match ($user->jobAlertsTier()) {
+            JobAlertsTier::Regex => $this->evaluateRegexMatch($profile, $listing, $patternMatcher),
+            JobAlertsTier::Ai => $this->evaluateAiMatch($profile, $listing, $evaluator, $detailEnrichment, $existing),
+            JobAlertsTier::None => null,
+        };
+
+        if (! is_array($result)) {
             return;
-        }
-
-        $result = AiUsageContext::run(
-            ['user_id' => $user->id, 'purpose' => 'job_match'],
-            fn (): array => $evaluator->evaluate($profile->profile_text, $listing),
-        );
-
-        $detailConfig = $listing->jobSource
-            ? $detailEnrichment->detailConfigFor($listing->jobSource)
-            : null;
-        $fetchMinScore = is_array($detailConfig)
-            ? (int) ($detailConfig['fetch_min_score'] ?? config('job_match.detail_fetch_min_score', 60))
-            : (int) config('job_match.detail_fetch_min_score', 60);
-        $needsDetail = $detailConfig !== null
-            && $listing->detail_enriched_at === null
-            && $result['fit_score'] >= $fetchMinScore;
-
-        if ($needsDetail) {
-            EnrichJobListingDetailJob::dispatch($listing->id);
-
-            if ($result['fit_score'] >= $profile->min_fit_score) {
-                return;
-            }
         }
 
         if ($result['fit_score'] < $profile->min_fit_score) {
@@ -105,8 +88,98 @@ class EvaluateJobMatchJob implements ShouldQueue
                 'status' => $existing?->status === JobMatchStatus::Notified
                     ? JobMatchStatus::Notified
                     : JobMatchStatus::PendingNotify,
-                'evaluation_cache_key' => $cacheKey,
+                'evaluation_cache_key' => $result['evaluation_cache_key'],
             ],
         );
+    }
+
+    /**
+     * @return array{fit_score: int, reason: string, evaluation_cache_key: string}|null
+     */
+    protected function evaluateRegexMatch(
+        UserJobProfile $profile,
+        JobListing $listing,
+        JobTitlePatternMatcher $patternMatcher,
+    ): ?array {
+        if (! $patternMatcher->hasRules($profile->include_keywords, $profile->exclude_keywords)) {
+            return null;
+        }
+
+        $cacheKey = $patternMatcher->evaluationCacheKey(
+            (string) $profile->include_keywords,
+            (string) $profile->exclude_keywords,
+            $listing->content_hash,
+        );
+
+        $existing = JobMatch::query()
+            ->where('user_id', $profile->user_id)
+            ->where('job_listing_id', $listing->id)
+            ->first();
+
+        if ($existing && $existing->evaluation_cache_key === $cacheKey) {
+            return null;
+        }
+
+        $result = $patternMatcher->evaluate(
+            (string) $listing->title,
+            $profile->include_keywords,
+            $profile->exclude_keywords,
+        );
+
+        return [
+            'fit_score' => $result['fit_score'],
+            'reason' => $result['reason'],
+            'evaluation_cache_key' => $cacheKey,
+        ];
+    }
+
+    /**
+     * @return array{fit_score: int, reason: string, evaluation_cache_key: string}|null
+     */
+    protected function evaluateAiMatch(
+        UserJobProfile $profile,
+        JobListing $listing,
+        JobMatchEvaluator $evaluator,
+        JobListingDetailEnrichmentService $detailEnrichment,
+        ?JobMatch $existing,
+    ): ?array {
+        if (trim($profile->profile_text) === '') {
+            return null;
+        }
+
+        $cacheKey = $evaluator->evaluationCacheKey($profile->profile_text, $listing->content_hash);
+
+        if ($existing && $existing->evaluation_cache_key === $cacheKey) {
+            return null;
+        }
+
+        $result = AiUsageContext::run(
+            ['user_id' => $profile->user_id, 'purpose' => 'job_match'],
+            fn (): array => $evaluator->evaluate($profile->profile_text, $listing),
+        );
+
+        $detailConfig = $listing->jobSource
+            ? $detailEnrichment->detailConfigFor($listing->jobSource)
+            : null;
+        $fetchMinScore = is_array($detailConfig)
+            ? (int) ($detailConfig['fetch_min_score'] ?? config('job_match.detail_fetch_min_score', 60))
+            : (int) config('job_match.detail_fetch_min_score', 60);
+        $needsDetail = $detailConfig !== null
+            && $listing->detail_enriched_at === null
+            && $result['fit_score'] >= $fetchMinScore;
+
+        if ($needsDetail) {
+            EnrichJobListingDetailJob::dispatch($listing->id);
+
+            if ($result['fit_score'] >= $profile->min_fit_score) {
+                return null;
+            }
+        }
+
+        return [
+            'fit_score' => $result['fit_score'],
+            'reason' => $result['reason'],
+            'evaluation_cache_key' => $cacheKey,
+        ];
     }
 }

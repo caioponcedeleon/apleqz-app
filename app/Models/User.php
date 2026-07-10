@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\JobAlertsTier;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -26,6 +27,7 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference
         'application_files_enabled',
         'personal_files_enabled',
         'excel_import_enabled',
+        'job_alerts_tier',
         'locale',
         'email_reminders_enabled',
         'current_wave_id',
@@ -49,6 +51,18 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference
             'email_reminders_enabled' => 'boolean',
             'onboarding_completed_at' => 'datetime',
         ];
+    }
+
+    public function jobAlertsTier(): JobAlertsTier
+    {
+        $tier = $this->job_alerts_tier ?? JobAlertsTier::None->value;
+
+        return JobAlertsTier::tryFrom($tier) ?? JobAlertsTier::None;
+    }
+
+    public function hasJobAlerts(): bool
+    {
+        return $this->jobAlertsTier() !== JobAlertsTier::None;
     }
 
     public function canAccessPanel(Panel $panel): bool

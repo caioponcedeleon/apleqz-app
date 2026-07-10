@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\JobAlertsTier;
 use App\Jobs\EvaluateJobMatchJob;
 use App\Models\AiUsageRecord;
 use App\Models\JobListing;
@@ -84,6 +85,7 @@ class JobMatchBackfillService
     {
         $subscriptions = UserJobSourceSubscription::query()
             ->where('is_active', true)
+            ->whereHas('user', fn ($query) => $query->where('job_alerts_tier', JobAlertsTier::Ai->value))
             ->get(['user_id', 'job_source_id']);
 
         if ($subscriptions->isEmpty()) {

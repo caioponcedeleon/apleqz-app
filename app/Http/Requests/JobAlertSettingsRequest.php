@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\JobAlertsTier;
 use App\Models\UserJobProfile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -10,7 +11,7 @@ class JobAlertSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->hasJobAlerts() ?? false;
     }
 
     /**
@@ -18,8 +19,9 @@ class JobAlertSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'profile_text' => ['nullable', 'string', 'max:'.UserJobProfile::PROFILE_TEXT_MAX_LENGTH],
+        $tier = $this->user()?->jobAlertsTier() ?? JobAlertsTier::None;
+
+        $rules = [
             'min_fit_score' => ['required', 'integer', 'min:0', 'max:100'],
             'job_alerts_enabled' => ['sometimes', 'boolean'],
             'subscribed_source_ids' => ['nullable', 'array'],
@@ -28,6 +30,17 @@ class JobAlertSettingsRequest extends FormRequest
                 Rule::exists('job_sources', 'id')->where('is_active', true),
             ],
         ];
+
+        if ($tier === JobAlertsTier::Ai) {
+            $rules['profile_text'] = ['nullable', 'string', 'max:'.UserJobProfile::PROFILE_TEXT_MAX_LENGTH];
+        }
+
+        if ($tier === JobAlertsTier::Regex) {
+            $rules['include_keywords'] = ['nullable', 'string', 'max:5000'];
+            $rules['exclude_keywords'] = ['nullable', 'string', 'max:5000'];
+        }
+
+        return $rules;
     }
 
     public function withValidator($validator): void

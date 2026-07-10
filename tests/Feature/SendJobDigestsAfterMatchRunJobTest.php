@@ -25,7 +25,7 @@ class SendJobDigestsAfterMatchRunJobTest extends TestCase
         Config::set('queue.default', 'database');
         Notification::fake();
 
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         UserJobProfile::query()->create([
             'user_id' => $user->id,
             'profile_text' => 'Remote developer',
@@ -63,7 +63,7 @@ class SendJobDigestsAfterMatchRunJobTest extends TestCase
         Config::set('queue.default', 'database');
         Notification::fake();
 
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         UserJobProfile::query()->create([
             'user_id' => $user->id,
             'profile_text' => 'Remote developer',

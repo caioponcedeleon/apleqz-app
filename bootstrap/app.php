@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserHasAreas;
+use App\Http\Middleware\EnsureUserHasJobAlerts;
 use App\Http\Middleware\EnsureUserHasWaves;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.has.areas' => EnsureUserHasAreas::class,
             'user.has.waves' => EnsureUserHasWaves::class,
             'admin' => EnsureUserIsAdmin::class,
+            'user.has.job_alerts' => EnsureUserHasJobAlerts::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

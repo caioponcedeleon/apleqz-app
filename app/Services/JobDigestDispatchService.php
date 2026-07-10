@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\JobAlertsTier;
 use App\Enums\JobMatchStatus;
 use App\Models\JobMatch;
 use App\Models\User;
@@ -22,7 +23,8 @@ class JobDigestDispatchService
         $userIds = JobMatch::query()
             ->where('status', JobMatchStatus::PendingNotify)
             ->whereHas('user', function ($query): void {
-                $query->whereNotNull('email_verified_at');
+                $query->whereNotNull('email_verified_at')
+                    ->where('job_alerts_tier', '!=', JobAlertsTier::None->value);
             })
             ->whereHas('user.jobProfile', function ($query): void {
                 $query->where('job_alerts_enabled', true);

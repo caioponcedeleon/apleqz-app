@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Enums\JobAlertsTier;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -22,6 +23,10 @@ class UsersTable
                 IconColumn::make('application_files_enabled')->boolean()->label('App files'),
                 IconColumn::make('personal_files_enabled')->boolean()->label('Storage'),
                 IconColumn::make('excel_import_enabled')->boolean()->label('Excel'),
+                TextColumn::make('job_alerts_tier')
+                    ->label('Job alerts')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => JobAlertsTier::tryFrom($state ?? '')?->label() ?? JobAlertsTier::None->label()),
                 TextColumn::make('applications_count')->counts('applications')->label('Applications'),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])

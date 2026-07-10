@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\JobAlertsTier;
 use App\Models\JobListing;
 use App\Models\UserJobSourceSubscription;
 use App\Services\JobMatchApplicationOverlapChecker;
@@ -35,6 +36,12 @@ class MatchNewListingsJob implements ShouldQueue
             $userIds = UserJobSourceSubscription::query()
                 ->where('job_source_id', $listing->job_source_id)
                 ->where('is_active', true)
+                ->whereHas('user', function ($query): void {
+                    $query->whereIn('job_alerts_tier', [
+                        JobAlertsTier::Regex->value,
+                        JobAlertsTier::Ai->value,
+                    ]);
+                })
                 ->pluck('user_id');
 
             foreach ($userIds as $userId) {

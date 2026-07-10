@@ -20,6 +20,8 @@ class UserJobProfile extends Model
         'profile_text',
         'min_fit_score',
         'job_alerts_enabled',
+        'include_keywords',
+        'exclude_keywords',
     ];
 
     protected function casts(): array
@@ -45,6 +47,8 @@ class UserJobProfile extends Model
             'profile_text' => '',
             'min_fit_score' => self::DEFAULT_MIN_FIT_SCORE,
             'job_alerts_enabled' => false,
+            'include_keywords' => '',
+            'exclude_keywords' => '',
         ];
     }
 }

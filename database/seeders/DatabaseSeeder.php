@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Enums\JobAlertsTier;
 use App\Services\TranslationService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Admin User',
                 'password' => Hash::make('password'),
                 'is_admin' => true,
+                'job_alerts_tier' => JobAlertsTier::Ai->value,
                 'locale' => 'en',
                 'email_verified_at' => now(),
             ]

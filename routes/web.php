@@ -107,12 +107,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::redirect('/job-alerts', '/job-alerts/settings')->name('job-alerts.index');
-    Route::get('/job-alerts/settings', [JobAlertSettingsController::class, 'edit'])->name('job-alerts.settings');
-    Route::patch('/job-alerts/settings', [JobAlertSettingsController::class, 'update'])->name('job-alerts.settings.update');
-    Route::get('/job-alerts/matches', [JobAlertMatchesController::class, 'index'])->name('job-alerts.matches');
-    Route::patch('/job-alerts/matches/{jobMatch}/dismiss', [JobAlertMatchesController::class, 'dismiss'])->name('job-alerts.matches.dismiss');
-    Route::get('/job-alerts/matches/{jobMatch}/apply', [JobAlertMatchesController::class, 'apply'])->name('job-alerts.matches.apply');
+    Route::middleware(['user.has.job_alerts'])->group(function () {
+        Route::redirect('/job-alerts', '/job-alerts/settings')->name('job-alerts.index');
+        Route::get('/job-alerts/settings', [JobAlertSettingsController::class, 'edit'])->name('job-alerts.settings');
+        Route::patch('/job-alerts/settings', [JobAlertSettingsController::class, 'update'])->name('job-alerts.settings.update');
+        Route::get('/job-alerts/matches', [JobAlertMatchesController::class, 'index'])->name('job-alerts.matches');
+        Route::patch('/job-alerts/matches/{jobMatch}/dismiss', [JobAlertMatchesController::class, 'dismiss'])->name('job-alerts.matches.dismiss');
+        Route::get('/job-alerts/matches/{jobMatch}/apply', [JobAlertMatchesController::class, 'apply'])->name('job-alerts.matches.apply');
+    });
 
     Route::middleware(['admin'])->prefix('administration')->name('administration.')->group(function () {
         Route::get('/', [AdministrationController::class, 'index'])->name('index');

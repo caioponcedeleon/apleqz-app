@@ -111,7 +111,7 @@ class JobAlertsHardeningTest extends TestCase
 
     public function test_user_can_start_application_from_job_match(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         ApplicationWave::factory()->create(['user_id' => $user->id, 'is_default' => true]);
         $area = Area::factory()->create(['user_id' => $user->id]);
         $listing = JobListing::factory()->create([

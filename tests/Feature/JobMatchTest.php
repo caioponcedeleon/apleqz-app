@@ -17,6 +17,7 @@ use App\Models\UserJobSourceSubscription;
 use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchApplicationOverlapChecker;
 use App\Services\JobMatchEvaluator;
+use App\Services\JobTitlePatternMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -77,7 +78,7 @@ class JobMatchTest extends TestCase
 
         $this->fakeMistralResponse(82, 'Good PHP fit.');
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $source = JobSource::factory()->create(['is_active' => true]);
         $listing = JobListing::factory()->create(['job_source_id' => $source->id]);
 
@@ -96,6 +97,7 @@ class JobMatchTest extends TestCase
 
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
             app(JobListingDetailEnrichmentService::class),
             app(JobMatchApplicationOverlapChecker::class),
         );
@@ -117,7 +119,7 @@ class JobMatchTest extends TestCase
 
         $this->fakeMistralResponse(45, 'Weak overlap.');
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $listing = JobListing::factory()->create();
 
         UserJobProfile::query()->create([
@@ -129,6 +131,7 @@ class JobMatchTest extends TestCase
 
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
             app(JobListingDetailEnrichmentService::class),
             app(JobMatchApplicationOverlapChecker::class),
         );
@@ -151,7 +154,7 @@ class JobMatchTest extends TestCase
 
         $this->fakeMistralResponse(82, 'Promising title match.');
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $source = JobSource::factory()->create([
             'is_active' => true,
             'extraction_config' => array_merge(JobSource::defaultExtractionConfig(), [
@@ -182,6 +185,7 @@ class JobMatchTest extends TestCase
 
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
             app(JobListingDetailEnrichmentService::class),
             app(JobMatchApplicationOverlapChecker::class),
         );
@@ -202,7 +206,7 @@ class JobMatchTest extends TestCase
 
         $source = JobSource::factory()->create(['is_active' => true]);
         $listing = JobListing::factory()->create(['job_source_id' => $source->id]);
-        $users = User::factory()->count(2)->create();
+        $users = User::factory()->withJobAlertsAi()->count(2)->create();
 
         foreach ($users as $user) {
             UserJobSourceSubscription::query()->create([
@@ -224,7 +228,7 @@ class JobMatchTest extends TestCase
         $source = JobSource::factory()->create(['is_active' => true]);
         $newListing = JobListing::factory()->create(['job_source_id' => $source->id]);
         $existingListing = JobListing::factory()->create(['job_source_id' => $source->id]);
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
 
         UserJobSourceSubscription::query()->create([
             'user_id' => $user->id,
@@ -251,7 +255,7 @@ class JobMatchTest extends TestCase
 
         Http::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $listing = JobListing::factory()->create([
             'title' => 'Backend Developer',
             'url' => 'https://example.com/jobs/backend',
@@ -274,6 +278,7 @@ class JobMatchTest extends TestCase
 
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
             app(JobListingDetailEnrichmentService::class),
             app(JobMatchApplicationOverlapChecker::class),
         );
@@ -294,7 +299,7 @@ class JobMatchTest extends TestCase
 
         Http::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $listing = JobListing::factory()->create([
             'title' => 'Policy Analyst',
             'url' => 'https://example.com/jobs/999',
@@ -317,6 +322,7 @@ class JobMatchTest extends TestCase
 
         (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
             app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
             app(JobListingDetailEnrichmentService::class),
             app(JobMatchApplicationOverlapChecker::class),
         );
@@ -338,7 +344,7 @@ class JobMatchTest extends TestCase
             'title' => 'Research Assistant',
             'url' => 'https://example.com/jobs/research',
         ]);
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
 
         UserJobSourceSubscription::query()->create([
             'user_id' => $user->id,
@@ -359,9 +365,47 @@ class JobMatchTest extends TestCase
         Queue::assertNotPushed(EvaluateJobMatchJob::class);
     }
 
+    public function test_regex_tier_creates_match_when_title_matches_include_keyword(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create();
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Senior Policy Analyst',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'include_keywords' => "analyst\ndeveloper",
+            'exclude_keywords' => 'intern',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        (new EvaluateJobMatchJob($user->id, $listing->id))->handle(
+            app(JobMatchEvaluator::class),
+            app(JobTitlePatternMatcher::class),
+            app(JobListingDetailEnrichmentService::class),
+            app(JobMatchApplicationOverlapChecker::class),
+        );
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'fit_score' => 100,
+            'status' => JobMatchStatus::PendingNotify->value,
+        ]);
+    }
+
     public function test_user_can_view_matches_page(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $match = JobMatch::factory()->create([
             'user_id' => $user->id,
             'fit_score' => 91,
@@ -379,7 +423,7 @@ class JobMatchTest extends TestCase
 
     public function test_user_can_dismiss_match(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $match = JobMatch::factory()->create(['user_id' => $user->id]);
 
         $this->actingAs($user)
@@ -391,8 +435,8 @@ class JobMatchTest extends TestCase
 
     public function test_user_cannot_dismiss_another_users_match(): void
     {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
+        $owner = User::factory()->withJobAlertsAi()->create();
+        $other = User::factory()->withJobAlertsAi()->create();
         $match = JobMatch::factory()->create(['user_id' => $owner->id]);
 
         $this->actingAs($other)

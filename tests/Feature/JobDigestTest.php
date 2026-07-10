@@ -19,7 +19,7 @@ class JobDigestTest extends TestCase
 
     protected function userWithJobAlerts(bool $enabled = true): User
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
 
         UserJobProfile::query()->create([
             'user_id' => $user->id,

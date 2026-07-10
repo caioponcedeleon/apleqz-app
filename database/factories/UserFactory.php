@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\JobAlertsTier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,20 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    public function withJobAlertsAi(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'job_alerts_tier' => JobAlertsTier::Ai->value,
+        ]);
+    }
+
+    public function withJobAlertsRegex(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'job_alerts_tier' => JobAlertsTier::Regex->value,
         ]);
     }
 }

@@ -77,7 +77,7 @@ class AdminAiUsageTest extends TestCase
 
     public function test_usage_recorder_stores_tokens_with_context(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
 
         AiUsageContext::run([
             'user_id' => $user->id,
@@ -111,7 +111,7 @@ class AdminAiUsageTest extends TestCase
         Queue::fake();
 
         $admin = User::factory()->create(['is_admin' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $source = JobSource::factory()->create(['is_active' => true]);
         $listing = JobListing::factory()->create(['job_source_id' => $source->id]);
 
@@ -154,7 +154,7 @@ class AdminAiUsageTest extends TestCase
         ]);
 
         $admin = User::factory()->create(['is_admin' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         $source = JobSource::factory()->create(['is_active' => true]);
         $listing = JobListing::factory()->create(['job_source_id' => $source->id]);
 

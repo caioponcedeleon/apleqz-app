@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\JobAlertsTier;
 use App\Models\JobSource;
 use App\Models\User;
 use App\Models\UserJobSourceSubscription;
@@ -12,9 +13,18 @@ class JobAlertSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_view_job_alert_settings(): void
+    public function test_user_without_job_alerts_tier_cannot_access_settings(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->get(route('job-alerts.settings'))
+            ->assertForbidden();
+    }
+
+    public function test_user_can_view_job_alert_settings(): void
+    {
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         $source = JobSource::factory()->create(['name' => 'Acme Careers', 'is_active' => true]);
 
         $this->actingAs($user)
@@ -22,13 +32,15 @@ class JobAlertSettingsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('JobAlerts/Settings')
+                ->where('tier', JobAlertsTier::Ai->value)
+                ->where('isAiTier', true)
                 ->where('profile.min_fit_score', 70)
                 ->where('sources.0.name', 'Acme Careers'));
     }
 
-    public function test_user_can_save_profile_and_subscriptions(): void
+    public function test_user_can_save_ai_profile_and_subscriptions(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         $source = JobSource::factory()->create(['is_active' => true]);
         JobSource::factory()->create(['is_active' => false]);
 
@@ -56,9 +68,30 @@ class JobAlertSettingsTest extends TestCase
         ]);
     }
 
+    public function test_regex_tier_user_can_save_keyword_rules(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->patch(route('job-alerts.settings.update'), [
+                'include_keywords' => "developer\nanalyst",
+                'exclude_keywords' => 'intern',
+                'min_fit_score' => 70,
+                'job_alerts_enabled' => true,
+                'subscribed_source_ids' => [],
+            ])
+            ->assertRedirect(route('job-alerts.settings'));
+
+        $this->assertDatabaseHas('user_job_profiles', [
+            'user_id' => $user->id,
+            'include_keywords' => "developer\nanalyst",
+            'exclude_keywords' => 'intern',
+        ]);
+    }
+
     public function test_unverified_user_cannot_enable_email_alerts(): void
     {
-        $user = User::factory()->unverified()->create();
+        $user = User::factory()->withJobAlertsAi()->unverified()->create();
 
         $this->actingAs($user)
             ->from(route('job-alerts.settings'))
@@ -78,7 +111,7 @@ class JobAlertSettingsTest extends TestCase
 
     public function test_user_cannot_subscribe_to_inactive_source(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         $inactive = JobSource::factory()->create(['is_active' => false]);
 
         $this->actingAs($user)
@@ -94,7 +127,7 @@ class JobAlertSettingsTest extends TestCase
 
     public function test_user_can_view_matches_placeholder(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
 
         $this->actingAs($user)
             ->get(route('job-alerts.matches'))
@@ -106,7 +139,7 @@ class JobAlertSettingsTest extends TestCase
 
     public function test_unsubscribing_deactivates_existing_subscription(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
         $source = JobSource::factory()->create(['is_active' => true]);
 
         UserJobSourceSubscription::query()->create([
@@ -133,7 +166,7 @@ class JobAlertSettingsTest extends TestCase
 
     public function test_profile_text_is_limited_to_1000_characters(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
 
         $this->actingAs($user)
             ->from(route('job-alerts.settings'))
@@ -158,7 +191,7 @@ class JobAlertSettingsTest extends TestCase
 
     public function test_job_alerts_index_redirects_to_settings(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->withJobAlertsAi()->create(['email_verified_at' => now()]);
 
         $this->actingAs($user)
             ->get(route('job-alerts.index'))

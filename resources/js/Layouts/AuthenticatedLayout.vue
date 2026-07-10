@@ -18,6 +18,11 @@ const { t } = useI18n();
 
 const isAdmin = computed(() => page.props.auth.user?.is_admin);
 const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_enabled);
+const canUseJobAlerts = computed(() => {
+    const tier = page.props.auth.user?.job_alerts_tier;
+
+    return tier === 'regex' || tier === 'ai';
+});
 </script>
 
 <template>
@@ -54,6 +59,7 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                                     {{ t('app.nav.files') }}
                                 </NavLink>
                                 <NavLink
+                                    v-if="canUseJobAlerts"
                                     :href="route('job-alerts.settings')"
                                     :active="route().current('job-alerts.*')"
                                 >
@@ -214,6 +220,7 @@ const canUsePersonalFiles = computed(() => page.props.auth.user?.personal_files_
                             {{ t('app.nav.files') }}
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
+                            v-if="canUseJobAlerts"
                             :href="route('job-alerts.settings')"
                             :active="route().current('job-alerts.*')"
                         >

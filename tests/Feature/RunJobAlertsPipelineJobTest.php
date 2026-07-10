@@ -45,7 +45,7 @@ class RunJobAlertsPipelineJobTest extends TestCase
         Config::set('queue.default', 'database');
         Queue::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->withJobAlertsAi()->create();
         UserJobProfile::query()->create([
             'user_id' => $user->id,
             'profile_text' => 'Software engineer',

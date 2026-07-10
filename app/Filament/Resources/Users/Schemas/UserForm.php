@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Enums\JobAlertsTier;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -40,6 +41,14 @@ class UserForm
                 Toggle::make('excel_import_enabled')
                     ->label('Excel import')
                     ->helperText('Show the Import Excel button on the applications list.'),
+                Select::make('job_alerts_tier')
+                    ->label('Job alerts tier')
+                    ->options(collect(JobAlertsTier::cases())
+                        ->mapWithKeys(fn (JobAlertsTier $tier): array => [$tier->value => $tier->label()])
+                        ->all())
+                    ->default(JobAlertsTier::None->value)
+                    ->required()
+                    ->helperText('None: hidden. Regex: title keyword rules. AI: profile-based scoring.'),
                 TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn (?string $state) => filled($state) ? Hash::make($state) : null)

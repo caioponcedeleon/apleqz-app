@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\JobAlertsTier;
 use App\Http\Requests\JobAlertSettingsRequest;
 use App\Models\JobSource;
 use App\Models\UserJobProfile;
@@ -18,6 +19,7 @@ class JobAlertSettingsController extends Controller
     {
         $user = $request->user();
         $profile = $user->jobProfile;
+        $tier = $user->jobAlertsTier();
 
         $subscribedSourceIds = $user->jobSourceSubscriptions()
             ->where('is_active', true)
@@ -25,8 +27,11 @@ class JobAlertSettingsController extends Controller
             ->all();
 
         return Inertia::render('JobAlerts/Settings', [
+            'tier' => $tier->value,
             'profile' => [
                 'profile_text' => $profile?->profile_text ?? '',
+                'include_keywords' => $profile?->include_keywords ?? '',
+                'exclude_keywords' => $profile?->exclude_keywords ?? '',
                 'min_fit_score' => $profile?->min_fit_score ?? UserJobProfile::DEFAULT_MIN_FIT_SCORE,
                 'job_alerts_enabled' => (bool) ($profile?->job_alerts_enabled ?? false),
             ],
@@ -39,6 +44,8 @@ class JobAlertSettingsController extends Controller
             'emailVerified' => $user->hasVerifiedEmail(),
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'profileTextMaxLength' => UserJobProfile::PROFILE_TEXT_MAX_LENGTH,
+            'isAiTier' => $tier === JobAlertsTier::Ai,
+            'isRegexTier' => $tier === JobAlertsTier::Regex,
         ]);
     }
 
@@ -46,14 +53,25 @@ class JobAlertSettingsController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
+        $tier = $user->jobAlertsTier();
+
+        $profileData = [
+            'min_fit_score' => $validated['min_fit_score'],
+            'job_alerts_enabled' => (bool) ($validated['job_alerts_enabled'] ?? false),
+        ];
+
+        if ($tier === JobAlertsTier::Ai) {
+            $profileData['profile_text'] = $validated['profile_text'] ?? '';
+        }
+
+        if ($tier === JobAlertsTier::Regex) {
+            $profileData['include_keywords'] = $validated['include_keywords'] ?? '';
+            $profileData['exclude_keywords'] = $validated['exclude_keywords'] ?? '';
+        }
 
         $user->jobProfile()->updateOrCreate(
             ['user_id' => $user->id],
-            [
-                'profile_text' => $validated['profile_text'] ?? '',
-                'min_fit_score' => $validated['min_fit_score'],
-                'job_alerts_enabled' => (bool) ($validated['job_alerts_enabled'] ?? false),
-            ],
+            $profileData,
         );
 
         $this->syncSubscriptions($user, $validated['subscribed_source_ids'] ?? []);

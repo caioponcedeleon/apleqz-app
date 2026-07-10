@@ -33,6 +33,18 @@ const props = defineProps({
         type: Number,
         default: 1000,
     },
+    isAiTier: {
+        type: Boolean,
+        default: false,
+    },
+    isRegexTier: {
+        type: Boolean,
+        default: false,
+    },
+    tier: {
+        type: String,
+        default: 'none',
+    },
 });
 
 const { t } = useI18n();
@@ -40,6 +52,8 @@ const page = usePage();
 
 const form = useForm({
     profile_text: props.profile.profile_text ?? '',
+    include_keywords: props.profile.include_keywords ?? '',
+    exclude_keywords: props.profile.exclude_keywords ?? '',
     min_fit_score: props.profile.min_fit_score ?? 70,
     job_alerts_enabled: props.profile.job_alerts_enabled ?? false,
     subscribed_source_ids: [...props.subscribedSourceIds],
@@ -191,7 +205,20 @@ const submit = () => {
 
                 <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <form class="space-y-8" @submit.prevent="submit">
-                        <section class="space-y-3">
+                        <p
+                            v-if="isRegexTier"
+                            class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100"
+                        >
+                            {{ t('app.job_alerts.regex_tier_notice') }}
+                        </p>
+                        <p
+                            v-else-if="isAiTier"
+                            class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100"
+                        >
+                            {{ t('app.job_alerts.ai_tier_notice') }}
+                        </p>
+
+                        <section v-if="isAiTier" class="space-y-3">
                             <div>
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                                     {{ t('app.job_alerts.profile_heading') }}
@@ -218,6 +245,44 @@ const submit = () => {
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 {{ t('app.job_alerts.profile_ai_privacy') }}
                             </p>
+                        </section>
+
+                        <section v-if="isRegexTier" class="space-y-3">
+                            <div>
+                                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                                    {{ t('app.job_alerts.regex_include_heading') }}
+                                </h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ t('app.job_alerts.regex_include_help') }}
+                                </p>
+                            </div>
+
+                            <textarea
+                                v-model="form.include_keywords"
+                                rows="5"
+                                class="block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                                :placeholder="t('app.job_alerts.regex_include_placeholder')"
+                            />
+                            <InputError :message="form.errors.include_keywords" />
+                        </section>
+
+                        <section v-if="isRegexTier" class="space-y-3">
+                            <div>
+                                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                                    {{ t('app.job_alerts.regex_exclude_heading') }}
+                                </h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ t('app.job_alerts.regex_exclude_help') }}
+                                </p>
+                            </div>
+
+                            <textarea
+                                v-model="form.exclude_keywords"
+                                rows="5"
+                                class="block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                                :placeholder="t('app.job_alerts.regex_exclude_placeholder')"
+                            />
+                            <InputError :message="form.errors.exclude_keywords" />
                         </section>
 
                         <section class="space-y-3">
