@@ -9,7 +9,6 @@ use App\Models\UserJobProfile;
 use App\Models\UserJobSourceSubscription;
 use App\Services\JobMatchListingScopeService;
 use App\Services\JobMatchRematchService;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -44,7 +43,6 @@ class JobAlertSettingsController extends Controller
                 ->get(['id', 'name', 'company_name']),
             'subscribedSourceIds' => $subscribedSourceIds,
             'emailVerified' => $user->hasVerifiedEmail(),
-            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'profileTextMaxLength' => UserJobProfile::PROFILE_TEXT_MAX_LENGTH,
             'isAiTier' => $tier === JobAlertsTier::Ai,
             'isRegexTier' => $tier === JobAlertsTier::Regex,

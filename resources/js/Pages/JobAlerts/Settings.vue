@@ -26,10 +26,6 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
-    mustVerifyEmail: {
-        type: Boolean,
-        default: false,
-    },
     profileTextMaxLength: {
         type: Number,
         default: 1000,
@@ -363,15 +359,15 @@ const submit = () => {
                             />
 
                             <p
-                                v-if="mustVerifyEmail && !emailVerified"
-                                class="text-sm text-amber-700 dark:text-amber-300"
+                                v-if="!emailVerified"
+                                class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
                             >
                                 {{ t('app.job_alerts.email_verification_required') }}
                                 <Link
-                                    :href="route('verification.notice')"
+                                    :href="route('profile.edit')"
                                     class="font-medium underline"
                                 >
-                                    {{ t('app.job_alerts.verify_email_link') }}
+                                    {{ t('app.job_alerts.email_verification_profile_link') }}
                                 </Link>
                             </p>
 

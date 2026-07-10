@@ -54,7 +54,7 @@ class JobMatchRematchService
             ->pluck('job_source_id');
 
         if ($sourceIds->isEmpty()) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => $removed];
         }
 
         if ($recentPerSource !== null) {
