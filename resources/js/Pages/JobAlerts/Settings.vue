@@ -111,12 +111,7 @@ const companyGroups = computed(() => {
     });
 });
 
-const expandedCompanies = ref(new Set(
-    companyGroups.value
-        .filter((group) => group.sources.length > 1)
-        .filter((group) => group.sources.some((source) => props.subscribedSourceIds.includes(source.id)))
-        .map((group) => group.key),
-));
+const expandedCompanies = ref(new Set());
 
 const companyLabel = (company) => company || t('app.job_alerts.no_company');
 
