@@ -640,7 +640,7 @@ return [
         'run_matches' => 'Run matches',
         'run_matches_running' => 'Running…',
         'run_matches_help' => 'Admin only. Re-scores all subscribed listings using your current rules.',
-        'run_matches_dispatched' => 'Queued :count listing evaluation(s). Refresh in a moment if matches do not appear yet.',
+        'run_matches_dispatched' => 'Re-evaluated :count listing(s) with your current rules.',
         'run_matches_none' => 'Nothing to evaluate. Check your rules, subscribed sources, and that listings exist.',
         'track_application' => 'Track application',
         'tiers' => [

@@ -7,6 +7,8 @@ use App\Http\Requests\JobAlertSettingsRequest;
 use App\Models\JobSource;
 use App\Models\UserJobProfile;
 use App\Models\UserJobSourceSubscription;
+use App\Services\JobMatchListingScopeService;
+use App\Services\JobMatchRematchService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,6 +56,12 @@ class JobAlertSettingsController extends Controller
         $user = $request->user();
         $validated = $request->validated();
         $tier = $user->jobAlertsTier();
+        $profile = $user->jobProfile;
+
+        $keywordsChanged = $tier === JobAlertsTier::Regex && (
+            ($validated['include_keywords'] ?? '') !== (string) ($profile?->include_keywords ?? '')
+            || ($validated['exclude_keywords'] ?? '') !== (string) ($profile?->exclude_keywords ?? '')
+        );
 
         $profileData = [
             'min_fit_score' => $validated['min_fit_score'],
@@ -75,6 +83,14 @@ class JobAlertSettingsController extends Controller
         );
 
         $this->syncSubscriptions($user, $validated['subscribed_source_ids'] ?? []);
+
+        if ($keywordsChanged) {
+            app(JobMatchRematchService::class)->dispatchForUser(
+                $user,
+                force: true,
+                recentPerSource: app(JobMatchListingScopeService::class)->recentPerSourceLimit(),
+            );
+        }
 
         if ($request->boolean('autosave')) {
             return back();

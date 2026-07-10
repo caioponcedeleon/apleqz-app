@@ -85,4 +85,17 @@ class JobTitlePatternMatcherTest extends TestCase
 
         $this->assertSame(100, $result['fit_score']);
     }
+
+    public function test_exclude_matches_multi_word_phrase_case_insensitively(): void
+    {
+        $matcher = app(JobTitlePatternMatcher::class);
+
+        $result = $matcher->evaluate(
+            'Post Doc Position (f/m/d, No. 320-26)',
+            'research',
+            'post doc',
+        );
+
+        $this->assertSame(0, $result['fit_score']);
+    }
 }

@@ -48,7 +48,7 @@ class JobAlertMatchesController extends Controller
     {
         abort_unless($request->user()?->is_admin, 403);
 
-        $dispatched = $rematch->dispatchForUser($request->user());
+        $dispatched = $rematch->dispatchForUser($request->user(), force: true);
 
         if ($dispatched === 0) {
             return redirect()

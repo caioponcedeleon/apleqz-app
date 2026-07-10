@@ -90,7 +90,43 @@ class JobScrapeTest extends TestCase
         $this->assertSame(2, $secondRun->listings_found);
         $this->assertSame(0, $secondRun->listings_new);
         $this->assertDatabaseCount('job_listings', 2);
-        Queue::assertPushed(MatchNewListingsJob::class, 1);
+        Queue::assertPushed(MatchNewListingsJob::class, 2);
+    }
+
+    public function test_second_scrape_dispatches_regex_recent_listing_match_job(): void
+    {
+        Queue::fake();
+
+        $html = file_get_contents(base_path('tests/fixtures/job-sources/basic-listing.html'));
+
+        Http::fake([
+            'https://example.com/jobs' => Http::response($html, 200),
+        ]);
+
+        $source = JobSource::factory()->create([
+            'url' => 'https://example.com/jobs',
+            'extraction_config' => [
+                'version' => 1,
+                'engine' => JobExtractionEngine::Http->value,
+                'interactions' => [],
+                'listing' => [
+                    'item_selector' => 'article.job-card',
+                    'fields' => [
+                        'job_title' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'text'],
+                        'url' => ['selector' => 'h2 a', 'scope' => 'item', 'extract' => 'attribute', 'attribute' => 'href', 'absolute' => true],
+                    ],
+                ],
+            ],
+        ]);
+
+        $scraper = app(JobScrapeService::class);
+        $scraper->scrape($source);
+        Queue::fake();
+        $scraper->scrape($source);
+
+        Queue::assertPushed(MatchNewListingsJob::class, function (MatchNewListingsJob $job): bool {
+            return $job->tierFilter?->value === 'regex' && count($job->listingIds) === 2;
+        });
     }
 
     public function test_upsert_matches_existing_listing_by_url_or_title_and_company(): void

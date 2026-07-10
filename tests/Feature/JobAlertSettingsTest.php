@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\JobAlertsTier;
+use App\Enums\JobMatchStatus;
+use App\Models\JobListing;
 use App\Models\JobSource;
 use App\Models\User;
+use App\Models\UserJobProfile;
 use App\Models\UserJobSourceSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -220,5 +223,51 @@ class JobAlertSettingsTest extends TestCase
         $this->actingAs($user)
             ->get(route('job-alerts.index'))
             ->assertRedirect(route('job-alerts.settings'));
+    }
+
+    public function test_regex_keyword_autosave_rematches_recent_listings(): void
+    {
+        config(['job_match.regex.recent_listings_per_source' => 5]);
+
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Wissenschaftliche*r Mitarbeiter*in',
+            'first_seen_at' => now()->subDay(),
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'include_keywords' => 'developer',
+            'exclude_keywords' => '',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('job-alerts.settings'))
+            ->patch(route('job-alerts.settings.update'), [
+                'include_keywords' => 'wissenschaftlich*',
+                'exclude_keywords' => 'intern',
+                'min_fit_score' => 70,
+                'job_alerts_enabled' => false,
+                'subscribed_source_ids' => [$source->id],
+                'autosave' => true,
+            ])
+            ->assertRedirect(route('job-alerts.settings'));
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'fit_score' => 100,
+            'status' => JobMatchStatus::PendingNotify->value,
+        ]);
     }
 }

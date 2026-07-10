@@ -640,7 +640,7 @@ return [
         'run_matches' => 'Executar correspondências',
         'run_matches_running' => 'Executando…',
         'run_matches_help' => 'Somente admin. Reavalia todas as vagas inscritas com suas regras atuais.',
-        'run_matches_dispatched' => ':count avaliação(ões) enfileirada(s). Atualize a página se as correspondências não aparecerem.',
+        'run_matches_dispatched' => ':count vaga(s) reavaliada(s) com suas regras atuais.',
         'run_matches_none' => 'Nada para avaliar. Verifique regras, fontes inscritas e se há vagas cadastradas.',
         'track_application' => 'Registrar candidatura',
         'tiers' => [

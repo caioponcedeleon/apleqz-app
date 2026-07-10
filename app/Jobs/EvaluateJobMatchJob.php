@@ -23,6 +23,7 @@ class EvaluateJobMatchJob implements ShouldQueue
     public function __construct(
         public int $userId,
         public string $listingId,
+        public bool $forceReevaluate = false,
     ) {}
 
     public function handle(
@@ -116,7 +117,7 @@ class EvaluateJobMatchJob implements ShouldQueue
             ->where('job_listing_id', $listing->id)
             ->first();
 
-        if ($existing && $existing->evaluation_cache_key === $cacheKey) {
+        if (! $this->forceReevaluate && $existing && $existing->evaluation_cache_key === $cacheKey) {
             return null;
         }
 
@@ -149,7 +150,7 @@ class EvaluateJobMatchJob implements ShouldQueue
 
         $cacheKey = $evaluator->evaluationCacheKey($profile->profile_text, $listing->content_hash);
 
-        if ($existing && $existing->evaluation_cache_key === $cacheKey) {
+        if (! $this->forceReevaluate && $existing && $existing->evaluation_cache_key === $cacheKey) {
             return null;
         }
 

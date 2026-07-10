@@ -551,4 +551,49 @@ class JobMatchTest extends TestCase
                 ->component('JobAlerts/Matches')
                 ->where('canRunMatches', false));
     }
+
+    public function test_admin_force_rematch_removes_stale_ai_match_excluded_by_regex_rule(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create([
+            'email_verified_at' => now(),
+            'is_admin' => true,
+        ]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Post Doc Position (f/m/d, No. 320-26)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'include_keywords' => 'mitarbeiter',
+            'exclude_keywords' => "post doc\nintern*",
+            'min_fit_score' => 85,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'fit_score' => 85,
+            'reason' => 'Strong match for research position in Ruhr area.',
+            'evaluation_cache_key' => 'stale-ai-cache-key',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('job-alerts.matches.run'))
+            ->assertRedirect(route('job-alerts.matches'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+        ]);
+    }
 }

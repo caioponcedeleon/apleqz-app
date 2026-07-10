@@ -18,6 +18,7 @@ class MatchNewListingsJob implements ShouldQueue
      */
     public function __construct(
         public array $listingIds,
+        public ?JobAlertsTier $tierFilter = null,
     ) {}
 
     public function handle(JobMatchApplicationOverlapChecker $applicationOverlap): void
@@ -33,16 +34,18 @@ class MatchNewListingsJob implements ShouldQueue
             ->get(['id', 'job_source_id', 'title', 'url']);
 
         foreach ($listings as $listing) {
-            $userIds = UserJobSourceSubscription::query()
+            $userQuery = UserJobSourceSubscription::query()
                 ->where('job_source_id', $listing->job_source_id)
                 ->where('is_active', true)
                 ->whereHas('user', function ($query): void {
-                    $query->whereIn('job_alerts_tier', [
-                        JobAlertsTier::Regex->value,
-                        JobAlertsTier::Ai->value,
-                    ]);
-                })
-                ->pluck('user_id');
+                    $tiers = $this->tierFilter !== null
+                        ? [$this->tierFilter->value]
+                        : [JobAlertsTier::Regex->value, JobAlertsTier::Ai->value];
+
+                    $query->whereIn('job_alerts_tier', $tiers);
+                });
+
+            $userIds = $userQuery->pluck('user_id');
 
             foreach ($userIds as $userId) {
                 if ($applicationOverlap->overlapsExistingApplication((int) $userId, $listing)) {

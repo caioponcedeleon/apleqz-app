@@ -33,4 +33,8 @@ return [
     'digest' => [
         'max_per_email' => (int) env('JOB_MATCH_DIGEST_MAX_PER_EMAIL', 10),
     ],
+
+    'regex' => [
+        'recent_listings_per_source' => (int) env('JOB_MATCH_REGEX_RECENT_LISTINGS', 5),
+    ],
 ];

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\JobExtractionEngine;
+use App\Enums\JobAlertsTier;
 use App\Enums\JobScrapeStatus;
 use App\Jobs\MatchNewListingsJob;
 use App\Models\JobSource;
@@ -120,6 +121,14 @@ class JobScrapeService
 
             if ($counts['new_listing_ids'] !== []) {
                 MatchNewListingsJob::dispatch($counts['new_listing_ids']);
+            }
+
+            $recentListingIds = collect(
+                app(JobMatchListingScopeService::class)->recentListingIdsForSources([$source->id])
+            )->diff($counts['new_listing_ids'])->values()->all();
+
+            if ($recentListingIds !== []) {
+                MatchNewListingsJob::dispatch($recentListingIds, JobAlertsTier::Regex);
             }
         } catch (Throwable $exception) {
             $run->update([
