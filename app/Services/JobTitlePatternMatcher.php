@@ -77,7 +77,21 @@ class JobTitlePatternMatcher
             return $result === 1;
         }
 
+        if (str_contains($pattern, '*')) {
+            return $this->matchesWildcard($title, $pattern);
+        }
+
         return mb_stripos($title, $pattern) !== false;
+    }
+
+    protected function matchesWildcard(string $title, string $pattern): bool
+    {
+        $quoted = preg_quote($pattern, '/');
+        $regex = '/'.str_replace('\*', '.*', $quoted).'/iu';
+
+        $result = @preg_match($regex, $title);
+
+        return $result === 1;
     }
 
     protected function isRegexPattern(string $pattern): bool

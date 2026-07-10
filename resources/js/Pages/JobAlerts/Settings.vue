@@ -1,6 +1,7 @@
 <script setup>
 import InputError from '@/Components/InputError.vue';
 import JobAlertsNav from '@/Components/JobAlertsNav.vue';
+import KeywordChipInput from '@/Components/KeywordChipInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import ToggleSwitch from '@/Components/ToggleSwitch.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -177,6 +178,39 @@ const toggleSingleSourceGroup = (group) => {
 
 const profileTextLength = computed(() => form.profile_text.length);
 
+let keywordSaveTimer = null;
+
+const saveKeywords = () => {
+    if (!props.isRegexTier) {
+        return;
+    }
+
+    form.transform((data) => ({
+        ...data,
+        autosave: true,
+    })).patch(route('job-alerts.settings.update'), {
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            form.transform((data) => {
+                const { autosave, ...rest } = data;
+
+                return rest;
+            });
+        },
+    });
+};
+
+const scheduleKeywordSave = () => {
+    clearTimeout(keywordSaveTimer);
+    keywordSaveTimer = setTimeout(saveKeywords, 500);
+};
+
+const saveKeywordsNow = () => {
+    clearTimeout(keywordSaveTimer);
+    saveKeywords();
+};
+
 const submit = () => {
     form.patch(route('job-alerts.settings.update'));
 };
@@ -257,11 +291,13 @@ const submit = () => {
                                 </p>
                             </div>
 
-                            <textarea
+                            <KeywordChipInput
+                                id="include_keywords"
                                 v-model="form.include_keywords"
-                                rows="5"
-                                class="block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                 :placeholder="t('app.job_alerts.regex_include_placeholder')"
+                                :clear-all-label="t('app.job_alerts.regex_clear_all')"
+                                @change="scheduleKeywordSave"
+                                @blur="saveKeywordsNow"
                             />
                             <InputError :message="form.errors.include_keywords" />
                         </section>
@@ -276,11 +312,13 @@ const submit = () => {
                                 </p>
                             </div>
 
-                            <textarea
+                            <KeywordChipInput
+                                id="exclude_keywords"
                                 v-model="form.exclude_keywords"
-                                rows="5"
-                                class="block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                 :placeholder="t('app.job_alerts.regex_exclude_placeholder')"
+                                :clear-all-label="t('app.job_alerts.regex_clear_all')"
+                                @change="scheduleKeywordSave"
+                                @blur="saveKeywordsNow"
                             />
                             <InputError :message="form.errors.exclude_keywords" />
                         </section>

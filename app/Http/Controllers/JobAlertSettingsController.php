@@ -76,6 +76,10 @@ class JobAlertSettingsController extends Controller
 
         $this->syncSubscriptions($user, $validated['subscribed_source_ids'] ?? []);
 
+        if ($request->boolean('autosave')) {
+            return back();
+        }
+
         return redirect()
             ->route('job-alerts.settings')
             ->with('success', __('app.job_alerts.saved'));

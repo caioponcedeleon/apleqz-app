@@ -68,6 +68,30 @@ class JobAlertSettingsTest extends TestCase
         ]);
     }
 
+    public function test_regex_tier_user_can_autosave_keyword_rules_without_flash(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->from(route('job-alerts.settings'))
+            ->patch(route('job-alerts.settings.update'), [
+                'include_keywords' => "developer\n/data engineer/i",
+                'exclude_keywords' => 'intern',
+                'min_fit_score' => 70,
+                'job_alerts_enabled' => false,
+                'subscribed_source_ids' => [],
+                'autosave' => true,
+            ])
+            ->assertRedirect(route('job-alerts.settings'))
+            ->assertSessionMissing('success');
+
+        $this->assertDatabaseHas('user_job_profiles', [
+            'user_id' => $user->id,
+            'include_keywords' => "developer\n/data engineer/i",
+            'exclude_keywords' => 'intern',
+        ]);
+    }
+
     public function test_regex_tier_user_can_save_keyword_rules(): void
     {
         $user = User::factory()->withJobAlertsRegex()->create(['email_verified_at' => now()]);
