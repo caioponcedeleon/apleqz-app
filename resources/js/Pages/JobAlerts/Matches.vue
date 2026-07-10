@@ -4,6 +4,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 defineProps({
@@ -15,10 +16,26 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    canRunMatches: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const { t } = useI18n();
 const page = usePage();
+const runningMatches = ref(false);
+
+const runMatches = () => {
+    runningMatches.value = true;
+
+    router.post(route('job-alerts.matches.run'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            runningMatches.value = false;
+        },
+    });
+};
 
 const dismissMatch = (matchId) => {
     router.patch(route('job-alerts.matches.dismiss', matchId), {}, {
@@ -51,13 +68,36 @@ const scoreClass = (score) => {
 
         <div class="py-12">
             <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
-                <JobAlertsNav />
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <JobAlertsNav />
+
+                    <div v-if="canRunMatches" class="sm:pt-1">
+                        <SecondaryButton
+                            type="button"
+                            class="w-full justify-center sm:w-auto"
+                            :disabled="runningMatches"
+                            @click="runMatches"
+                        >
+                            {{ runningMatches ? t('app.job_alerts.run_matches_running') : t('app.job_alerts.run_matches') }}
+                        </SecondaryButton>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {{ t('app.job_alerts.run_matches_help') }}
+                        </p>
+                    </div>
+                </div>
 
                 <div
                     v-if="page.props.flash?.success"
                     class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
                 >
                     {{ page.props.flash.success }}
+                </div>
+
+                <div
+                    v-if="page.props.flash?.warning"
+                    class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                    {{ page.props.flash.warning }}
                 </div>
 
                 <div

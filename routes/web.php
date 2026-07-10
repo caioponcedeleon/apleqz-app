@@ -114,6 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/job-alerts/settings', [JobAlertSettingsController::class, 'edit'])->name('job-alerts.settings');
         Route::patch('/job-alerts/settings', [JobAlertSettingsController::class, 'update'])->name('job-alerts.settings.update');
         Route::get('/job-alerts/matches', [JobAlertMatchesController::class, 'index'])->name('job-alerts.matches');
+        Route::post('/job-alerts/matches/run', [JobAlertMatchesController::class, 'runMatches'])->name('job-alerts.matches.run');
         Route::patch('/job-alerts/matches/{jobMatch}/dismiss', [JobAlertMatchesController::class, 'dismiss'])->name('job-alerts.matches.dismiss');
         Route::get('/job-alerts/matches/{jobMatch}/apply', [JobAlertMatchesController::class, 'apply'])->name('job-alerts.matches.apply');
     });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobMatchStatus;
 use App\Models\JobMatch;
+use App\Services\JobMatchRematchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,7 +40,25 @@ class JobAlertMatchesController extends Controller
             'matches' => $matches,
             'canCreateApplication' => $request->user()->areas()->exists()
                 && $request->user()->applicationWaves()->exists(),
+            'canRunMatches' => (bool) $request->user()->is_admin,
         ]);
+    }
+
+    public function runMatches(Request $request, JobMatchRematchService $rematch): RedirectResponse
+    {
+        abort_unless($request->user()?->is_admin, 403);
+
+        $dispatched = $rematch->dispatchForUser($request->user());
+
+        if ($dispatched === 0) {
+            return redirect()
+                ->route('job-alerts.matches')
+                ->with('warning', __('app.job_alerts.run_matches_none'));
+        }
+
+        return redirect()
+            ->route('job-alerts.matches')
+            ->with('success', __('app.job_alerts.run_matches_dispatched', ['count' => $dispatched]));
     }
 
     public function dismiss(Request $request, JobMatch $jobMatch): RedirectResponse

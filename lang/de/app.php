@@ -637,6 +637,11 @@ return [
         'view_job' => 'Stelle ansehen',
         'dismiss' => 'Ausblenden',
         'match_dismissed' => 'Treffer ausgeblendet.',
+        'run_matches' => 'Treffer aktualisieren',
+        'run_matches_running' => 'Wird ausgeführt…',
+        'run_matches_help' => 'Nur für Admins. Bewertet alle abonnierten Stellen mit Ihren aktuellen Regeln neu.',
+        'run_matches_dispatched' => ':count Stellenbewertung(en) in die Warteschlange gestellt. Seite ggf. kurz neu laden.',
+        'run_matches_none' => 'Nichts zu bewerten. Prüfen Sie Regeln, abonnierte Quellen und vorhandene Stellen.',
         'track_application' => 'Bewerbung erfassen',
         'tiers' => [
             'none' => 'Keine',
