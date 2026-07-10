@@ -22,6 +22,7 @@ class User extends Authenticatable implements FilamentUser, HasLocalePreference
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'password',
         'is_admin',
         'application_files_enabled',

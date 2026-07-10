@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAiUsageController;
+use App\Http\Controllers\Admin\AdminTranslationController;
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdministrationController;
 use App\Http\Controllers\Admin\JobSourceConfiguratorController;
 use App\Http\Controllers\Admin\JobSourceController;
@@ -122,6 +124,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/ai-usage/match-preview', [AdminAiUsageController::class, 'matchPreview'])->name('ai-usage.match-preview');
         Route::get('/ai-usage/match-status', [AdminAiUsageController::class, 'matchStatus'])->name('ai-usage.match-status');
         Route::post('/ai-usage/run-matches', [AdminAiUsageController::class, 'runMatches'])->name('ai-usage.run-matches');
+
+        Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+        Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('/translations', [AdminTranslationController::class, 'index'])->name('translations.index');
+        Route::get('/translations/create', [AdminTranslationController::class, 'create'])->name('translations.create');
+        Route::post('/translations', [AdminTranslationController::class, 'store'])->name('translations.store');
+        Route::get('/translations/{translationLine}/edit', [AdminTranslationController::class, 'edit'])->name('translations.edit');
+        Route::put('/translations/{translationLine}', [AdminTranslationController::class, 'update'])->name('translations.update');
+        Route::delete('/translations/{translationLine}', [AdminTranslationController::class, 'destroy'])->name('translations.destroy');
     });
 
     Route::middleware(['admin'])->prefix('job-sources')->name('job-sources.')->group(function () {

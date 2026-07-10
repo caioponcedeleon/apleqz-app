@@ -24,6 +24,30 @@ const { t } = useI18n();
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <Link
+                        :href="route('administration.users.index')"
+                        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600"
+                    >
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.administration.users_card_title') }}
+                        </h3>
+                        <p class="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                            {{ t('app.administration.users_card_help') }}
+                        </p>
+                    </Link>
+
+                    <Link
+                        :href="route('administration.translations.index')"
+                        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600"
+                    >
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ t('app.administration.translations_card_title') }}
+                        </h3>
+                        <p class="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                            {{ t('app.administration.translations_card_help') }}
+                        </p>
+                    </Link>
+
+                    <Link
                         :href="route('job-sources.index')"
                         class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600"
                     >
@@ -47,15 +71,6 @@ const { t } = useI18n();
                         </p>
                     </Link>
                 </div>
-
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    <a
-                        href="/admin"
-                        class="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                    >
-                        {{ t('app.administration.filament_link') }}
-                    </a>
-                </p>
             </div>
         </div>
     </AuthenticatedLayout>
