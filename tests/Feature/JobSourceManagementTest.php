@@ -236,4 +236,154 @@ class JobSourceManagementTest extends TestCase
             ->assertJsonPath('listings_found', 2)
             ->assertJsonPath('listings_new', 2);
     }
+
+    public function test_admin_can_export_job_sources_as_json_download(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'name' => 'Export Me',
+            'url' => 'https://example.com/careers/export-me',
+            'company_name' => 'Acme GmbH',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('job-sources.export'));
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition');
+
+        $payload = json_decode($response->streamedContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(1, $payload['schema_version']);
+        $this->assertCount(1, $payload['sources']);
+        $this->assertSame('Export Me', $payload['sources'][0]['name']);
+        $this->assertSame('https://example.com/careers/export-me', $payload['sources'][0]['url']);
+        $this->assertSame('Acme GmbH', $payload['sources'][0]['company_name']);
+        $this->assertIsArray($payload['sources'][0]['extraction_config']);
+    }
+
+    public function test_non_admin_cannot_export_job_sources(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+
+        $this->actingAs($user)
+            ->get(route('job-sources.export'))
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_import_job_sources_from_export_file(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $payload = [
+            'schema_version' => 1,
+            'exported_at' => now()->toIso8601String(),
+            'sources' => [
+                [
+                    'name' => 'Imported Source',
+                    'url' => 'https://example.com/careers/imported',
+                    'company_name' => 'Imported Co',
+                    'is_active' => true,
+                    'extraction_config' => JobSource::factory()->make()->extraction_config,
+                    'config_version' => 2,
+                ],
+            ],
+        ];
+
+        $path = tempnam(sys_get_temp_dir(), 'job-sources-import-');
+        file_put_contents($path, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        $this->actingAs($admin)
+            ->post(route('job-sources.import'), [
+                'file' => new \Illuminate\Http\UploadedFile(
+                    $path,
+                    'job-sources.json',
+                    'application/json',
+                    null,
+                    true,
+                ),
+            ])
+            ->assertRedirect(route('job-sources.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('job_sources', [
+            'name' => 'Imported Source',
+            'url' => 'https://example.com/careers/imported',
+            'company_name' => 'Imported Co',
+            'is_active' => true,
+            'config_version' => 2,
+        ]);
+    }
+
+    public function test_import_updates_existing_source_when_url_matches(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $source = JobSource::factory()->create([
+            'name' => 'Old Name',
+            'url' => 'https://example.com/careers/shared',
+            'company_name' => 'Old Co',
+            'is_active' => false,
+            'config_version' => 1,
+        ]);
+
+        $payload = [
+            'schema_version' => 1,
+            'exported_at' => now()->toIso8601String(),
+            'sources' => [
+                [
+                    'name' => 'New Name',
+                    'url' => 'https://example.com/careers/shared',
+                    'company_name' => 'New Co',
+                    'is_active' => true,
+                    'extraction_config' => $source->extraction_config,
+                    'config_version' => 4,
+                ],
+            ],
+        ];
+
+        $path = tempnam(sys_get_temp_dir(), 'job-sources-import-');
+        file_put_contents($path, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        $this->actingAs($admin)
+            ->post(route('job-sources.import'), [
+                'file' => new \Illuminate\Http\UploadedFile(
+                    $path,
+                    'job-sources.json',
+                    'application/json',
+                    null,
+                    true,
+                ),
+            ])
+            ->assertRedirect(route('job-sources.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('job_sources', [
+            'id' => $source->id,
+            'name' => 'New Name',
+            'company_name' => 'New Co',
+            'is_active' => true,
+            'config_version' => 4,
+            'last_scraped_at' => null,
+        ]);
+    }
+
+    public function test_import_rejects_invalid_json_file(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $path = tempnam(sys_get_temp_dir(), 'job-sources-import-');
+        file_put_contents($path, '{not-json');
+
+        $this->actingAs($admin)
+            ->post(route('job-sources.import'), [
+                'file' => new \Illuminate\Http\UploadedFile(
+                    $path,
+                    'job-sources.json',
+                    'application/json',
+                    null,
+                    true,
+                ),
+            ])
+            ->assertSessionHasErrors('file');
+    }
 }

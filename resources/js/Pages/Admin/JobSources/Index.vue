@@ -31,6 +31,32 @@ const bulkScrape = ref({
     startedAt: null,
 });
 
+const importing = ref(false);
+const importInput = ref(null);
+
+const triggerImport = () => {
+    importInput.value?.click();
+};
+
+const onImportFile = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    importing.value = true;
+
+    router.post(route('job-sources.import'), { file }, {
+        forceFormData: true,
+        preserveScroll: true,
+        onFinish: () => {
+            importing.value = false;
+            event.target.value = '';
+        },
+    });
+};
+
 const activeSources = computed(() => props.jobSources.filter((source) => source.is_active));
 
 const companyGroups = computed(() => {
@@ -136,7 +162,7 @@ const bulkProgressPercent = computed(() => {
     return Math.min(100, Math.round((bulkScrape.value.completed / bulkScrape.value.total) * 100));
 });
 
-const bulkInProgress = computed(() => bulkScrape.value.active);
+const bulkInProgress = computed(() => bulkScrape.value.active || importing.value);
 
 const estimatedSecondsRemaining = computed(() => {
     const { completed, total, startedAt, active } = bulkScrape.value;
@@ -348,10 +374,29 @@ const setActive = (source, isActive) => {
                 <div class="flex flex-wrap items-center gap-3">
                     <SecondaryButton
                         type="button"
+                        :disabled="bulkInProgress"
+                        @click="triggerImport"
+                    >
+                        {{ importing ? t('app.job_sources.importing') : t('app.job_sources.import') }}
+                    </SecondaryButton>
+                    <input
+                        ref="importInput"
+                        type="file"
+                        accept="application/json,.json"
+                        class="hidden"
+                        @change="onImportFile"
+                    />
+                    <a :href="route('job-sources.export')">
+                        <SecondaryButton type="button" :disabled="bulkInProgress || jobSources.length === 0">
+                            {{ t('app.job_sources.export') }}
+                        </SecondaryButton>
+                    </a>
+                    <SecondaryButton
+                        type="button"
                         :disabled="bulkInProgress || activeSources.length === 0"
                         @click="scrapeAllNow"
                     >
-                        {{ bulkInProgress ? t('app.job_sources.scraping') : t('app.job_sources.scrape_all_now') }}
+                        {{ bulkInProgress && bulkScrape.active ? t('app.job_sources.scraping') : t('app.job_sources.scrape_all_now') }}
                     </SecondaryButton>
                     <Link :href="route('job-sources.create')">
                         <PrimaryButton type="button">{{ t('app.job_sources.add') }}</PrimaryButton>
@@ -362,8 +407,12 @@ const setActive = (source, isActive) => {
 
         <div class="py-12">
             <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('app.job_sources.import_help') }}
+                </p>
+
                 <div
-                    v-if="bulkInProgress"
+                    v-if="bulkScrape.active"
                     class="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30"
                     role="status"
                     aria-live="polite"

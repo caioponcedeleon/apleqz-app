@@ -147,6 +147,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [JobSourceController::class, 'index'])->name('index');
         Route::get('/create', [JobSourceController::class, 'create'])->name('create');
         Route::post('/', [JobSourceController::class, 'store'])->name('store');
+        Route::get('/export', [JobSourceController::class, 'export'])->name('export');
+        Route::post('/import', [JobSourceController::class, 'import'])->name('import');
         Route::post('/preview', [JobSourceConfiguratorController::class, 'preview'])->name('preview');
         Route::post('/test-extraction', [JobSourceConfiguratorController::class, 'testExtraction'])->name('test-extraction');
         Route::get('/{jobSource}/configure', [JobSourceConfiguratorController::class, 'edit'])->name('configure');

@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\JobScrapeStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\JobSourceImportRequest;
 use App\Http\Requests\JobSourceRequest;
 use App\Models\JobSource;
 use App\Services\JobScrapeService;
 use App\Services\JobSourceConfigRevisionService;
+use App\Services\JobSourceExportImportService;
 use App\Support\JobExtractionConfigValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use JsonException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class JobSourceController extends Controller
 {
@@ -130,6 +134,70 @@ class JobSourceController extends Controller
         return redirect()
             ->route('job-sources.index')
             ->with('success', __('app.job_sources.flash.deleted'));
+    }
+
+    public function export(): StreamedResponse
+    {
+        $this->authorize('viewAny', JobSource::class);
+
+        $payload = app(JobSourceExportImportService::class)->export();
+        $filename = 'job-sources-'.now()->format('Y-m-d').'.json';
+
+        return response()->streamDownload(
+            static function () use ($payload): void {
+                echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            },
+            $filename,
+            ['Content-Type' => 'application/json; charset=UTF-8'],
+        );
+    }
+
+    public function import(JobSourceImportRequest $request): RedirectResponse
+    {
+        $this->authorize('create', JobSource::class);
+
+        $contents = (string) file_get_contents($request->file('file')->getRealPath());
+
+        try {
+            $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'file' => __('app.job_sources.import_invalid_json'),
+            ]);
+        }
+
+        if (! is_array($payload)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'file' => __('app.job_sources.import_invalid_payload'),
+            ]);
+        }
+
+        $result = app(JobSourceExportImportService::class)->import($payload);
+
+        if ($result['created'] === 0 && $result['updated'] === 0 && $result['errors'] !== []) {
+            return redirect()
+                ->route('job-sources.index')
+                ->with('error', __('app.job_sources.flash.import_failed', [
+                    'errors' => implode(' ', $result['errors']),
+                ]));
+        }
+
+        $message = __('app.job_sources.flash.import_success', [
+            'created' => $result['created'],
+            'updated' => $result['updated'],
+        ]);
+
+        if ($result['errors'] !== []) {
+            return redirect()
+                ->route('job-sources.index')
+                ->with('warning', $message.' '.__('app.job_sources.flash.import_partial_errors', [
+                    'errors' => implode(' ', $result['errors']),
+                ]));
+        }
+
+        return redirect()
+            ->route('job-sources.index')
+            ->with('success', $message);
     }
 
     public function scrape(Request $request, JobSource $jobSource, JobScrapeService $scraper): RedirectResponse|JsonResponse
