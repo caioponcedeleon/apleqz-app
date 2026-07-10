@@ -658,8 +658,12 @@ return [
         'match_dismissed' => 'Match dismissed.',
         'run_matches' => 'Run matches',
         'run_matches_running' => 'Running…',
-        'run_matches_help' => 'Admin only. Re-scores all subscribed listings using your current rules.',
+        'run_matches_loading' => 'Updating your matches…',
+        'run_matches_loading_help' => 'Applying title exclusions and re-scoring subscribed listings. This can take a minute.',
+        'run_matches_help' => 'Admin only. Applies title exclusions first, then re-scores subscribed listings with your current rules.',
         'run_matches_dispatched' => 'Re-evaluated :count listing(s) with your current rules.',
+        'run_matches_dispatched_with_removals' => 'Removed :removed excluded match(es) and re-evaluated :count listing(s).',
+        'run_matches_removed_only' => 'Removed :removed excluded match(es).',
         'run_matches_none' => 'Nothing to evaluate. Check your rules, subscribed sources, and that listings exist.',
         'track_application' => 'Track application',
         'tiers' => [

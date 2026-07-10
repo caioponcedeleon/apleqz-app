@@ -20,28 +20,33 @@ class JobMatchRematchService
         protected JobListingDetailEnrichmentService $detailEnrichment,
     ) {}
 
-    public function dispatchForUser(User $user, bool $force = false, ?int $recentPerSource = null): int
+    /**
+     * @return array{evaluated: int, removed: int}
+     */
+    public function dispatchForUser(User $user, bool $force = false, ?int $recentPerSource = null): array
     {
         $tier = $user->jobAlertsTier();
 
         if ($tier === JobAlertsTier::None) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => 0];
         }
 
         /** @var UserJobProfile|null $profile */
         $profile = $user->jobProfile;
 
         if (! $profile) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => 0];
         }
 
         if ($tier === JobAlertsTier::Ai && trim((string) $profile->profile_text) === '') {
-            return 0;
+            return ['evaluated' => 0, 'removed' => 0];
         }
 
         if ($tier === JobAlertsTier::Regex && ! $this->patternMatcher->hasRules($profile->include_keywords, $profile->exclude_keywords)) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => 0];
         }
+
+        $removed = $this->removeExcludedMatches($user, $profile);
 
         $sourceIds = UserJobSourceSubscription::query()
             ->where('user_id', $user->id)
@@ -72,7 +77,7 @@ class JobMatchRematchService
         }
 
         if ($listingIds->isEmpty()) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => $removed];
         }
 
         $listings = JobListing::query()
@@ -80,7 +85,7 @@ class JobMatchRematchService
             ->get(['id', 'job_source_id', 'content_hash', 'title', 'url']);
 
         if ($listings->isEmpty()) {
-            return 0;
+            return ['evaluated' => 0, 'removed' => $removed];
         }
 
         $existingMatches = JobMatch::query()
@@ -95,6 +100,10 @@ class JobMatchRematchService
                 continue;
             }
 
+            if ($this->shouldSkipExcludedTitle($tier, $profile, $listing, $user->id)) {
+                continue;
+            }
+
             if (! $force) {
                 $cacheKey = $this->evaluationCacheKey($tier, $profile, $listing);
                 $existing = $existingMatches->get($listing->id);
@@ -106,21 +115,74 @@ class JobMatchRematchService
 
             $job = new EvaluateJobMatchJob($user->id, $listing->id, $force);
 
-            if ($tier === JobAlertsTier::Regex) {
-                $job->handle(
-                    $this->evaluator,
-                    $this->patternMatcher,
-                    $this->detailEnrichment,
-                    $this->applicationOverlap,
-                );
-            } else {
-                EvaluateJobMatchJob::dispatch($user->id, $listing->id, $force);
-            }
+            $job->handle(
+                $this->evaluator,
+                $this->patternMatcher,
+                $this->detailEnrichment,
+                $this->applicationOverlap,
+            );
 
             $evaluated++;
         }
 
-        return $evaluated;
+        return ['evaluated' => $evaluated, 'removed' => $removed];
+    }
+
+    public function removeExcludedMatches(User $user, UserJobProfile $profile): int
+    {
+        if (! $this->patternMatcher->hasExcludeRules($profile->exclude_keywords)) {
+            return 0;
+        }
+
+        $removed = 0;
+
+        $matches = JobMatch::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', [JobMatchStatus::PendingNotify, JobMatchStatus::Notified])
+            ->with('jobListing:id,title')
+            ->get();
+
+        foreach ($matches as $match) {
+            $title = (string) ($match->jobListing?->title ?? '');
+
+            if ($title === '') {
+                continue;
+            }
+
+            if ($this->patternMatcher->evaluateTitleExcludes($title, $profile->exclude_keywords) === null) {
+                continue;
+            }
+
+            $match->delete();
+            $removed++;
+        }
+
+        return $removed;
+    }
+
+    protected function shouldSkipExcludedTitle(
+        JobAlertsTier $tier,
+        UserJobProfile $profile,
+        JobListing $listing,
+        int $userId,
+    ): bool {
+        if ($tier !== JobAlertsTier::Ai) {
+            return false;
+        }
+
+        if ($this->patternMatcher->evaluateTitleExcludes(
+            (string) $listing->title,
+            $profile->exclude_keywords,
+        ) === null) {
+            return false;
+        }
+
+        JobMatch::query()
+            ->where('user_id', $userId)
+            ->where('job_listing_id', $listing->id)
+            ->delete();
+
+        return true;
     }
 
     protected function evaluationCacheKey(JobAlertsTier $tier, UserJobProfile $profile, JobListing $listing): string

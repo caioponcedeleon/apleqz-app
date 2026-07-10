@@ -32,7 +32,9 @@ const localMatches = ref([...props.matches]);
 watch(
     () => props.matches,
     (matches) => {
-        localMatches.value = [...matches];
+        if (!runningMatches.value) {
+            localMatches.value = [...matches];
+        }
     },
 );
 
@@ -82,11 +84,13 @@ const handleSeeNext = () => {
 
 const runMatches = () => {
     runningMatches.value = true;
+    localMatches.value = [];
 
     router.post(route('job-alerts.matches.run'), {}, {
         preserveScroll: true,
         onFinish: () => {
             runningMatches.value = false;
+            localMatches.value = [...props.matches];
         },
     });
 };
@@ -155,7 +159,41 @@ const scoreClass = (score) => {
                 </div>
 
                 <div
-                    v-if="!localMatches.length"
+                    v-if="runningMatches"
+                    class="rounded-xl border border-indigo-200 bg-white p-12 text-center shadow-sm dark:border-indigo-900/50 dark:bg-gray-800"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <svg
+                        class="mx-auto size-8 animate-spin text-indigo-600 dark:text-indigo-400"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        />
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                    </svg>
+                    <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">
+                        {{ t('app.job_alerts.run_matches_loading') }}
+                    </p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('app.job_alerts.run_matches_loading_help') }}
+                    </p>
+                </div>
+
+                <div
+                    v-else-if="!localMatches.length"
                     class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 >
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">

@@ -52,9 +52,11 @@ class JobAlertMatchesController extends Controller
     {
         abort_unless($request->user()?->is_admin, 403);
 
-        $dispatched = $rematch->dispatchForUser($request->user(), force: true);
+        set_time_limit(300);
 
-        if ($dispatched === 0) {
+        $result = $rematch->dispatchForUser($request->user(), force: true);
+
+        if ($result['evaluated'] === 0 && $result['removed'] === 0) {
             return redirect()
                 ->route('job-alerts.matches')
                 ->with('warning', __('app.job_alerts.run_matches_none'));
@@ -62,7 +64,30 @@ class JobAlertMatchesController extends Controller
 
         return redirect()
             ->route('job-alerts.matches')
-            ->with('success', __('app.job_alerts.run_matches_dispatched', ['count' => $dispatched]));
+            ->with('success', $this->runMatchesSuccessMessage($result));
+    }
+
+    /**
+     * @param  array{evaluated: int, removed: int}  $result
+     */
+    protected function runMatchesSuccessMessage(array $result): string
+    {
+        if ($result['removed'] > 0 && $result['evaluated'] === 0) {
+            return __('app.job_alerts.run_matches_removed_only', [
+                'removed' => $result['removed'],
+            ]);
+        }
+
+        if ($result['removed'] > 0) {
+            return __('app.job_alerts.run_matches_dispatched_with_removals', [
+                'removed' => $result['removed'],
+                'count' => $result['evaluated'],
+            ]);
+        }
+
+        return __('app.job_alerts.run_matches_dispatched', [
+            'count' => $result['evaluated'],
+        ]);
     }
 
     public function preview(

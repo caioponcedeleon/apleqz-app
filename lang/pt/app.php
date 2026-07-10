@@ -658,8 +658,12 @@ return [
         'match_dismissed' => 'Correspondência dispensada.',
         'run_matches' => 'Executar correspondências',
         'run_matches_running' => 'Executando…',
+        'run_matches_loading' => 'Atualizando suas correspondências…',
+        'run_matches_loading_help' => 'Aplicando exclusões de título e reavaliando vagas inscritas. Isso pode levar um minuto.',
         'run_matches_help' => 'Somente admin. Reavalia todas as vagas inscritas com suas regras atuais.',
         'run_matches_dispatched' => ':count vaga(s) reavaliada(s) com suas regras atuais.',
+        'run_matches_dispatched_with_removals' => 'Removida(s) :removed correspondência(s) excluída(s) e reavaliada(s) :count vaga(s).',
+        'run_matches_removed_only' => 'Removida(s) :removed correspondência(s) excluída(s).',
         'run_matches_none' => 'Nada para avaliar. Verifique regras, fontes inscritas e se há vagas cadastradas.',
         'track_application' => 'Registrar candidatura',
         'tiers' => [

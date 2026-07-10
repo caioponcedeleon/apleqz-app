@@ -658,8 +658,12 @@ return [
         'match_dismissed' => 'Treffer ausgeblendet.',
         'run_matches' => 'Treffer aktualisieren',
         'run_matches_running' => 'Wird ausgeführt…',
+        'run_matches_loading' => 'Treffer werden aktualisiert…',
+        'run_matches_loading_help' => 'Titelausschlüsse werden angewendet und abonnierte Stellen neu bewertet. Das kann eine Minute dauern.',
         'run_matches_help' => 'Nur für Admins. Bewertet alle abonnierten Stellen mit Ihren aktuellen Regeln neu.',
         'run_matches_dispatched' => ':count Stelle(n) mit Ihren aktuellen Regeln neu bewertet.',
+        'run_matches_dispatched_with_removals' => ':removed ausgeschlossene Treffer entfernt und :count Stelle(n) neu bewertet.',
+        'run_matches_removed_only' => ':removed ausgeschlossene Treffer entfernt.',
         'run_matches_none' => 'Nichts zu bewerten. Prüfen Sie Regeln, abonnierte Quellen und vorhandene Stellen.',
         'track_application' => 'Bewerbung erfassen',
         'tiers' => [

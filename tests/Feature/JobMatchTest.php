@@ -19,6 +19,7 @@ use App\Models\UserJobSourceSubscription;
 use App\Services\JobListingDetailEnrichmentService;
 use App\Services\JobMatchApplicationOverlapChecker;
 use App\Services\JobMatchEvaluator;
+use App\Services\JobMatchRematchService;
 use App\Services\JobTitlePatternMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -671,6 +672,144 @@ class JobMatchTest extends TestCase
         $this->assertDatabaseMissing('job_matches', [
             'user_id' => $user->id,
             'job_listing_id' => $listing->id,
+        ]);
+    }
+
+    public function test_admin_force_rematch_removes_stale_ai_match_excluded_by_title_rule(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        Http::fake();
+
+        $user = User::factory()->withJobAlertsAi()->create([
+            'email_verified_at' => now(),
+            'is_admin' => true,
+        ]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $phdListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'PhD Position (w/m/d, No. 319-26)',
+        ]);
+        $doktorandListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Doktorand:in (w/m/d, Nr. 300-26)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Political scientist and developer in Germany',
+            'exclude_keywords' => "PhD Position\nDoktorand*",
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $phdListing->id,
+            'fit_score' => 95,
+            'reason' => 'Strong match for PhD research role.',
+            'evaluation_cache_key' => 'stale-phd-cache-key',
+        ]);
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $doktorandListing->id,
+            'fit_score' => 92,
+            'reason' => 'Strong match for researcher role.',
+            'evaluation_cache_key' => 'stale-doktorand-cache-key',
+        ]);
+
+        $removed = app(JobMatchRematchService::class)->removeExcludedMatches($user, $user->jobProfile);
+
+        $this->assertSame(2, $removed);
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $phdListing->id,
+        ]);
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $doktorandListing->id,
+        ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_force_rematch_removes_stale_ai_match_excluded_by_title_rule_via_run_button(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+        ]);
+
+        $this->fakeMistralResponse(95, 'Strong PhD fit.');
+
+        $user = User::factory()->withJobAlertsAi()->create([
+            'email_verified_at' => now(),
+            'is_admin' => true,
+        ]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $phdListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'PhD Position (w/m/d, No. 319-26)',
+        ]);
+        $doktorandListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Doktorand:in (w/m/d, Nr. 300-26)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'Political scientist and developer in Germany',
+            'exclude_keywords' => "PhD Position\nDoktorand*",
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $phdListing->id,
+            'fit_score' => 95,
+            'reason' => 'Strong match for PhD research role.',
+            'evaluation_cache_key' => 'stale-phd-cache-key',
+        ]);
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $doktorandListing->id,
+            'fit_score' => 92,
+            'reason' => 'Strong match for researcher role.',
+            'evaluation_cache_key' => 'stale-doktorand-cache-key',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('job-alerts.matches.run'))
+            ->assertRedirect(route('job-alerts.matches'))
+            ->assertSessionHas('success');
+
+        Http::assertNothingSent();
+
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $phdListing->id,
+        ]);
+        $this->assertDatabaseMissing('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $doktorandListing->id,
         ]);
     }
 
