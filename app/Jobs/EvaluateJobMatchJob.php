@@ -60,6 +60,11 @@ class EvaluateJobMatchJob implements ShouldQueue
             ->where('job_listing_id', $listing->id)
             ->first();
 
+        // Once skipped (dismissed) or applied, never revive the listing as a new match.
+        if ($existing && in_array($existing->status, [JobMatchStatus::Dismissed, JobMatchStatus::Applied], true)) {
+            return;
+        }
+
         $result = match ($user->jobAlertsTier()) {
             JobAlertsTier::Regex => $this->evaluateRegexMatch($profile, $listing, $patternMatcher),
             JobAlertsTier::Ai => $this->evaluateAiMatch($profile, $listing, $evaluator, $patternMatcher, $detailEnrichment, $existing),
@@ -183,14 +188,18 @@ class EvaluateJobMatchJob implements ShouldQueue
         $fetchMinScore = is_array($detailConfig)
             ? (int) ($detailConfig['fetch_min_score'] ?? config('job_match.detail_fetch_min_score', 60))
             : (int) config('job_match.detail_fetch_min_score', 60);
-        $needsDetail = $detailConfig !== null
+        $canEnrich = $detailConfig !== null
             && $listing->detail_enriched_at === null
-            && $result['fit_score'] >= $fetchMinScore;
+            && is_string($listing->url)
+            && trim($listing->url) !== '';
+        $needsDetail = $canEnrich && $result['fit_score'] >= $fetchMinScore;
 
         if ($needsDetail) {
             EnrichJobListingDetailJob::dispatch($listing->id);
 
-            if ($result['fit_score'] >= $profile->min_fit_score) {
+            // Defer saving only for async scrape flow. Force rematch must still
+            // surface good matches immediately; enrichment can refine them later.
+            if (! $this->forceReevaluate && $result['fit_score'] >= $profile->min_fit_score) {
                 return null;
             }
         }

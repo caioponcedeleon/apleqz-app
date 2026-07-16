@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Enums\JobAlertsTier;
+use App\Enums\JobMatchStatus;
 use App\Models\JobListing;
+use App\Models\JobMatch;
 use App\Models\UserJobSourceSubscription;
 use App\Services\JobMatchApplicationOverlapChecker;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -47,8 +49,26 @@ class MatchNewListingsJob implements ShouldQueue
 
             $userIds = $userQuery->pluck('user_id');
 
+            if ($userIds->isEmpty()) {
+                continue;
+            }
+
+            $settledUserIds = JobMatch::query()
+                ->where('job_listing_id', $listing->id)
+                ->whereIn('user_id', $userIds)
+                ->whereIn('status', [JobMatchStatus::Dismissed, JobMatchStatus::Applied])
+                ->pluck('user_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
             foreach ($userIds as $userId) {
-                if ($applicationOverlap->overlapsExistingApplication((int) $userId, $listing)) {
+                $userId = (int) $userId;
+
+                if (in_array($userId, $settledUserIds, true)) {
+                    continue;
+                }
+
+                if ($applicationOverlap->overlapsExistingApplication($userId, $listing)) {
                     continue;
                 }
 

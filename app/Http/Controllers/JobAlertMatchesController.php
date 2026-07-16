@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\JobAlertsTier;
 use App\Enums\JobMatchStatus;
 use App\Models\JobMatch;
 use App\Services\JobListingDetailEnrichmentService;
@@ -18,8 +19,9 @@ class JobAlertMatchesController extends Controller
 {
     public function index(Request $request): Response
     {
+        $user = $request->user();
         $matches = JobMatch::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $user->id)
             ->whereIn('status', [JobMatchStatus::PendingNotify, JobMatchStatus::Notified])
             ->with(['jobListing:id,title,url,company,location'])
             ->orderByDesc('fit_score')
@@ -42,19 +44,20 @@ class JobAlertMatchesController extends Controller
 
         return Inertia::render('JobAlerts/Matches', [
             'matches' => $matches,
-            'canCreateApplication' => $request->user()->areas()->exists()
-                && $request->user()->applicationWaves()->exists(),
-            'canRunMatches' => (bool) $request->user()->is_admin,
+            'canCreateApplication' => $user->areas()->exists()
+                && $user->applicationWaves()->exists(),
+            'canRunMatches' => $this->userCanRunMatches($user),
         ]);
     }
 
     public function runMatches(Request $request, JobMatchRematchService $rematch): RedirectResponse
     {
-        abort_unless($request->user()?->is_admin, 403);
+        $user = $request->user();
+        abort_unless($this->userCanRunMatches($user), 403);
 
         set_time_limit(300);
 
-        $result = $rematch->dispatchForUser($request->user(), force: true);
+        $result = $rematch->dispatchForUser($user, force: true);
 
         if ($result['evaluated'] === 0 && $result['removed'] === 0) {
             return redirect()
@@ -65,6 +68,11 @@ class JobAlertMatchesController extends Controller
         return redirect()
             ->route('job-alerts.matches')
             ->with('success', $this->runMatchesSuccessMessage($result));
+    }
+
+    protected function userCanRunMatches(\App\Models\User $user): bool
+    {
+        return $user->is_admin || $user->jobAlertsTier() === JobAlertsTier::Regex;
     }
 
     /**

@@ -67,14 +67,21 @@ class JobMatchRematchService
                 ->pluck('id');
         }
 
+        $settledListingIds = JobMatch::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', [JobMatchStatus::Dismissed, JobMatchStatus::Applied])
+            ->pluck('job_listing_id');
+
         if ($force) {
             $existingMatchListingIds = JobMatch::query()
                 ->where('user_id', $user->id)
-                ->whereNot('status', JobMatchStatus::Dismissed)
+                ->whereNotIn('status', [JobMatchStatus::Dismissed, JobMatchStatus::Applied])
                 ->pluck('job_listing_id');
 
             $listingIds = $listingIds->merge($existingMatchListingIds)->unique()->values();
         }
+
+        $listingIds = $listingIds->diff($settledListingIds)->values();
 
         if ($listingIds->isEmpty()) {
             return ['evaluated' => 0, 'removed' => $removed];
@@ -90,7 +97,7 @@ class JobMatchRematchService
 
         $existingMatches = JobMatch::query()
             ->where('user_id', $user->id)
-            ->get(['job_listing_id', 'evaluation_cache_key'])
+            ->get(['job_listing_id', 'evaluation_cache_key', 'status'])
             ->keyBy('job_listing_id');
 
         $evaluated = 0;
@@ -100,13 +107,18 @@ class JobMatchRematchService
                 continue;
             }
 
+            $existing = $existingMatches->get($listing->id);
+
+            if ($existing && in_array($existing->status, [JobMatchStatus::Dismissed, JobMatchStatus::Applied], true)) {
+                continue;
+            }
+
             if ($this->shouldSkipExcludedTitle($tier, $profile, $listing, $user->id)) {
                 continue;
             }
 
             if (! $force) {
                 $cacheKey = $this->evaluationCacheKey($tier, $profile, $listing);
-                $existing = $existingMatches->get($listing->id);
 
                 if ($existing && $existing->evaluation_cache_key === $cacheKey) {
                     continue;

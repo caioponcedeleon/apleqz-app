@@ -522,9 +522,47 @@ class JobMatchTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_non_admin_cannot_run_matches(): void
+    public function test_regex_user_can_run_matches(): void
     {
         $user = User::factory()->withJobAlertsRegex()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $matchingListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Research Assistant (f/m/d)',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'include_keywords' => 'assistant',
+            'exclude_keywords' => '',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('job-alerts.matches.run'))
+            ->assertRedirect(route('job-alerts.matches'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $matchingListing->id,
+            'fit_score' => 100,
+        ]);
+    }
+
+    public function test_non_admin_ai_user_cannot_run_matches(): void
+    {
+        $user = User::factory()->withJobAlertsAi()->create([
             'email_verified_at' => now(),
             'is_admin' => false,
         ]);
@@ -532,6 +570,94 @@ class JobMatchTest extends TestCase
         $this->actingAs($user)
             ->post(route('job-alerts.matches.run'))
             ->assertForbidden();
+    }
+
+    public function test_force_rematch_does_not_revive_dismissed_matches(): void
+    {
+        $user = User::factory()->withJobAlertsRegex()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $dismissedListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Research Assistant',
+        ]);
+        $newListing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'title' => 'Lab Assistant',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'include_keywords' => 'assistant',
+            'exclude_keywords' => '',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        JobMatch::factory()->create([
+            'user_id' => $user->id,
+            'job_listing_id' => $dismissedListing->id,
+            'fit_score' => 100,
+            'status' => JobMatchStatus::Dismissed,
+            'evaluation_cache_key' => 'old-key',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('job-alerts.matches.run'))
+            ->assertRedirect(route('job-alerts.matches'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $dismissedListing->id,
+            'status' => JobMatchStatus::Dismissed->value,
+        ]);
+
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $newListing->id,
+            'fit_score' => 100,
+            'status' => JobMatchStatus::PendingNotify->value,
+        ]);
+    }
+
+    public function test_match_new_listings_skips_dismissed_users(): void
+    {
+        Queue::fake();
+
+        $source = JobSource::factory()->create(['is_active' => true]);
+        $listing = JobListing::factory()->create(['job_source_id' => $source->id]);
+        $activeUser = User::factory()->withJobAlertsRegex()->create();
+        $dismissedUser = User::factory()->withJobAlertsRegex()->create();
+
+        foreach ([$activeUser, $dismissedUser] as $user) {
+            UserJobSourceSubscription::query()->create([
+                'user_id' => $user->id,
+                'job_source_id' => $source->id,
+                'is_active' => true,
+            ]);
+        }
+
+        JobMatch::factory()->create([
+            'user_id' => $dismissedUser->id,
+            'job_listing_id' => $listing->id,
+            'status' => JobMatchStatus::Dismissed,
+        ]);
+
+        (new MatchNewListingsJob([$listing->id]))->handle(app(JobMatchApplicationOverlapChecker::class));
+
+        Queue::assertPushed(EvaluateJobMatchJob::class, 1);
+        Queue::assertPushed(EvaluateJobMatchJob::class, function (EvaluateJobMatchJob $job) use ($activeUser, $listing): bool {
+            return $job->userId === $activeUser->id && $job->listingId === $listing->id;
+        });
     }
 
     public function test_admin_can_run_regex_matches_for_subscribed_listings(): void
@@ -604,13 +730,17 @@ class JobMatchTest extends TestCase
             ->assertSessionHas('warning');
     }
 
-    public function test_matches_page_shows_run_button_for_admin_only(): void
+    public function test_matches_page_shows_run_button_for_regex_users_and_admins(): void
     {
-        $admin = User::factory()->withJobAlertsRegex()->create([
+        $admin = User::factory()->withJobAlertsAi()->create([
             'email_verified_at' => now(),
             'is_admin' => true,
         ]);
-        $user = User::factory()->withJobAlertsRegex()->create([
+        $regexUser = User::factory()->withJobAlertsRegex()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+        $aiUser = User::factory()->withJobAlertsAi()->create([
             'email_verified_at' => now(),
             'is_admin' => false,
         ]);
@@ -622,12 +752,81 @@ class JobMatchTest extends TestCase
                 ->component('JobAlerts/Matches')
                 ->where('canRunMatches', true));
 
-        $this->actingAs($user)
+        $this->actingAs($regexUser)
+            ->get(route('job-alerts.matches'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('JobAlerts/Matches')
+                ->where('canRunMatches', true));
+
+        $this->actingAs($aiUser)
             ->get(route('job-alerts.matches'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('JobAlerts/Matches')
                 ->where('canRunMatches', false));
+    }
+
+    public function test_force_ai_rematch_saves_match_while_detail_enrichment_pending(): void
+    {
+        Queue::fake();
+
+        config([
+            'job_match.driver' => 'mistral_cloud',
+            'job_match.mistral.api_key' => 'test-key',
+            'job_match.detail_fetch_min_score' => 60,
+        ]);
+
+        $this->fakeMistralResponse(82, 'Promising title match.');
+
+        $user = User::factory()->withJobAlertsAi()->create([
+            'email_verified_at' => now(),
+            'is_admin' => true,
+        ]);
+        $source = JobSource::factory()->create([
+            'is_active' => true,
+            'extraction_config' => array_merge(JobSource::defaultExtractionConfig(), [
+                'detail' => array_merge(JobSource::defaultDetailConfig(), [
+                    'enabled' => true,
+                    'fields' => [
+                        'description' => [
+                            'selector' => 'div.body',
+                            'scope' => 'document',
+                            'extract' => 'text',
+                        ],
+                    ],
+                ]),
+            ]),
+        ]);
+        $listing = JobListing::factory()->create([
+            'job_source_id' => $source->id,
+            'description' => null,
+            'detail_enriched_at' => null,
+            'url' => 'https://example.com/jobs/1',
+        ]);
+
+        UserJobProfile::query()->create([
+            'user_id' => $user->id,
+            'profile_text' => 'PHP developer',
+            'min_fit_score' => 70,
+            'job_alerts_enabled' => true,
+        ]);
+
+        UserJobSourceSubscription::query()->create([
+            'user_id' => $user->id,
+            'job_source_id' => $source->id,
+            'is_active' => true,
+        ]);
+
+        $result = app(JobMatchRematchService::class)->dispatchForUser($user, force: true);
+
+        $this->assertSame(1, $result['evaluated']);
+        Queue::assertPushed(EnrichJobListingDetailJob::class);
+        $this->assertDatabaseHas('job_matches', [
+            'user_id' => $user->id,
+            'job_listing_id' => $listing->id,
+            'fit_score' => 82,
+        ]);
     }
 
     public function test_admin_force_rematch_removes_stale_ai_match_excluded_by_regex_rule(): void
