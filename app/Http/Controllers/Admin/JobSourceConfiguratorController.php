@@ -147,12 +147,21 @@ class JobSourceConfiguratorController extends Controller
             'interactions' => ['nullable', 'array'],
         ]);
 
-        $result = $preview->prepare($validated['url'], [
-            'engine' => $validated['engine'] ?? JobExtractionEngine::Http->value,
-            'interactions' => is_array($validated['interactions'] ?? null)
-                ? $validated['interactions']
-                : [],
-        ]);
+        try {
+            $result = $preview->prepare($validated['url'], [
+                'engine' => $validated['engine'] ?? JobExtractionEngine::Http->value,
+                'interactions' => is_array($validated['interactions'] ?? null)
+                    ? $validated['interactions']
+                    : [],
+            ]);
+        } catch (\RuntimeException $exception) {
+            report($exception);
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
         $displayHtml = $result['html'];
         $cachedHtml = preg_replace(
             '/<script\b[^>]*job-source-picker\.js[^>]*><\/script>/i',
