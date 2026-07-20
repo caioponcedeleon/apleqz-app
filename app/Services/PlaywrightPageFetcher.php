@@ -38,8 +38,8 @@ class PlaywrightPageFetcher
             'timeout_ms' => $timeoutMs,
         ], JSON_THROW_ON_ERROR);
 
-        $processEnv = $this->environmentForNodeProcess($scriptPath);
-        $command = [$nodeBinary, $scriptPath];
+        $nodeEnv = $this->environmentForNodeProcess($scriptPath);
+        [$command, $processEnv] = $this->processInvocation($nodeBinary, $scriptPath, $nodeEnv);
 
         $process = new Process($command, base_path(), $processEnv);
         $process->setInput($payload);
@@ -99,7 +99,6 @@ class PlaywrightPageFetcher
         $home = config('job_scraping.playwright.home');
         $browsersPath = config('job_scraping.playwright.browsers_path');
         $path = config('job_scraping.playwright.path');
-        $nodeOptions = config('job_scraping.playwright.node_options');
 
         if ($this->requiresPlaywrightRuntime($scriptPath)) {
             if (! is_string($home) || $home === '' || ! is_string($browsersPath) || $browsersPath === '') {
@@ -121,14 +120,33 @@ class PlaywrightPageFetcher
             $env['PLAYWRIGHT_BROWSERS_PATH'] = $browsersPath;
         }
 
-        if (is_string($nodeOptions) && $nodeOptions !== '') {
-            $env['NODE_OPTIONS'] = $nodeOptions;
-        }
-
         $env['LANG'] = 'C.UTF-8';
         $env['LC_ALL'] = 'C.UTF-8';
 
         return $env;
+    }
+
+    /**
+     * @param  array<string, string>  $nodeEnv
+     * @return array{0: list<string>, 1: array<string, string>|null}
+     */
+    protected function processInvocation(string $nodeBinary, string $scriptPath, array $nodeEnv): array
+    {
+        if (PHP_OS_FAMILY !== 'Windows' && is_executable('/usr/bin/env')) {
+            $command = ['env', '-i'];
+
+            foreach ($nodeEnv as $key => $value) {
+                $command[] = $key.'='.$value;
+            }
+
+            $command[] = $nodeBinary;
+            $command[] = $scriptPath;
+
+            // Empty array: do not pass PHP-FPM / nginx variables even to /usr/bin/env.
+            return [$command, []];
+        }
+
+        return [[$nodeBinary, $scriptPath], $nodeEnv];
     }
 
     protected function requiresPlaywrightRuntime(string $scriptPath): bool
