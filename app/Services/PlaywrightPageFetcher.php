@@ -27,6 +27,7 @@ class PlaywrightPageFetcher
         $maxBytes = (int) config('job_scraping.max_bytes', 2_097_152);
         $nodeBinary = (string) config('job_scraping.playwright.node_binary', 'node');
         $scriptPath = (string) config('job_scraping.playwright.script_path');
+        $wrapperPath = base_path('scripts/run-playwright-scrape.sh');
 
         if ($scriptPath === '' || ! is_file($scriptPath)) {
             throw new RuntimeException('Playwright scrape script was not found.');
@@ -38,10 +39,15 @@ class PlaywrightPageFetcher
             'timeout_ms' => $timeoutMs,
         ], JSON_THROW_ON_ERROR);
 
-        $process = new Process(
-            $this->commandForNodeScript($nodeBinary, $scriptPath),
-            base_path(),
-        );
+        if (is_file($wrapperPath) && is_executable($wrapperPath)) {
+            $command = [$wrapperPath];
+            $processEnv = $this->wrapperEnvironment($nodeBinary, $scriptPath);
+        } else {
+            $command = $this->commandForNodeScript($nodeBinary, $scriptPath);
+            $processEnv = null;
+        }
+
+        $process = new Process($command, base_path(), $processEnv);
         $process->setInput($payload);
         $process->setTimeout(max(1, (int) ceil($timeoutMs / 1000) + 30));
 
@@ -86,6 +92,40 @@ class PlaywrightPageFetcher
         }
 
         return $html;
+    }
+
+    /**
+     * Only these vars are passed to the wrapper shell (never the HTTP request environment).
+     *
+     * @return array<string, string>
+     */
+    protected function wrapperEnvironment(string $nodeBinary, string $scriptPath): array
+    {
+        $home = config('job_scraping.playwright.home');
+        $browsersPath = config('job_scraping.playwright.browsers_path');
+        $path = config('job_scraping.playwright.path') ?: '/usr/local/bin:/usr/bin:/bin';
+
+        if (! is_string($home) || $home === '' || ! is_string($browsersPath) || $browsersPath === '') {
+            throw new RuntimeException(
+                'Playwright is not configured for this server. Set JOB_SCRAPE_HOME and PLAYWRIGHT_BROWSERS_PATH in .env.',
+            );
+        }
+
+        $env = [
+            'JOB_SCRAPE_NODE_BINARY' => $nodeBinary,
+            'JOB_SCRAPE_PLAYWRIGHT_SCRIPT' => $scriptPath,
+            'JOB_SCRAPE_HOME' => $home,
+            'PLAYWRIGHT_BROWSERS_PATH' => $browsersPath,
+            'JOB_SCRAPE_PATH' => $path,
+        ];
+
+        $nodeOptions = config('job_scraping.playwright.node_options');
+
+        if (is_string($nodeOptions) && $nodeOptions !== '') {
+            $env['NODE_OPTIONS'] = $nodeOptions;
+        }
+
+        return $env;
     }
 
     /**
