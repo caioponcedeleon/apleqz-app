@@ -27,7 +27,6 @@ class PlaywrightPageFetcher
         $maxBytes = (int) config('job_scraping.max_bytes', 2_097_152);
         $nodeBinary = (string) config('job_scraping.playwright.node_binary', 'node');
         $scriptPath = (string) config('job_scraping.playwright.script_path');
-        $wrapperPath = base_path('scripts/run-playwright-scrape.sh');
 
         if ($scriptPath === '' || ! is_file($scriptPath)) {
             throw new RuntimeException('Playwright scrape script was not found.');
@@ -39,13 +38,8 @@ class PlaywrightPageFetcher
             'timeout_ms' => $timeoutMs,
         ], JSON_THROW_ON_ERROR);
 
-        if (is_file($wrapperPath) && is_executable($wrapperPath)) {
-            $command = [$wrapperPath];
-            $processEnv = $this->wrapperEnvironment($nodeBinary, $scriptPath);
-        } else {
-            $command = $this->commandForNodeScript($nodeBinary, $scriptPath);
-            $processEnv = null;
-        }
+        $processEnv = $this->environmentForNodeProcess($scriptPath);
+        $command = [$nodeBinary, $scriptPath];
 
         $process = new Process($command, base_path(), $processEnv);
         $process->setInput($payload);
@@ -95,84 +89,50 @@ class PlaywrightPageFetcher
     }
 
     /**
-     * Only these vars are passed to the wrapper shell (never the HTTP request environment).
+     * PHP-FPM workers inherit a huge environment; proc_open must receive only this list
+     * (never null — that would pass the full request environment to Node).
      *
      * @return array<string, string>
      */
-    protected function wrapperEnvironment(string $nodeBinary, string $scriptPath): array
+    protected function environmentForNodeProcess(string $scriptPath): array
     {
         $home = config('job_scraping.playwright.home');
         $browsersPath = config('job_scraping.playwright.browsers_path');
-        $path = config('job_scraping.playwright.path') ?: '/usr/local/bin:/usr/bin:/bin';
+        $path = config('job_scraping.playwright.path');
+        $nodeOptions = config('job_scraping.playwright.node_options');
 
-        if (! is_string($home) || $home === '' || ! is_string($browsersPath) || $browsersPath === '') {
-            throw new RuntimeException(
-                'Playwright is not configured for this server. Set JOB_SCRAPE_HOME and PLAYWRIGHT_BROWSERS_PATH in .env.',
-            );
+        if ($this->requiresPlaywrightRuntime($scriptPath)) {
+            if (! is_string($home) || $home === '' || ! is_string($browsersPath) || $browsersPath === '') {
+                throw new RuntimeException(
+                    'Playwright is not configured for this server. Set JOB_SCRAPE_HOME and PLAYWRIGHT_BROWSERS_PATH in .env.',
+                );
+            }
         }
 
         $env = [
-            'JOB_SCRAPE_NODE_BINARY' => $nodeBinary,
-            'JOB_SCRAPE_PLAYWRIGHT_SCRIPT' => $scriptPath,
-            'JOB_SCRAPE_HOME' => $home,
-            'PLAYWRIGHT_BROWSERS_PATH' => $browsersPath,
-            'JOB_SCRAPE_PATH' => $path,
+            'PATH' => is_string($path) && $path !== '' ? $path : '/usr/local/bin:/usr/bin:/bin',
         ];
 
-        $nodeOptions = config('job_scraping.playwright.node_options');
+        if (is_string($home) && $home !== '') {
+            $env['HOME'] = $home;
+        }
+
+        if (is_string($browsersPath) && $browsersPath !== '') {
+            $env['PLAYWRIGHT_BROWSERS_PATH'] = $browsersPath;
+        }
 
         if (is_string($nodeOptions) && $nodeOptions !== '') {
             $env['NODE_OPTIONS'] = $nodeOptions;
         }
 
+        $env['LANG'] = 'C.UTF-8';
+        $env['LC_ALL'] = 'C.UTF-8';
+
         return $env;
     }
 
-    /**
-     * @return list<string>
-     */
-    protected function commandForNodeScript(string $nodeBinary, string $scriptPath): array
+    protected function requiresPlaywrightRuntime(string $scriptPath): bool
     {
-        if (PHP_OS_FAMILY !== 'Windows' && is_executable('/usr/bin/env')) {
-            $command = ['env', '-i'];
-
-            foreach ($this->environmentForNodeProcess() as $key => $value) {
-                $command[] = $key.'='.$value;
-            }
-
-            $command[] = $nodeBinary;
-            $command[] = $scriptPath;
-
-            return $command;
-        }
-
-        return [$nodeBinary, $scriptPath];
-    }
-
-    /**
-     * PHP-FPM workers can carry a huge environment; match the minimal CLI that works.
-     *
-     * @return array<string, string>
-     */
-    protected function environmentForNodeProcess(): array
-    {
-        $env = array_filter([
-            'HOME' => config('job_scraping.playwright.home'),
-            'PLAYWRIGHT_BROWSERS_PATH' => config('job_scraping.playwright.browsers_path'),
-            'NODE_OPTIONS' => config('job_scraping.playwright.node_options'),
-            'PATH' => config('job_scraping.playwright.path'),
-        ], fn ($value) => is_string($value) && $value !== '');
-
-        $env['PATH'] ??= '/usr/local/bin:/usr/bin:/bin';
-
-        foreach (['LANG', 'LC_ALL', 'LC_CTYPE', 'TZ'] as $key) {
-            $value = getenv($key);
-
-            if (is_string($value) && $value !== '') {
-                $env[$key] = $value;
-            }
-        }
-
-        return $env;
+        return str_ends_with($scriptPath, 'scrape-page.mjs');
     }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Minimal environment for Playwright (PHP-FPM must not pass request variables to Node).
+# Optional manual CLI helper (PHP invokes Node directly with a minimal env).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
