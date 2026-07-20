@@ -90,37 +90,30 @@ class PlaywrightPageFetcher
     }
 
     /**
-     * PHP-FPM pools often use clear_env; Node/Playwright need HOME, PATH, and browser cache path.
+     * PHP-FPM pools often use clear_env. Never pass $_SERVER into Node (huge env → OOM).
      *
-     * @return array<string, string>|null
+     * @return array<string, string>
      */
-    protected function environmentForNodeProcess(): ?array
+    protected function environmentForNodeProcess(): array
     {
-        $configured = array_filter([
+        $env = array_filter([
             'HOME' => config('job_scraping.playwright.home'),
             'PLAYWRIGHT_BROWSERS_PATH' => config('job_scraping.playwright.browsers_path'),
             'NODE_OPTIONS' => config('job_scraping.playwright.node_options'),
             'PATH' => config('job_scraping.playwright.path'),
         ], fn ($value) => is_string($value) && $value !== '');
 
-        if ($configured === []) {
-            return null;
+        $env['PATH'] ??= '/usr/local/bin:/usr/bin:/bin';
+        $env['NODE_OPTIONS'] ??= '--max-old-space-size=768';
+
+        foreach (['LANG', 'LC_ALL', 'LC_CTYPE', 'TZ'] as $key) {
+            $value = getenv($key);
+
+            if (is_string($value) && $value !== '') {
+                $env[$key] = $value;
+            }
         }
 
-        $inherited = [];
-
-        foreach (array_merge($_ENV, $_SERVER) as $key => $value) {
-            if (! is_string($key) || ! is_string($value)) {
-                continue;
-            }
-
-            if (str_starts_with($key, 'HTTP_')) {
-                continue;
-            }
-
-            $inherited[$key] = $value;
-        }
-
-        return array_merge($inherited, $configured);
+        return $env;
     }
 }

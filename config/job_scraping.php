@@ -11,7 +11,7 @@ return [
         // PHP-FPM often runs with a stripped PATH/HOME; set these in production.
         'home' => env('JOB_SCRAPE_HOME'),
         'browsers_path' => env('PLAYWRIGHT_BROWSERS_PATH'),
-        'path' => env('JOB_SCRAPE_PATH'),
+        'path' => env('JOB_SCRAPE_PATH', '/usr/local/bin:/usr/bin:/bin'),
         'node_options' => env('JOB_SCRAPE_NODE_OPTIONS', '--max-old-space-size=768'),
     ],
 ];
