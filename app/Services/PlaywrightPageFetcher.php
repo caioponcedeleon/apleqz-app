@@ -38,7 +38,11 @@ class PlaywrightPageFetcher
             'timeout_ms' => $timeoutMs,
         ], JSON_THROW_ON_ERROR);
 
-        $process = new Process([$nodeBinary, $scriptPath]);
+        $process = new Process(
+            [$nodeBinary, $scriptPath],
+            base_path(),
+            $this->environmentForNodeProcess(),
+        );
         $process->setInput($payload);
         $process->setTimeout(max(1, (int) ceil($timeoutMs / 1000) + 30));
 
@@ -83,5 +87,40 @@ class PlaywrightPageFetcher
         }
 
         return $html;
+    }
+
+    /**
+     * PHP-FPM pools often use clear_env; Node/Playwright need HOME, PATH, and browser cache path.
+     *
+     * @return array<string, string>|null
+     */
+    protected function environmentForNodeProcess(): ?array
+    {
+        $configured = array_filter([
+            'HOME' => config('job_scraping.playwright.home'),
+            'PLAYWRIGHT_BROWSERS_PATH' => config('job_scraping.playwright.browsers_path'),
+            'NODE_OPTIONS' => config('job_scraping.playwright.node_options'),
+            'PATH' => config('job_scraping.playwright.path'),
+        ], fn ($value) => is_string($value) && $value !== '');
+
+        if ($configured === []) {
+            return null;
+        }
+
+        $inherited = [];
+
+        foreach (array_merge($_ENV, $_SERVER) as $key => $value) {
+            if (! is_string($key) || ! is_string($value)) {
+                continue;
+            }
+
+            if (str_starts_with($key, 'HTTP_')) {
+                continue;
+            }
+
+            $inherited[$key] = $value;
+        }
+
+        return array_merge($inherited, $configured);
     }
 }

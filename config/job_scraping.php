@@ -8,5 +8,10 @@ return [
         'node_binary' => env('JOB_SCRAPE_NODE_BINARY', 'node'),
         'script_path' => env('JOB_SCRAPE_PLAYWRIGHT_SCRIPT', base_path('scripts/scrape-page.mjs')),
         'timeout_ms' => (int) env('JOB_SCRAPE_PLAYWRIGHT_TIMEOUT', 60_000),
+        // PHP-FPM often runs with a stripped PATH/HOME; set these in production.
+        'home' => env('JOB_SCRAPE_HOME'),
+        'browsers_path' => env('PLAYWRIGHT_BROWSERS_PATH'),
+        'path' => env('JOB_SCRAPE_PATH'),
+        'node_options' => env('JOB_SCRAPE_NODE_OPTIONS', '--max-old-space-size=768'),
     ],
 ];

@@ -137,7 +137,10 @@ async function main() {
     let browser;
 
     try {
-        browser = await chromium.launch({ headless: true });
+        browser = await chromium.launch({
+            headless: true,
+            args: ['--disable-dev-shm-usage', '--no-sandbox', '--disable-gpu'],
+        });
         const page = await browser.newPage();
         page.setDefaultTimeout(timeoutMs);
 
