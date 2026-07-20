@@ -39,9 +39,8 @@ class PlaywrightPageFetcher
         ], JSON_THROW_ON_ERROR);
 
         $process = new Process(
-            [$nodeBinary, $scriptPath],
+            $this->commandForNodeScript($nodeBinary, $scriptPath),
             base_path(),
-            $this->environmentForNodeProcess(),
         );
         $process->setInput($payload);
         $process->setTimeout(max(1, (int) ceil($timeoutMs / 1000) + 30));
@@ -90,7 +89,28 @@ class PlaywrightPageFetcher
     }
 
     /**
-     * PHP-FPM pools often use clear_env. Never pass $_SERVER into Node (huge env → OOM).
+     * @return list<string>
+     */
+    protected function commandForNodeScript(string $nodeBinary, string $scriptPath): array
+    {
+        if (PHP_OS_FAMILY !== 'Windows' && is_executable('/usr/bin/env')) {
+            $command = ['env', '-i'];
+
+            foreach ($this->environmentForNodeProcess() as $key => $value) {
+                $command[] = $key.'='.$value;
+            }
+
+            $command[] = $nodeBinary;
+            $command[] = $scriptPath;
+
+            return $command;
+        }
+
+        return [$nodeBinary, $scriptPath];
+    }
+
+    /**
+     * PHP-FPM workers can carry a huge environment; match the minimal CLI that works.
      *
      * @return array<string, string>
      */
@@ -104,7 +124,6 @@ class PlaywrightPageFetcher
         ], fn ($value) => is_string($value) && $value !== '');
 
         $env['PATH'] ??= '/usr/local/bin:/usr/bin:/bin';
-        $env['NODE_OPTIONS'] ??= '--max-old-space-size=768';
 
         foreach (['LANG', 'LC_ALL', 'LC_CTYPE', 'TZ'] as $key) {
             $value = getenv($key);
